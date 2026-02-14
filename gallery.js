@@ -4,7 +4,7 @@
   // ── Config Resolution ──
   // Priority: 1) window.GALLERY_CONFIG (static), 2) ?id= param → API fetch
 
-  var WORKER_URL = "https://lot43-gallery.workers.dev"; // Update after deploying your Cloudflare Worker
+  var WORKER_URL = "https://lot43-gallery.dustintchambers.workers.dev";
 
   var config = window.GALLERY_CONFIG || null;
 
