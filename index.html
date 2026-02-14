@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Beltline App | Lot 43 Studio</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="page.css">
+  <link rel="stylesheet" href="gallery.css">
 </head>
 <body>
 
@@ -23,92 +24,14 @@
     <p>January 15, 2026</p>
   </section>
 
-  <div class="gallery" id="gallery">
-    <div class="gallery-item">
-      <img src="images/beltline_app/_MG_0644.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/_MG_6461.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/_MG_7700.jpg" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item featured">
-      <img src="images/beltline_app/_DI_0520.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/6A8A0404.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/6A8A4370.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/6A8A5044.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item featured-wide">
-      <img src="images/beltline_app/DJI_0121.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/DJI_0311.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/DJI_0561.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/IMG_5305.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/OH6A6370.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/OH6A6433.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item featured">
-      <img src="images/beltline_app/OH6A7023.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/OH6A7478.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/OH6A7603.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/OH6A9237.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/R5A_0003.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item featured-wide">
-      <img src="images/beltline_app/R5A_1787.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/R5A_9335.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/R5B_6449.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/R5B_9078.JPG" alt="Beltline App" loading="lazy">
-    </div>
-    <div class="gallery-item">
-      <img src="images/beltline_app/R5B_9868.JPG" alt="Beltline App" loading="lazy">
-    </div>
-  </div>
-
-  <!-- Lightbox -->
-  <div class="lightbox" id="lightbox">
-    <button class="lightbox-close" id="lightbox-close">&times;</button>
-    <button class="lightbox-nav lightbox-prev" id="lightbox-prev">&#8249;</button>
-    <button class="lightbox-nav lightbox-next" id="lightbox-next">&#8250;</button>
-    <img src="" alt="" id="lightbox-img">
-    <p class="lightbox-caption" id="lightbox-caption"></p>
-    <span class="lightbox-counter" id="lightbox-counter"></span>
-  </div>
+  <!-- Gallery: populated by gallery.js from config -->
+  <div class="gallery" id="gallery"></div>
 
   <footer class="footer">
     <p>Proudly located on Lot #43 in Atlanta, Georgia</p>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="galleries/beltline-app.js"></script>
+  <script src="gallery.js"></script>
 </body>
 </html>
