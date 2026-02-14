@@ -827,21 +827,21 @@
     });
   }
 
-  // ── Edit Trigger Button ──
+  // ── Gallery Title ──
 
-  function addEditTrigger() {
+  function renderTitle() {
     var gallery = getGallery();
-    if (!gallery) return;
+    if (!gallery || !config.title) return;
+    // Don't render title if embedded in iframe
+    if (window.self !== window.top) return;
 
-    var btn = document.createElement("button");
-    btn.className = "gallery-edit-trigger";
-    btn.textContent = "Edit Gallery";
-    btn.addEventListener("click", function () {
-      toggleEditor();
-    });
+    var header = document.createElement("div");
+    header.className = "gallery-header";
+    header.innerHTML =
+      '<h1 class="gallery-title">' + config.title + '</h1>' +
+      (config.subtitle ? '<p class="gallery-subtitle">' + config.subtitle + '</p>' : '');
 
-    // Insert after the gallery element
-    gallery.parentNode.insertBefore(btn, gallery.nextSibling);
+    gallery.parentNode.insertBefore(header, gallery);
   }
 
   // ── Iframe Embed ──
@@ -894,7 +894,7 @@
 
     bindFilterButtons();
     bindKeyboard();
-    addEditTrigger();
+    renderTitle();
     setupIframeEmbed();
   }
 
