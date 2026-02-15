@@ -1,7 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap');
 
-/* ── Gallery Background ── */
-body {
+/* ── Reset & Background ── */
+html, body {
+  margin: 0;
+  padding: 0;
   background-color: #ECEAE4;
 }
 
