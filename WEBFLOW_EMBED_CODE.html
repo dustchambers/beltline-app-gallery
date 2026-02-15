@@ -1,0 +1,37 @@
+<!-- Webflow Embed Code for Photo Galleries Template -->
+<!-- Replace the existing embed code with this updated version -->
+
+<div id="gallery-wrapper" style="width:100%;min-height:600px">
+  <iframe
+    id="lot43-gallery"
+    style="width:100%;border:none;min-height:800px"
+    loading="lazy"
+  ></iframe>
+</div>
+
+<script>
+  // Set iframe source based on URL slug
+  var slug = window.location.pathname.split("/").pop();
+  document.getElementById("lot43-gallery").src =
+    "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
+
+  // Listen for iframe messages
+  window.addEventListener("message", function(e) {
+    var iframe = document.getElementById("lot43-gallery");
+
+    // Handle resize messages
+    if (e.data && e.data.type === "resize") {
+      iframe.style.height = e.data.height + "px";
+    }
+
+    // Handle lightbox open - prevent parent page scrolling
+    if (e.data && e.data.type === "lightbox-open") {
+      document.body.style.overflow = "hidden";
+    }
+
+    // Handle lightbox close - restore parent page scrolling
+    if (e.data && e.data.type === "lightbox-close") {
+      document.body.style.overflow = "";
+    }
+  });
+</script>

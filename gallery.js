@@ -277,11 +277,21 @@
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
     lightbox.classList.add("active");
     document.body.style.overflow = "hidden";
+
+    // Notify parent to prevent scrolling (for iframe embeds)
+    if (window.self !== window.top) {
+      window.parent.postMessage({ type: "lightbox-open" }, "*");
+    }
   }
 
   function closeLightbox() {
     lightbox.classList.remove("active");
     document.body.style.overflow = "";
+
+    // Notify parent to restore scrolling (for iframe embeds)
+    if (window.self !== window.top) {
+      window.parent.postMessage({ type: "lightbox-close" }, "*");
+    }
   }
 
   function navigate(direction) {
