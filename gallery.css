@@ -1,5 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap');
 
+/* ── Gallery Background ── */
+body {
+  background-color: #ECEAE4;
+}
+
 /* ── Embed Mode ── */
 body.embedded .navbar,
 body.embedded .hero,
