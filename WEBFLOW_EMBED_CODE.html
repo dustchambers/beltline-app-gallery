@@ -18,7 +18,6 @@
   // Listen for iframe messages
   window.addEventListener("message", function(e) {
     var iframe = document.getElementById("lot43-gallery");
-    var wrapper = document.getElementById("gallery-wrapper");
 
     // Handle resize messages
     if (e.data && e.data.type === "resize") {
@@ -33,11 +32,6 @@
     // Handle lightbox close - restore parent page scrolling
     if (e.data && e.data.type === "lightbox-close") {
       document.body.style.overflow = "";
-    }
-
-    // Handle scroll-to-gallery - scroll the gallery into view smoothly
-    if (e.data && e.data.type === "scroll-to-gallery") {
-      wrapper.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
 </script>
