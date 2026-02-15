@@ -125,6 +125,7 @@ body.embedded .gallery {
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  gap: 1.5rem;
   z-index: 1000;
   opacity: 0;
   pointer-events: none;
@@ -144,7 +145,6 @@ body.embedded .gallery {
 }
 
 .lightbox-caption {
-  margin-top: 1.5rem;
   font-family: 'Inconsolata', monospace;
   font-size: 0.95rem;
   color: rgba(232, 228, 223, 0.5);
