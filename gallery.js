@@ -868,25 +868,6 @@
   // ── Initialize ──
 
   function init() {
-    // Block rendering when embedded on wrong pages (e.g. /cases/)
-    if (window.self !== window.top) {
-      try {
-        var parentPath = window.location !== window.parent.location
-          ? document.referrer
-          : window.parent.location.pathname;
-        if (parentPath && parentPath.indexOf("/photo-galleries") === -1) {
-          console.warn("gallery.js: Blocked — only loads in /photo-galleries/ embeds");
-          return;
-        }
-      } catch (e) {
-        // Cross-origin — check referrer instead
-        if (document.referrer && document.referrer.indexOf("/photo-galleries") === -1) {
-          console.warn("gallery.js: Blocked — only loads in /photo-galleries/ embeds");
-          return;
-        }
-      }
-    }
-
     renderGallery();
     ensureLightbox();
     restoreState();
