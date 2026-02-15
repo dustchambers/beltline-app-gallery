@@ -292,6 +292,10 @@
     // Notify parent to restore scrolling (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
+      // Trigger height recalculation after iframe restores
+      setTimeout(function() {
+        postHeight();
+      }, 50);
     }
   }
 
