@@ -278,9 +278,10 @@
     lightbox.classList.add("active");
     document.body.style.overflow = "hidden";
 
-    // Notify parent to prevent scrolling (for iframe embeds)
+    // Notify parent to prevent scrolling and scroll to top (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-open" }, "*");
+      window.parent.postMessage({ type: "scroll-to-gallery" }, "*");
     }
   }
 
