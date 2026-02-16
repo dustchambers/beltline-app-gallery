@@ -298,20 +298,21 @@
   function closeLightbox() {
     lightbox.classList.remove("active");
     lightboxIsCurrentlyOpen = false;
-    document.body.style.overflow = "";
 
-    // Notify parent to restore scrolling (for iframe embeds)
     if (window.self !== window.top) {
-      window.parent.postMessage({ type: "lightbox-close" }, "*");
-
-      // Clear positioning after fade-out completes (matches 0.4s CSS transition)
+      // Delay scroll restore and cleanup until fade-out finishes (0.4s CSS transition)
+      // Restoring overflow mid-fade causes parent reflow which shifts the image
       setTimeout(function() {
         if (!lightboxIsCurrentlyOpen) {
+          document.body.style.overflow = "";
+          window.parent.postMessage({ type: "lightbox-close" }, "*");
           lightbox.style.top = "";
           lightbox.style.height = "";
           lightbox.style.bottom = "";
         }
       }, 400);
+    } else {
+      document.body.style.overflow = "";
     }
   }
 
