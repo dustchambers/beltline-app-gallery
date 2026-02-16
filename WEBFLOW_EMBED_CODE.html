@@ -16,28 +16,63 @@
   }
   iframe.src = iframeSrc;
 
-  var savedHeight = "";
-  var savedScrollY = 0;
-  var lightboxIsOpen = false;
+  // ── Lightbox (built in parent so position:fixed works) ──
+  var lbImages = [];
+  var lbIndex = 0;
+  var lbEl = null;
+
+  function buildLightbox() {
+    lbEl = document.createElement("div");
+    lbEl.id = "lb-overlay";
+    lbEl.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(26,26,26,0.95);display:flex;align-items:center;justify-content:center;z-index:999999;opacity:0;transition:opacity 0.3s;pointer-events:none";
+    lbEl.innerHTML =
+      '<button id="lb-close" style="position:absolute;top:2rem;right:2.5rem;background:none;border:none;color:#EDEBE0;font-size:2.2rem;cursor:pointer;opacity:0.6;z-index:1001">&times;</button>' +
+      '<button id="lb-prev" style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#EDEBE0;font-size:3rem;cursor:pointer;opacity:0.3;padding:2rem;z-index:1001">&#8249;</button>' +
+      '<button id="lb-next" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#EDEBE0;font-size:3rem;cursor:pointer;opacity:0.3;padding:2rem;z-index:1001">&#8250;</button>' +
+      '<img id="lb-img" style="max-width:75vw;max-height:70vh;object-fit:contain">' +
+      '<p id="lb-caption" style="position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);font-family:Inconsolata,monospace;font-size:0.95rem;color:rgba(232,228,223,0.5);letter-spacing:0.1em;text-transform:uppercase"></p>' +
+      '<span id="lb-counter" style="position:absolute;bottom:2rem;font-family:Inconsolata,monospace;font-size:0.85rem;color:rgba(232,228,223,0.4);letter-spacing:0.15em"></span>';
+    document.body.appendChild(lbEl);
+    document.getElementById("lb-close").onclick = closeLb;
+    document.getElementById("lb-prev").onclick = function() { showLb(lbIndex - 1); };
+    document.getElementById("lb-next").onclick = function() { showLb(lbIndex + 1); };
+    lbEl.onclick = function(ev) { if (ev.target === lbEl) closeLb(); };
+  }
+
+  function showLb(i) {
+    if (!lbEl) buildLightbox();
+    lbIndex = (i + lbImages.length) % lbImages.length;
+    var img = lbImages[lbIndex];
+    document.getElementById("lb-img").src = img.src;
+    document.getElementById("lb-img").alt = img.alt;
+    document.getElementById("lb-caption").textContent = img.alt;
+    document.getElementById("lb-counter").textContent = (lbIndex + 1) + " / " + lbImages.length;
+    lbEl.style.opacity = "1";
+    lbEl.style.pointerEvents = "all";
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeLb() {
+    if (!lbEl) return;
+    lbEl.style.opacity = "0";
+    lbEl.style.pointerEvents = "none";
+    document.body.style.overflow = "";
+  }
+
+  document.addEventListener("keydown", function(ev) {
+    if (!lbEl || lbEl.style.opacity !== "1") return;
+    if (ev.key === "Escape") closeLb();
+    if (ev.key === "ArrowLeft") showLb(lbIndex - 1);
+    if (ev.key === "ArrowRight") showLb(lbIndex + 1);
+  });
 
   window.addEventListener("message", function(e) {
     if (e.data && e.data.type === "resize") {
       iframe.style.height = e.data.height + "px";
     }
-    if (e.data && e.data.type === "lightboxOpen" && !lightboxIsOpen) {
-      lightboxIsOpen = true;
-      savedHeight = iframe.style.height;
-      savedScrollY = window.scrollY;
-      var wrapper = document.getElementById("gallery-wrapper");
-      wrapper.style.height = savedHeight;
-      iframe.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100vh;border:none;display:block;z-index:999999";
-    }
-    if (e.data && e.data.type === "lightboxClose" && lightboxIsOpen) {
-      lightboxIsOpen = false;
-      iframe.style.cssText = "width:100%;border:none;height:" + savedHeight + ";display:block";
-      var wrapper = document.getElementById("gallery-wrapper");
-      wrapper.style.height = "";
-      window.scrollTo(0, savedScrollY);
+    if (e.data && e.data.type === "lightbox") {
+      lbImages = e.data.images;
+      showLb(e.data.index);
     }
   });
 </script>

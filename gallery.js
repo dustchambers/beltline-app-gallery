@@ -276,33 +276,34 @@
     var item = visibleItems[index];
     var img = item.querySelector("img");
 
+    // In iframe: delegate lightbox to parent page (position:fixed works there)
+    if (isIframe) {
+      var images = visibleItems.map(function(el) {
+        var i = el.querySelector("img");
+        return { src: i.src, alt: i.alt || "" };
+      });
+      window.parent.postMessage({
+        type: "lightbox",
+        images: images,
+        index: index
+      }, "*");
+      return;
+    }
+
     lightboxImg.src = img.src;
     lightboxImg.alt = img.alt;
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
     lightboxOpen = true;
-
-    if (isIframe && !lightbox.classList.contains("active")) {
-      // Tell parent to fix iframe over viewport so position:fixed works
-      // Only on first open — not on navigate (next/prev)
-      window.parent.postMessage({ type: "lightboxOpen" }, "*");
-    }
-
     lightbox.classList.add("active");
-    if (!isIframe) document.body.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
   }
 
   function closeLightbox() {
     lightbox.classList.remove("active");
     lightboxOpen = false;
-
-    if (isIframe) {
-      // Tell parent to restore iframe to normal flow
-      window.parent.postMessage({ type: "lightboxClose" }, "*");
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = "";
   }
 
   function navigate(direction) {
@@ -929,7 +930,6 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
-      if (lightboxOpen) return;
       var h = document.documentElement.scrollHeight;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
