@@ -91,7 +91,7 @@
 
   function getGalleryItems() {
     return [].slice.call(
-      document.querySelectorAll(".gallery-item:not(.gallery-add-btn)")
+      document.querySelectorAll(".gallery-item")
     );
   }
 
@@ -388,76 +388,6 @@
     autoSave();
   }
 
-  // ── Delete ──
-
-  function addDeleteButton(item) {
-    if (item.querySelector(".delete-btn")) return;
-    var btn = document.createElement("button");
-    btn.className = "delete-btn";
-    btn.textContent = "\u00d7";
-    btn.title = "Remove image";
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      deleteImage(item);
-    });
-    item.appendChild(btn);
-  }
-
-  function deleteImage(item) {
-    item.style.transform = "scale(0.8)";
-    item.style.opacity = "0";
-
-    setTimeout(function () {
-      item.remove();
-      refreshOrderNumbers();
-      autoSave();
-    }, 250);
-  }
-
-  // ── Add Images ──
-
-  function addAddButton() {
-    if (document.querySelector(".gallery-add-btn")) return;
-    var btn = document.createElement("div");
-    btn.className = "gallery-add-btn";
-    btn.innerHTML = "+ ADD IMAGES";
-    btn.addEventListener("click", function () {
-      document.getElementById("image-file-input").click();
-    });
-    getGallery().appendChild(btn);
-  }
-
-  function handleFileAdd(e) {
-    var files = e.target.files;
-    if (!files.length) return;
-
-    var gallery = getGallery();
-    var addBtn = document.querySelector(".gallery-add-btn");
-
-    Array.from(files).forEach(function (file, i) {
-      var url = URL.createObjectURL(file);
-
-      var item = document.createElement("div");
-      item.className = "gallery-item";
-      item.style.opacity = "1";
-
-      var img = document.createElement("img");
-      img.src = url;
-      img.alt = config.title || "";
-      img.loading = "lazy";
-      img.dataset.imageId = "added_" + Date.now() + "_" + i;
-
-      item.appendChild(img);
-      gallery.insertBefore(item, addBtn);
-      setupEditorItem(item);
-    });
-
-    refreshOrderNumbers();
-    autoSave();
-
-    e.target.value = "";
-  }
-
   // ── Reorder Drag (Live Sliding Preview) ──
 
   function startDrag(item, e) {
@@ -512,16 +442,15 @@
 
     if (closestItem && closestItem !== lastDropTarget) {
       var gallery = getGallery();
-      var addBtn = document.querySelector(".gallery-add-btn");
 
       if (insertBefore) {
         gallery.insertBefore(activeItem, closestItem);
       } else {
         var next = closestItem.nextSibling;
-        if (next && next !== addBtn) {
+        if (next) {
           gallery.insertBefore(activeItem, next);
         } else {
-          gallery.insertBefore(activeItem, addBtn);
+          gallery.appendChild(activeItem);
         }
       }
 
@@ -575,12 +504,10 @@
   function setupEditorItem(item) {
     updateBadge(item);
     addOrderNumber(item);
-    addDeleteButton(item);
     item.style.cursor = "grab";
 
     item._onMouseDown = function (e) {
       if (!editorMode || e.button !== 0) return;
-      if (e.target.classList.contains("delete-btn")) return;
       e.preventDefault();
       activeItem = item;
       dragStartX = e.clientX;
@@ -766,19 +693,6 @@
         setupEditorItem(item);
       });
 
-      addAddButton();
-
-      if (!document.getElementById("image-file-input")) {
-        var input = document.createElement("input");
-        input.type = "file";
-        input.id = "image-file-input";
-        input.multiple = true;
-        input.accept = "image/*";
-        input.style.display = "none";
-        input.addEventListener("change", handleFileAdd);
-        document.body.appendChild(input);
-      }
-
       // Hide the edit trigger button while in editor mode
       var trigger = document.querySelector(".gallery-edit-trigger");
       if (trigger) {
@@ -840,17 +754,12 @@
         if (badge) badge.remove();
         var orderNum = item.querySelector(".order-number");
         if (orderNum) orderNum.remove();
-        var delBtn = item.querySelector(".delete-btn");
-        if (delBtn) delBtn.remove();
         item.style.cursor = "pointer";
         item.style.opacity = "";
         if (item._onMouseDown) {
           item.removeEventListener("mousedown", item._onMouseDown);
         }
       });
-
-      var addBtn = document.querySelector(".gallery-add-btn");
-      if (addBtn) addBtn.remove();
 
       window.removeEventListener("mousemove", window._editorMouseMove);
       window.removeEventListener("mouseup", window._editorMouseUp);
