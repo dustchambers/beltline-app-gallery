@@ -271,11 +271,8 @@
 
   function positionLightbox() {
     if (!isIframe || !lightboxIsCurrentlyOpen) return;
-    var top = Math.max(0, parentViewport.top);
-    lightbox.style.position = "absolute";
-    lightbox.style.top = top + "px";
+    lightbox.style.top = Math.max(0, parentViewport.top) + "px";
     lightbox.style.height = parentViewport.height + "px";
-    lightbox.style.bottom = "auto";
   }
 
   function openLightbox(index) {
@@ -308,17 +305,6 @@
     lightbox.classList.remove("active");
     lightboxIsCurrentlyOpen = false;
 
-    // Reset lightbox positioning after fade-out (0.4s CSS transition)
-    if (isIframe) {
-      setTimeout(function() {
-        if (!lightboxIsCurrentlyOpen) {
-          lightbox.style.position = "";
-          lightbox.style.top = "";
-          lightbox.style.height = "";
-          lightbox.style.bottom = "";
-        }
-      }, 400);
-    }
 
     // Unlock scroll in standalone mode
     if (!isIframe) {
