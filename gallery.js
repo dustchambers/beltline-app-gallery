@@ -868,7 +868,12 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
+      // Temporarily hide lightbox so its absolute position doesn't inflate height
+      var lb = document.querySelector(".lightbox");
+      var prev = lb ? lb.style.display : "";
+      if (lb) lb.style.display = "none";
       var h = document.documentElement.scrollHeight;
+      if (lb) lb.style.display = prev;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
 
