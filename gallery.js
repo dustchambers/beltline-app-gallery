@@ -265,6 +265,8 @@
 
   // ── Lightbox ──
 
+  var lightboxViewportPosition = null;
+
   function openLightbox(index) {
     if (editorMode) return;
     currentIndex = index;
@@ -275,21 +277,27 @@
     lightboxImg.alt = img.alt;
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
+    
+    var wasAlreadyOpen = lightbox.classList.contains("active");
     lightbox.classList.add("active");
     document.body.style.overflow = "hidden";
 
     // For iframe embeds, position lightbox to center in visible viewport
     if (window.self !== window.top) {
-      window.parent.postMessage({ type: "lightbox-open" }, "*");
-      
-      // Calculate where the visible viewport is within the iframe
-      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-      var viewportHeight = window.innerHeight;
-      
-      // Position lightbox container to match visible viewport
-      lightbox.style.top = scrollY + "px";
-      lightbox.style.height = viewportHeight + "px";
-      lightbox.style.bottom = "auto";
+      if (!wasAlreadyOpen) {
+        window.parent.postMessage({ type: "lightbox-open" }, "*");
+        
+        // Calculate and store viewport position only on first open
+        var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+        var viewportHeight = window.innerHeight;
+        lightboxViewportPosition = { top: scrollY, height: viewportHeight };
+        
+        // Position lightbox container to match visible viewport
+        lightbox.style.top = scrollY + "px";
+        lightbox.style.height = viewportHeight + "px";
+        lightbox.style.bottom = "auto";
+      }
+      // If already open (navigating), position is already set
     }
   }
 
@@ -301,10 +309,11 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
       
-      // Reset lightbox positioning
+      // Reset lightbox positioning and stored position
       lightbox.style.top = "";
       lightbox.style.height = "";
       lightbox.style.bottom = "";
+      lightboxViewportPosition = null;
     }
   }
 
