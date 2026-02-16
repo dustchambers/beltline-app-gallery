@@ -266,6 +266,7 @@
   // ── Lightbox ──
 
   var lightboxIsCurrentlyOpen = false;
+  var pendingLightboxOpen = false;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -278,12 +279,14 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
-    // For iframe embeds, position lightbox to center in visible viewport
+    // For iframe embeds, wait for viewport position before showing
     if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
-      // Request viewport position from parent
+      pendingLightboxOpen = true;
       window.parent.postMessage({ type: "get-viewport-position" }, "*");
+      return; // Don't show yet - wait for position message
     }
 
+    // Show immediately for navigation or non-iframe
     lightbox.classList.add("active");
     lightboxIsCurrentlyOpen = true;
     document.body.style.overflow = "hidden";
@@ -890,6 +893,14 @@
         lightbox.style.top = e.data.top + "px";
         lightbox.style.height = e.data.height + "px";
         lightbox.style.bottom = "auto";
+
+        // Now show the lightbox if we were waiting
+        if (pendingLightboxOpen) {
+          pendingLightboxOpen = false;
+          lightbox.classList.add("active");
+          lightboxIsCurrentlyOpen = true;
+          document.body.style.overflow = "hidden";
+        }
       }
     });
   }
