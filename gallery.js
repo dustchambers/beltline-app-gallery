@@ -265,7 +265,7 @@
 
   // ── Lightbox ──
 
-  var lightboxViewportPosition = null;
+  var lightboxIsOpen = false;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -278,26 +278,25 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
     
-    var wasAlreadyOpen = lightbox.classList.contains("active");
     lightbox.classList.add("active");
     document.body.style.overflow = "hidden";
 
     // For iframe embeds, position lightbox to center in visible viewport
     if (window.self !== window.top) {
-      if (!wasAlreadyOpen) {
+      if (!lightboxIsOpen) {
+        // First open - calculate and store viewport position
+        lightboxIsOpen = true;
         window.parent.postMessage({ type: "lightbox-open" }, "*");
         
-        // Calculate and store viewport position only on first open
         var scrollY = window.pageYOffset || document.documentElement.scrollTop;
         var viewportHeight = window.innerHeight;
-        lightboxViewportPosition = { top: scrollY, height: viewportHeight };
         
         // Position lightbox container to match visible viewport
         lightbox.style.top = scrollY + "px";
         lightbox.style.height = viewportHeight + "px";
         lightbox.style.bottom = "auto";
       }
-      // If already open (navigating), position is already set
+      // If already open (navigating), position stays the same
     }
   }
 
@@ -309,11 +308,11 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
       
-      // Reset lightbox positioning and stored position
+      // Reset lightbox positioning and state
       lightbox.style.top = "";
       lightbox.style.height = "";
       lightbox.style.bottom = "";
-      lightboxViewportPosition = null;
+      lightboxIsOpen = false;
     }
   }
 
