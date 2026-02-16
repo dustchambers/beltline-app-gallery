@@ -282,22 +282,29 @@
     // For iframe embeds, position lightbox to center in visible viewport
     // MUST happen BEFORE adding "active" class to avoid transition shift
     if (window.self !== window.top) {
+      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+      var viewportHeight = window.innerHeight;
+
       if (lightboxViewportTop === null) {
-        // First open - calculate viewport position
+        // First open - calculate and store viewport position
         window.parent.postMessage({ type: "lightbox-open" }, "*");
-
-        var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-        var viewportHeight = window.innerHeight;
-
-        // Store position
         lightboxViewportTop = scrollY;
         lightboxViewportHeight = viewportHeight;
-      }
 
-      // Always apply positioning (in case something cleared it)
-      lightbox.style.top = lightboxViewportTop + "px";
-      lightbox.style.height = lightboxViewportHeight + "px";
-      lightbox.style.bottom = "auto";
+        // Apply positioning
+        lightbox.style.top = lightboxViewportTop + "px";
+        lightbox.style.height = lightboxViewportHeight + "px";
+        lightbox.style.bottom = "auto";
+      } else if (scrollY !== lightboxViewportTop || viewportHeight !== lightboxViewportHeight) {
+        // Scroll position changed - update stored values and reposition
+        lightboxViewportTop = scrollY;
+        lightboxViewportHeight = viewportHeight;
+
+        lightbox.style.top = lightboxViewportTop + "px";
+        lightbox.style.height = lightboxViewportHeight + "px";
+        lightbox.style.bottom = "auto";
+      }
+      // Otherwise keep existing position - don't touch styles
     }
 
     lightbox.classList.add("active");
