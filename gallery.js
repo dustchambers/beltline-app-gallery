@@ -279,10 +279,13 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
-    // Tell parent to make iframe fullscreen (only on first open)
+    // Tell parent to activate lightbox overlay (only on first open)
     if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
       resizeSuppressed = true;
-      window.parent.postMessage({ type: "lightbox-open" }, "*");
+      window.parent.postMessage({
+        type: "lightbox-open",
+        iframeScrollY: window.scrollY
+      }, "*");
     }
 
     lightbox.classList.add("active");
@@ -307,7 +310,7 @@
       // Wait for 0.4s CSS fade, then tell parent to restore iframe
       setTimeout(function() {
         if (!lightboxIsCurrentlyOpen) {
-          window.parent.postMessage({ type: "lightbox-close" }, "*");
+          window.parent.postMessage({ type: "lightbox-close", iframeScrollY: window.scrollY }, "*");
           // Keep resize suppressed a bit longer so the iframe resize
           // back to normal doesn't trigger a bad height message
           setTimeout(function() {
@@ -898,6 +901,18 @@
       attributes: true
     });
 
+    // Listen for parent telling us to restore scroll after going position:fixed
+    var savedScrollForRestore = 0;
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "restore-scroll") {
+        savedScrollForRestore = e.data.scrollY;
+        // Restore immediately + after a frame to cover both layout timing paths
+        window.scrollTo(0, savedScrollForRestore);
+        requestAnimationFrame(function() {
+          window.scrollTo(0, savedScrollForRestore);
+        });
+      }
+    });
   }
 
   // ── Initialize ──
