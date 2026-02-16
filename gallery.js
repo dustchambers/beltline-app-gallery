@@ -304,10 +304,14 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
 
-      // Reset inline positioning so next open starts from CSS defaults
-      lightbox.style.top = "";
-      lightbox.style.height = "";
-      lightbox.style.bottom = "";
+      // Clear positioning after fade-out completes (matches 0.4s CSS transition)
+      setTimeout(function() {
+        if (!lightboxIsCurrentlyOpen) {
+          lightbox.style.top = "";
+          lightbox.style.height = "";
+          lightbox.style.bottom = "";
+        }
+      }, 400);
     }
   }
 
