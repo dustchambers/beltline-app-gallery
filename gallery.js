@@ -284,6 +284,7 @@
     if (window.self !== window.top) {
       var scrollY = window.pageYOffset || document.documentElement.scrollTop;
       var viewportHeight = window.innerHeight;
+      var isAlreadyOpen = lightbox.classList.contains("active");
 
       if (lightboxViewportTop === null) {
         // First open - calculate and store viewport position
@@ -295,8 +296,13 @@
         lightbox.style.top = lightboxViewportTop + "px";
         lightbox.style.height = lightboxViewportHeight + "px";
         lightbox.style.bottom = "auto";
+      } else if (isAlreadyOpen) {
+        // Navigation - lightbox already open, just ensure positioning is applied
+        lightbox.style.top = lightboxViewportTop + "px";
+        lightbox.style.height = lightboxViewportHeight + "px";
+        lightbox.style.bottom = "auto";
       } else if (scrollY !== lightboxViewportTop || viewportHeight !== lightboxViewportHeight) {
-        // Scroll position changed - update stored values and reposition
+        // Reopen at different scroll position - update stored values and reposition
         lightboxViewportTop = scrollY;
         lightboxViewportHeight = viewportHeight;
 
@@ -304,7 +310,7 @@
         lightbox.style.height = lightboxViewportHeight + "px";
         lightbox.style.bottom = "auto";
       }
-      // Otherwise keep existing position - don't touch styles
+      // Otherwise reopen at same scroll position - styles already set, don't touch
     }
 
     lightbox.classList.add("active");
