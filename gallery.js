@@ -311,11 +311,9 @@
     // Notify parent to restore scrolling (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
-      
-      // Reset lightbox positioning and stored values
-      lightbox.style.top = "";
-      lightbox.style.height = "";
-      lightbox.style.bottom = "";
+
+      // Clear stored values so next open recalculates position
+      // DON'T clear styles here - let them stay so there's no shift during fade-out
       lightboxViewportTop = null;
       lightboxViewportHeight = null;
     }
