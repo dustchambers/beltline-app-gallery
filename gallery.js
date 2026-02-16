@@ -633,6 +633,55 @@
     console.log(output);
   }
 
+  // ── Publish Layout (to Cloudflare KV) ──
+
+  function getEditSecret() {
+    var params = new URLSearchParams(window.location.search);
+    return params.get("edit") || "";
+  }
+
+  function publishLayout() {
+    var items = getGalleryItems();
+    var layout = items.map(function (item) {
+      var img = item.querySelector("img");
+      var crop = img.style.objectPosition || "";
+      return {
+        id: img.dataset.imageId || "",
+        size: getSize(item),
+        crop: (crop && crop !== "50% 50%") ? crop : null
+      };
+    });
+
+    var secret = getEditSecret();
+    var btn = document.getElementById("editor-publish");
+
+    fetch(WORKER_URL + "/" + encodeURIComponent(config.id), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + secret
+      },
+      body: JSON.stringify(layout)
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function () {
+        if (btn) {
+          btn.textContent = "Published!";
+          setTimeout(function () { btn.textContent = "Publish"; }, 2000);
+        }
+      })
+      .catch(function (err) {
+        console.error("Publish failed:", err);
+        if (btn) {
+          btn.textContent = "Failed!";
+          setTimeout(function () { btn.textContent = "Publish"; }, 2000);
+        }
+      });
+  }
+
   // ── Export Config (JSON) ──
 
   function exportConfig() {
@@ -671,6 +720,8 @@
     editorMode = !editorMode;
 
     if (editorMode) {
+      var hasEditSecret = !!getEditSecret();
+
       editorOverlay = document.createElement("div");
       editorOverlay.id = "edit-overlay";
       editorOverlay.innerHTML =
@@ -678,6 +729,7 @@
         "EDITOR \u2014 Click: size \u00b7 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 " +
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
+        (hasEditSecret ? '<button id="editor-publish">Publish</button>' : '') +
         '<button id="editor-export">Export HTML</button>' +
         '<button id="editor-export-config">Export Config</button>' +
         '<button id="editor-reset">Reset</button>' +
@@ -688,6 +740,11 @@
       document
         .getElementById("editor-done")
         .addEventListener("click", toggleEditor);
+      if (hasEditSecret) {
+        document
+          .getElementById("editor-publish")
+          .addEventListener("click", publishLayout);
+      }
       document
         .getElementById("editor-export")
         .addEventListener("click", exportAll);

@@ -1,3 +1,7 @@
 name = "lot43-gallery"
 main = "index.js"
 compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "GALLERY_KV"
+id = "4e6c92472dc74600bca92ad952e232bb"
