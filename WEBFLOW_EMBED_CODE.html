@@ -10,12 +10,28 @@
 
 <script>
   var slug = window.location.pathname.split("/").pop();
-  document.getElementById("lot43-gallery").src =
+  var iframe = document.getElementById("lot43-gallery");
+  iframe.src =
     "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
+
+  function sendViewport() {
+    try {
+      var rect = iframe.getBoundingClientRect();
+      iframe.contentWindow.postMessage({
+        type: "viewport",
+        top: Math.max(0, -rect.top),
+        height: window.innerHeight
+      }, "*");
+    } catch(e) {}
+  }
+
+  window.addEventListener("scroll", sendViewport, { passive: true });
+  window.addEventListener("resize", sendViewport);
 
   window.addEventListener("message", function(e) {
     if (e.data && e.data.type === "resize") {
-      document.getElementById("lot43-gallery").style.height = e.data.height + "px";
+      iframe.style.height = e.data.height + "px";
+      sendViewport();
     }
   });
 </script>
