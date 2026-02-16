@@ -18,9 +18,8 @@
   // Listen for iframe messages
   window.addEventListener("message", function(e) {
     var iframe = document.getElementById("lot43-gallery");
-    var wrapper = document.getElementById("gallery-wrapper");
 
-    // Handle resize messages
+    // Handle resize messages - update iframe height to match content
     if (e.data && e.data.type === "resize") {
       iframe.style.height = e.data.height + "px";
     }
@@ -33,11 +32,6 @@
     // Handle lightbox close - restore parent page scrolling
     if (e.data && e.data.type === "lightbox-close") {
       document.body.style.overflow = "";
-    }
-
-    // Handle scroll-to-iframe-top - instantly scroll iframe top into view
-    if (e.data && e.data.type === "scroll-to-iframe-top") {
-      wrapper.scrollIntoView({ behavior: "instant", block: "start" });
     }
   });
 </script>

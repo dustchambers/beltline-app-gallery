@@ -278,10 +278,15 @@
     lightbox.classList.add("active");
     document.body.style.overflow = "hidden";
 
-    // Notify parent to prevent scrolling and scroll iframe top into view (for iframe embeds)
+    // Notify parent to prevent scrolling (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-open" }, "*");
-      window.parent.postMessage({ type: "scroll-to-iframe-top" }, "*");
+      
+      // Adjust lightbox position to center relative to browser viewport
+      var rect = document.documentElement.getBoundingClientRect();
+      var offsetTop = -rect.top; // How far iframe is scrolled into view
+      lightbox.style.top = offsetTop + "px";
+      lightbox.style.height = window.parent.innerHeight + "px";
     }
   }
 
@@ -292,6 +297,11 @@
     // Notify parent to restore scrolling (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
+      
+      // Reset lightbox position
+      lightbox.style.top = "";
+      lightbox.style.height = "";
+      
       // Trigger layout recalculation and height update after iframe restores
       setTimeout(function() {
         // Trigger resize event to recalculate responsive grid layout
