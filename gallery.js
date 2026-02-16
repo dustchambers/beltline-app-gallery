@@ -286,7 +286,22 @@
     lightboxOpen = true;
 
     if (isIframe) {
-      // Request fresh viewport coordinates — don't show until they arrive
+      // Position immediately with best available data
+      var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
+      // If viewportTop is 0 but user has scrolled, estimate from thumbnail position
+      var top = viewportTop;
+      if (top === 0 && item.getBoundingClientRect) {
+        var rect = item.getBoundingClientRect();
+        // rect.top is relative to the iframe viewport (always 0,0 at doc top for abs-positioned iframe)
+        // The thumbnail's offsetTop minus half the viewport height centers roughly
+        var thumbCenter = item.offsetTop + item.offsetHeight / 2;
+        top = Math.max(0, thumbCenter - vh / 2);
+      }
+      lightbox.style.top = top + "px";
+      lightbox.style.height = vh + "px";
+      lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
+      lightbox.classList.add("active");
+      // Also request fresh viewport data — listener will reposition if needed
       window.parent.postMessage({ type: "requestViewport" }, "*");
       return;
     }
