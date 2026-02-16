@@ -635,9 +635,9 @@
 
   // ── Publish Layout (to Cloudflare KV) ──
 
-  function getEditSecret() {
+  function hasEditParam() {
     var params = new URLSearchParams(window.location.search);
-    return params.get("edit") || "";
+    return params.has("edit");
   }
 
   function publishLayout() {
@@ -652,14 +652,13 @@
       };
     });
 
-    var secret = getEditSecret();
     var btn = document.getElementById("editor-publish");
 
     fetch(WORKER_URL + "/" + encodeURIComponent(config.id), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + secret
+        "Authorization": "Bearer grantpark"
       },
       body: JSON.stringify(layout)
     })
@@ -720,7 +719,7 @@
     editorMode = !editorMode;
 
     if (editorMode) {
-      var hasEditSecret = !!getEditSecret();
+      var canEdit = hasEditParam();
 
       editorOverlay = document.createElement("div");
       editorOverlay.id = "edit-overlay";
@@ -729,7 +728,7 @@
         "EDITOR \u2014 Click: size \u00b7 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 " +
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
-        (hasEditSecret ? '<button id="editor-publish">Publish</button>' : '') +
+        (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
         '<button id="editor-export">Export HTML</button>' +
         '<button id="editor-export-config">Export Config</button>' +
         '<button id="editor-reset">Reset</button>' +
@@ -740,7 +739,7 @@
       document
         .getElementById("editor-done")
         .addEventListener("click", toggleEditor);
-      if (hasEditSecret) {
+      if (canEdit) {
         document
           .getElementById("editor-publish")
           .addEventListener("click", publishLayout);
@@ -893,8 +892,8 @@
 
   function bindKeyboard() {
     document.addEventListener("keydown", function (e) {
-      // Shift+L toggles editor (only when lightbox is not open)
-      if (e.key === "L" && e.shiftKey && !lightbox.classList.contains("active")) {
+      // Shift+L toggles editor (only when ?edit is in URL and lightbox is not open)
+      if (e.key === "L" && e.shiftKey && hasEditParam() && !lightbox.classList.contains("active")) {
         toggleEditor();
         return;
       }
