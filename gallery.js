@@ -308,12 +308,16 @@
     lightbox.classList.remove("active");
     lightboxIsCurrentlyOpen = false;
 
-    // Reset lightbox positioning for next open
+    // Reset lightbox positioning after fade-out (0.4s CSS transition)
     if (isIframe) {
-      lightbox.style.position = "";
-      lightbox.style.top = "";
-      lightbox.style.height = "";
-      lightbox.style.bottom = "";
+      setTimeout(function() {
+        if (!lightboxIsCurrentlyOpen) {
+          lightbox.style.position = "";
+          lightbox.style.top = "";
+          lightbox.style.height = "";
+          lightbox.style.bottom = "";
+        }
+      }, 400);
     }
 
     // Unlock scroll in standalone mode
