@@ -283,8 +283,9 @@
 
     lightboxOpen = true;
 
-    if (isIframe) {
+    if (isIframe && !lightbox.classList.contains("active")) {
       // Tell parent to fix iframe over viewport so position:fixed works
+      // Only on first open — not on navigate (next/prev)
       window.parent.postMessage({ type: "lightboxOpen" }, "*");
     }
 
