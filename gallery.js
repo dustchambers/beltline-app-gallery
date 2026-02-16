@@ -286,6 +286,7 @@
     lightboxOpen = true;
 
     if (isIframe) {
+      window.parent.postMessage({ type: "requestViewport" }, "*");
       // Use viewport height from parent, but fall back to something reasonable
       var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
       lightbox.style.top = viewportTop + "px";
