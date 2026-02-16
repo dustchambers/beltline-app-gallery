@@ -144,7 +144,7 @@ body.embedded .lightbox {
 
 .lightbox img {
   max-width: 75vw;
-  max-height: 85vh;
+  max-height: 80vh;
   object-fit: contain;
   transition: opacity 0.3s ease;
 }

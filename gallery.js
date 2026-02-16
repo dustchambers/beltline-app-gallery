@@ -286,7 +286,7 @@
     if (isIframe) {
       lightbox.style.top = viewportTop + "px";
       lightbox.style.height = viewportHeight + "px";
-      lightboxImg.style.maxHeight = Math.floor(viewportHeight * 0.85) + "px";
+      lightboxImg.style.maxHeight = Math.floor(viewportHeight * 0.8) + "px";
     }
 
     lightbox.classList.add("active");
@@ -892,7 +892,7 @@
         if (lightboxOpen) {
           lightbox.style.top = viewportTop + "px";
           lightbox.style.height = viewportHeight + "px";
-          lightboxImg.style.maxHeight = Math.floor(viewportHeight * 0.85) + "px";
+          lightboxImg.style.maxHeight = Math.floor(viewportHeight * 0.8) + "px";
         }
       }
     });
