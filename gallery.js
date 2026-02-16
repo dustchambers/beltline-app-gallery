@@ -326,9 +326,15 @@
       window.parent.postMessage({ type: "lightbox-close" }, "*");
 
       // Clear stored values so next open recalculates position
-      // DON'T clear styles here - let them stay so there's no shift during fade-out
       lightboxViewportTop = null;
       lightboxViewportHeight = null;
+
+      // Clear positioning styles AFTER transition completes (400ms) to avoid shift during fade-out
+      setTimeout(function() {
+        lightbox.style.top = "";
+        lightbox.style.height = "";
+        lightbox.style.bottom = "";
+      }, 450);
     }
   }
 
