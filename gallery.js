@@ -292,9 +292,12 @@
     // Notify parent to restore scrolling (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
-      // Trigger height recalculation after iframe restores
+      // Trigger layout recalculation and height update after iframe restores
       setTimeout(function() {
-        postHeight();
+        // Trigger resize event to recalculate responsive grid layout
+        window.dispatchEvent(new Event('resize'));
+        // Then recalculate height
+        setTimeout(postHeight, 100);
       }, 50);
     }
   }
