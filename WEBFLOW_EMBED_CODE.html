@@ -27,7 +27,8 @@
     }
 
     // Lightbox opening - make iframe fullscreen over entire page
-    if (e.data && e.data.type === "lightbox-open") {
+    // Handles both "lightbox-open" (new) and "get-viewport-position" (legacy)
+    if (e.data && (e.data.type === "lightbox-open" || e.data.type === "get-viewport-position")) {
       savedStyles = {
         position: iframe.style.position,
         top: iframe.style.top,
