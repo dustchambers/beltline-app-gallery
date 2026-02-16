@@ -15,11 +15,9 @@
   document.getElementById("lot43-gallery").src =
     "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
 
-  // State saved when lightbox opens
-  var savedIframeHeight = "";
-  var savedScrollY = 0;
+  // Saved iframe styles to restore after lightbox closes
+  var savedStyles = {};
 
-  // Listen for iframe messages
   window.addEventListener("message", function(e) {
     var iframe = document.getElementById("lot43-gallery");
 
@@ -28,42 +26,34 @@
       iframe.style.height = e.data.height + "px";
     }
 
-    // Handle viewport position request - tell iframe where it's visible
-    if (e.data && e.data.type === "get-viewport-position") {
-      var rect = iframe.getBoundingClientRect();
-      var viewportTop = Math.max(0, -rect.top);
-      var viewportHeight = window.innerHeight;
-
-      // Save state before locking
-      savedIframeHeight = iframe.style.height;
-      savedScrollY = window.scrollY;
-
-      // Expand iframe to cover the full viewport
-      iframe.style.height = (viewportTop + viewportHeight) + "px";
-
-      iframe.contentWindow.postMessage({
-        type: "viewport-position",
-        top: viewportTop,
-        height: viewportHeight
-      }, "*");
-
-      // Lock scroll using position:fixed (overflow:hidden alone is insufficient)
-      document.body.style.position = "fixed";
-      document.body.style.top = "-" + savedScrollY + "px";
-      document.body.style.left = "0";
-      document.body.style.right = "0";
-      document.body.style.overflow = "hidden";
+    // Lightbox opening - make iframe fullscreen over entire page
+    if (e.data && e.data.type === "lightbox-open") {
+      savedStyles = {
+        position: iframe.style.position,
+        top: iframe.style.top,
+        left: iframe.style.left,
+        width: iframe.style.width,
+        height: iframe.style.height,
+        zIndex: iframe.style.zIndex,
+        scrollY: window.scrollY
+      };
+      iframe.style.position = "fixed";
+      iframe.style.top = "0";
+      iframe.style.left = "0";
+      iframe.style.width = "100vw";
+      iframe.style.height = "100vh";
+      iframe.style.zIndex = "999999";
     }
 
-    // Handle lightbox close - restore parent page scrolling and iframe size
+    // Lightbox closing - restore iframe to normal flow
     if (e.data && e.data.type === "lightbox-close") {
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
-      document.body.style.overflow = "";
-      window.scrollTo(0, savedScrollY);
-      iframe.style.height = savedIframeHeight;
+      iframe.style.position = savedStyles.position || "";
+      iframe.style.top = savedStyles.top || "";
+      iframe.style.left = savedStyles.left || "";
+      iframe.style.width = savedStyles.width || "";
+      iframe.style.height = savedStyles.height || "";
+      iframe.style.zIndex = savedStyles.zIndex || "";
+      window.scrollTo(0, savedStyles.scrollY || 0);
     }
   });
 </script>

@@ -266,7 +266,6 @@
   // ── Lightbox ──
 
   var lightboxIsCurrentlyOpen = false;
-  var pendingLightboxOpen = false;
   var lightboxFadingOut = false;
 
   function openLightbox(index) {
@@ -280,17 +279,11 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
-    // For iframe embeds, always request fresh viewport position
+    // For iframe embeds, tell parent to go fullscreen before showing
     if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
-      pendingLightboxOpen = true;
-      lightbox.style.top = "";
-      lightbox.style.height = "";
-      lightbox.style.bottom = "";
-      window.parent.postMessage({ type: "get-viewport-position" }, "*");
-      return; // Don't show yet - wait for position message
+      window.parent.postMessage({ type: "lightbox-open" }, "*");
     }
 
-    // Show immediately for navigation or non-iframe
     lightbox.classList.add("active");
     lightboxIsCurrentlyOpen = true;
     document.body.style.overflow = "hidden";
@@ -302,28 +295,13 @@
     lightboxFadingOut = true;
 
     if (window.self !== window.top) {
-      // Delay ALL cleanup until the 0.4s CSS opacity fade finishes.
-      // The MutationObserver fires postHeight() on class changes — the
-      // fadingOut flag prevents it from resizing the iframe mid-transition.
+      // Delay cleanup until the 0.4s CSS opacity fade finishes
       setTimeout(function() {
         if (!lightboxIsCurrentlyOpen) {
-          // Clear lightbox positioning BEFORE unblocking postHeight()
-          // so MutationObserver doesn't send inflated scrollHeight
-          lightbox.style.top = "";
-          lightbox.style.height = "";
-          lightbox.style.bottom = "";
           document.body.style.overflow = "";
-
-          // Tell parent to restore scroll and iframe height
           window.parent.postMessage({ type: "lightbox-close" }, "*");
-
-          // Now unblock postHeight() and send correct content height
-          lightboxFadingOut = false;
-          var h = document.documentElement.scrollHeight;
-          window.parent.postMessage({ type: "resize", height: h }, "*");
-        } else {
-          lightboxFadingOut = false;
         }
+        lightboxFadingOut = false;
       }, 400);
     } else {
       lightboxFadingOut = false;
@@ -899,10 +877,10 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
-      // Don't send resize while lightbox is open, pending, or fading out —
+      // Don't send resize while lightbox is open or fading out —
       // the MutationObserver fires on class/style changes and would
       // cause the parent to resize the iframe mid-transition.
-      if (lightboxIsCurrentlyOpen || pendingLightboxOpen || lightboxFadingOut) return;
+      if (lightboxIsCurrentlyOpen || lightboxFadingOut) return;
       var h = document.documentElement.scrollHeight;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
@@ -915,23 +893,6 @@
       attributes: true
     });
 
-    // Listen for viewport position from parent
-    window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "viewport-position") {
-        // Position lightbox to match visible viewport
-        lightbox.style.top = e.data.top + "px";
-        lightbox.style.height = e.data.height + "px";
-        lightbox.style.bottom = "auto";
-
-        // Now show the lightbox if we were waiting
-        if (pendingLightboxOpen) {
-          pendingLightboxOpen = false;
-          lightbox.classList.add("active");
-          lightboxIsCurrentlyOpen = true;
-          document.body.style.overflow = "hidden";
-        }
-      }
-    });
   }
 
   // ── Initialize ──
