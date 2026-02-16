@@ -265,10 +265,6 @@
 
   // ── Lightbox ──
 
-  var isIframe = window.self !== window.top;
-  var viewportTop = 0;
-  var viewportHeight = window.innerHeight;
-
   function openLightbox(index) {
     if (editorMode) return;
     currentIndex = index;
@@ -280,14 +276,9 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
-    if (isIframe) {
-      lightbox.style.top = viewportTop + "px";
-      lightbox.style.height = viewportHeight + "px";
-    }
-
     lightbox.classList.add("active");
 
-    if (!isIframe) {
+    if (window.self === window.top) {
       document.body.style.overflow = "hidden";
     }
   }
@@ -295,7 +286,7 @@
   function closeLightbox() {
     lightbox.classList.remove("active");
 
-    if (!isIframe) {
+    if (window.self === window.top) {
       document.body.style.overflow = "";
     }
   }
@@ -868,12 +859,7 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
-      // Measure gallery element directly so the lightbox (position:absolute)
-      // can't inflate the reported height
-      var g = document.getElementById("gallery");
-      if (!g) return;
-      var r = g.getBoundingClientRect();
-      var h = Math.ceil(r.top + r.height);
+      var h = document.documentElement.scrollHeight;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
 
@@ -882,19 +868,6 @@
       childList: true,
       subtree: true,
       attributes: true
-    });
-
-    // Receive viewport info from parent to position lightbox on screen
-    window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "viewport") {
-        viewportTop = e.data.top;
-        viewportHeight = e.data.height;
-        // Update lightbox position if it's currently showing
-        if (lightbox.classList.contains("active")) {
-          lightbox.style.top = viewportTop + "px";
-          lightbox.style.height = viewportHeight + "px";
-        }
-      }
     });
   }
 
