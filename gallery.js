@@ -267,6 +267,7 @@
 
   var lightboxIsCurrentlyOpen = false;
   var pendingLightboxOpen = false;
+  var lightboxFadingOut = false;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -298,11 +299,14 @@
   function closeLightbox() {
     lightbox.classList.remove("active");
     lightboxIsCurrentlyOpen = false;
+    lightboxFadingOut = true;
 
     if (window.self !== window.top) {
-      // Delay scroll restore and cleanup until fade-out finishes (0.4s CSS transition)
-      // Restoring overflow mid-fade causes parent reflow which shifts the image
+      // Delay ALL cleanup until the 0.4s CSS opacity fade finishes.
+      // The MutationObserver fires postHeight() on class changes — the
+      // fadingOut flag prevents it from resizing the iframe mid-transition.
       setTimeout(function() {
+        lightboxFadingOut = false;
         if (!lightboxIsCurrentlyOpen) {
           document.body.style.overflow = "";
           window.parent.postMessage({ type: "lightbox-close" }, "*");
@@ -312,6 +316,7 @@
         }
       }, 400);
     } else {
+      lightboxFadingOut = false;
       document.body.style.overflow = "";
     }
   }
@@ -884,6 +889,10 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
+      // Don't send resize while lightbox is open, pending, or fading out —
+      // the MutationObserver fires on class/style changes and would
+      // cause the parent to resize the iframe mid-transition.
+      if (lightboxIsCurrentlyOpen || pendingLightboxOpen || lightboxFadingOut) return;
       var h = document.documentElement.scrollHeight;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
