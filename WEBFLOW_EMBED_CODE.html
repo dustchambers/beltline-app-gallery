@@ -1,31 +1,5 @@
 <!-- Webflow Embed Code for Photo Galleries Template -->
 
-<style>
-  #gallery-lightbox-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(26, 26, 26, 0.95);
-    z-index: 2147483646;
-  }
-  body.gallery-lightbox-active #gallery-lightbox-backdrop {
-    display: block;
-  }
-  body.gallery-lightbox-active #lot43-gallery {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 2147483647 !important;
-  }
-</style>
-
-<div id="gallery-lightbox-backdrop"></div>
-
 <div id="gallery-wrapper" style="width:100%;min-height:600px">
   <iframe
     id="lot43-gallery"
@@ -39,44 +13,9 @@
   document.getElementById("lot43-gallery").src =
     "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
 
-  var lightboxActive = false;
-  var savedScrollY = 0;
-  var savedIframeHeight = "";
-
   window.addEventListener("message", function(e) {
-    var iframe = document.getElementById("lot43-gallery");
-
     if (e.data && e.data.type === "resize") {
-      if (!lightboxActive) {
-        iframe.style.height = e.data.height + "px";
-      }
-    }
-
-    if (e.data && (e.data.type === "lightbox-open" || e.data.type === "get-viewport-position")) {
-      if (lightboxActive) return;
-      lightboxActive = true;
-      savedScrollY = window.scrollY;
-      savedIframeHeight = iframe.style.height;
-      document.body.classList.add("gallery-lightbox-active");
-      // Tell iframe to restore its scroll position (it resets when going fixed)
-      iframe.contentWindow.postMessage({
-        type: "restore-scroll",
-        scrollY: e.data.iframeScrollY || 0
-      }, "*");
-    }
-
-    if (e.data && e.data.type === "lightbox-close") {
-      if (!lightboxActive) return;
-      var restoreScrollY = e.data.iframeScrollY || 0;
-      lightboxActive = false;
-      document.body.classList.remove("gallery-lightbox-active");
-      iframe.style.height = savedIframeHeight;
-      window.scrollTo(0, savedScrollY);
-      // Restore iframe scroll after it goes back to normal flow
-      iframe.contentWindow.postMessage({
-        type: "restore-scroll",
-        scrollY: restoreScrollY
-      }, "*");
+      document.getElementById("lot43-gallery").style.height = e.data.height + "px";
     }
   });
 </script>

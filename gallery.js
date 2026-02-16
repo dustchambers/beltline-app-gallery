@@ -266,7 +266,6 @@
   // ── Lightbox ──
 
   var lightboxIsCurrentlyOpen = false;
-  var resizeSuppressed = false;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -278,15 +277,6 @@
     lightboxImg.alt = img.alt;
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
-
-    // Tell parent to activate lightbox overlay (only on first open)
-    if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
-      resizeSuppressed = true;
-      window.parent.postMessage({
-        type: "lightbox-open",
-        iframeScrollY: window.scrollY
-      }, "*");
-    }
 
     lightbox.classList.add("active");
     lightboxIsCurrentlyOpen = true;
@@ -304,20 +294,6 @@
     // Unlock scroll in standalone mode
     if (window.self === window.top) {
       document.body.style.overflow = "";
-    }
-
-    if (window.self !== window.top) {
-      // Wait for 0.4s CSS fade, then tell parent to restore iframe
-      setTimeout(function() {
-        if (!lightboxIsCurrentlyOpen) {
-          window.parent.postMessage({ type: "lightbox-close", iframeScrollY: window.scrollY }, "*");
-          // Keep resize suppressed a bit longer so the iframe resize
-          // back to normal doesn't trigger a bad height message
-          setTimeout(function() {
-            resizeSuppressed = false;
-          }, 200);
-        }
-      }, 400);
     }
   }
 
@@ -889,7 +865,6 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
-      if (resizeSuppressed) return;
       var h = document.documentElement.scrollHeight;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
@@ -899,19 +874,6 @@
       childList: true,
       subtree: true,
       attributes: true
-    });
-
-    // Listen for parent telling us to restore scroll after going position:fixed
-    var savedScrollForRestore = 0;
-    window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "restore-scroll") {
-        savedScrollForRestore = e.data.scrollY;
-        // Restore immediately + after a frame to cover both layout timing paths
-        window.scrollTo(0, savedScrollForRestore);
-        requestAnimationFrame(function() {
-          window.scrollTo(0, savedScrollForRestore);
-        });
-      }
     });
   }
 
