@@ -278,9 +278,18 @@
     lightbox.classList.add("active");
     document.body.style.overflow = "hidden";
 
-    // Notify parent to prevent scrolling (for iframe embeds)
+    // For iframe embeds, position lightbox to center in visible viewport
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-open" }, "*");
+      
+      // Calculate where the visible viewport is within the iframe
+      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+      var viewportHeight = window.innerHeight;
+      
+      // Position lightbox container to match visible viewport
+      lightbox.style.top = scrollY + "px";
+      lightbox.style.height = viewportHeight + "px";
+      lightbox.style.bottom = "auto";
     }
   }
 
@@ -292,13 +301,10 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
       
-      // Trigger layout recalculation and height update after iframe restores
-      setTimeout(function() {
-        // Trigger resize event to recalculate responsive grid layout
-        window.dispatchEvent(new Event('resize'));
-        // Then recalculate height
-        setTimeout(postHeight, 100);
-      }, 50);
+      // Reset lightbox positioning
+      lightbox.style.top = "";
+      lightbox.style.height = "";
+      lightbox.style.bottom = "";
     }
   }
 

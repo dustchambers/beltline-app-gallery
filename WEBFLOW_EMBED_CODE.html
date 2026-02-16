@@ -16,41 +16,22 @@
     "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
 
   // Listen for iframe messages
-  var lightboxOpen = false;
   window.addEventListener("message", function(e) {
     var iframe = document.getElementById("lot43-gallery");
 
-    // Handle resize messages (but not when lightbox is open)
-    if (e.data && e.data.type === "resize" && !lightboxOpen) {
+    // Handle resize messages - update iframe height to match content
+    if (e.data && e.data.type === "resize") {
       iframe.style.height = e.data.height + "px";
     }
 
-    // Handle lightbox open - expand iframe to fill viewport
+    // Handle lightbox open - prevent parent page scrolling
     if (e.data && e.data.type === "lightbox-open") {
-      lightboxOpen = true;
       document.body.style.overflow = "hidden";
-      
-      // Expand iframe to full viewport for proper centering
-      iframe.style.position = "fixed";
-      iframe.style.top = "0";
-      iframe.style.left = "0";
-      iframe.style.width = "100%";
-      iframe.style.height = window.innerHeight + "px";
-      iframe.style.zIndex = "9999";
     }
 
-    // Handle lightbox close - restore iframe
+    // Handle lightbox close - restore parent page scrolling
     if (e.data && e.data.type === "lightbox-close") {
-      lightboxOpen = false;
       document.body.style.overflow = "";
-      
-      // Restore iframe to normal
-      iframe.style.position = "";
-      iframe.style.top = "";
-      iframe.style.left = "";
-      iframe.style.width = "100%";
-      iframe.style.height = "";
-      iframe.style.zIndex = "";
     }
   });
 </script>
