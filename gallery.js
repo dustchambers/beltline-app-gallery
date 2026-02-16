@@ -266,7 +266,7 @@
   // ── Lightbox ──
 
   var lightboxIsCurrentlyOpen = false;
-  var lightboxFadingOut = false;
+  var resizeSuppressed = false;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -279,33 +279,42 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
-    // For iframe embeds, tell parent to go fullscreen before showing
+    // Tell parent to make iframe fullscreen (only on first open)
     if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
+      resizeSuppressed = true;
       window.parent.postMessage({ type: "lightbox-open" }, "*");
     }
 
     lightbox.classList.add("active");
     lightboxIsCurrentlyOpen = true;
-    document.body.style.overflow = "hidden";
+
+    // Lock scroll only in standalone mode (not iframe)
+    if (window.self === window.top) {
+      document.body.style.overflow = "hidden";
+    }
   }
 
   function closeLightbox() {
     lightbox.classList.remove("active");
     lightboxIsCurrentlyOpen = false;
-    lightboxFadingOut = true;
+
+    // Unlock scroll in standalone mode
+    if (window.self === window.top) {
+      document.body.style.overflow = "";
+    }
 
     if (window.self !== window.top) {
-      // Delay cleanup until the 0.4s CSS opacity fade finishes
+      // Wait for 0.4s CSS fade, then tell parent to restore iframe
       setTimeout(function() {
         if (!lightboxIsCurrentlyOpen) {
-          document.body.style.overflow = "";
           window.parent.postMessage({ type: "lightbox-close" }, "*");
+          // Keep resize suppressed a bit longer so the iframe resize
+          // back to normal doesn't trigger a bad height message
+          setTimeout(function() {
+            resizeSuppressed = false;
+          }, 200);
         }
-        lightboxFadingOut = false;
       }, 400);
-    } else {
-      lightboxFadingOut = false;
-      document.body.style.overflow = "";
     }
   }
 
@@ -877,16 +886,12 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
-      // Don't send resize while lightbox is open or fading out —
-      // the MutationObserver fires on class/style changes and would
-      // cause the parent to resize the iframe mid-transition.
-      if (lightboxIsCurrentlyOpen || lightboxFadingOut) return;
+      if (resizeSuppressed) return;
       var h = document.documentElement.scrollHeight;
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
 
     window.addEventListener("load", postHeight);
-    window.addEventListener("resize", postHeight);
     new MutationObserver(postHeight).observe(document.body, {
       childList: true,
       subtree: true,
