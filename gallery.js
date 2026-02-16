@@ -306,13 +306,23 @@
       // The MutationObserver fires postHeight() on class changes — the
       // fadingOut flag prevents it from resizing the iframe mid-transition.
       setTimeout(function() {
-        lightboxFadingOut = false;
         if (!lightboxIsCurrentlyOpen) {
-          document.body.style.overflow = "";
-          window.parent.postMessage({ type: "lightbox-close" }, "*");
+          // Clear lightbox positioning BEFORE unblocking postHeight()
+          // so MutationObserver doesn't send inflated scrollHeight
           lightbox.style.top = "";
           lightbox.style.height = "";
           lightbox.style.bottom = "";
+          document.body.style.overflow = "";
+
+          // Tell parent to restore scroll and iframe height
+          window.parent.postMessage({ type: "lightbox-close" }, "*");
+
+          // Now unblock postHeight() and send correct content height
+          lightboxFadingOut = false;
+          var h = document.documentElement.scrollHeight;
+          window.parent.postMessage({ type: "resize", height: h }, "*");
+        } else {
+          lightboxFadingOut = false;
         }
       }, 400);
     } else {
