@@ -282,35 +282,23 @@
     // For iframe embeds, position lightbox to center in visible viewport
     // MUST happen BEFORE adding "active" class to avoid transition shift
     if (window.self !== window.top) {
-      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-      var viewportHeight = window.innerHeight;
       var isAlreadyOpen = lightbox.classList.contains("active");
 
-      if (lightboxViewportTop === null) {
-        // First open - calculate and store viewport position
+      if (!isAlreadyOpen) {
+        // Opening fresh (not navigating) - calculate current viewport position
+        var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+        var viewportHeight = window.innerHeight;
+
+        lightboxViewportTop = scrollY;
+        lightboxViewportHeight = viewportHeight;
+
         window.parent.postMessage({ type: "lightbox-open" }, "*");
-        lightboxViewportTop = scrollY;
-        lightboxViewportHeight = viewportHeight;
-
-        // Apply positioning
-        lightbox.style.top = lightboxViewportTop + "px";
-        lightbox.style.height = lightboxViewportHeight + "px";
-        lightbox.style.bottom = "auto";
-      } else if (isAlreadyOpen) {
-        // Navigation - lightbox already open, just ensure positioning is applied
-        lightbox.style.top = lightboxViewportTop + "px";
-        lightbox.style.height = lightboxViewportHeight + "px";
-        lightbox.style.bottom = "auto";
-      } else if (scrollY !== lightboxViewportTop || viewportHeight !== lightboxViewportHeight) {
-        // Reopen at different scroll position - update stored values and reposition
-        lightboxViewportTop = scrollY;
-        lightboxViewportHeight = viewportHeight;
-
-        lightbox.style.top = lightboxViewportTop + "px";
-        lightbox.style.height = lightboxViewportHeight + "px";
-        lightbox.style.bottom = "auto";
       }
-      // Otherwise reopen at same scroll position - styles already set, don't touch
+
+      // Always apply positioning (whether first open, reopen, or navigation)
+      lightbox.style.top = lightboxViewportTop + "px";
+      lightbox.style.height = lightboxViewportHeight + "px";
+      lightbox.style.bottom = "auto";
     }
 
     lightbox.classList.add("active");
@@ -325,16 +313,8 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
 
-      // Clear stored values so next open recalculates position
-      lightboxViewportTop = null;
-      lightboxViewportHeight = null;
-
-      // Clear positioning styles AFTER transition completes (400ms) to avoid shift during fade-out
-      setTimeout(function() {
-        lightbox.style.top = "";
-        lightbox.style.height = "";
-        lightbox.style.bottom = "";
-      }, 450);
+      // DON'T clear stored values - keep them for comparison
+      // DON'T clear styles - they'll be overwritten on next open
     }
   }
 
