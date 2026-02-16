@@ -18,10 +18,6 @@ body.embedded .gallery {
   padding-top: 12px;
 }
 
-body.embedded .lightbox {
-  position: absolute;
-}
-
 /* ── Gallery Header ── */
 .gallery-header {
   text-align: center;

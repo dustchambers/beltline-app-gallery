@@ -265,16 +265,6 @@
 
   // ── Lightbox ──
 
-  var lightboxIsCurrentlyOpen = false;
-  var parentViewport = { top: 0, height: 0 };
-  var isIframe = window.self !== window.top;
-
-  function positionLightbox() {
-    if (!isIframe || !lightboxIsCurrentlyOpen) return;
-    lightbox.style.top = Math.max(0, parentViewport.top) + "px";
-    lightbox.style.height = parentViewport.height + "px";
-  }
-
   function openLightbox(index) {
     if (editorMode) return;
     currentIndex = index;
@@ -287,27 +277,16 @@
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
     lightbox.classList.add("active");
-    lightboxIsCurrentlyOpen = true;
 
-    // In iframe mode, ask parent for viewport position to center lightbox
-    if (isIframe) {
-      window.parent.postMessage({ type: "lightbox-open" }, "*");
-      positionLightbox();
-    }
-
-    // Lock scroll only in standalone mode (not iframe)
-    if (!isIframe) {
+    if (window.self === window.top) {
       document.body.style.overflow = "hidden";
     }
   }
 
   function closeLightbox() {
     lightbox.classList.remove("active");
-    lightboxIsCurrentlyOpen = false;
 
-
-    // Unlock scroll in standalone mode
-    if (!isIframe) {
+    if (window.self === window.top) {
       document.body.style.overflow = "";
     }
   }
@@ -891,14 +870,6 @@
       attributes: true
     });
 
-    // Receive viewport position from parent for lightbox centering
-    window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "viewport") {
-        parentViewport.top = e.data.top;
-        parentViewport.height = e.data.height;
-        positionLightbox();
-      }
-    });
   }
 
   // ── Initialize ──
