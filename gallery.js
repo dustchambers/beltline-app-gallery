@@ -284,9 +284,11 @@
     lightboxOpen = true;
 
     if (isIframe) {
+      // Use viewport height from parent, but fall back to something reasonable
+      var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
       lightbox.style.top = viewportTop + "px";
-      lightbox.style.height = viewportHeight + "px";
-      lightboxImg.style.maxHeight = Math.floor(viewportHeight * 0.7) + "px";
+      lightbox.style.height = vh + "px";
+      lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
     }
 
     lightbox.classList.add("active");
@@ -890,9 +892,10 @@
         viewportTop = e.data.top;
         viewportHeight = e.data.height;
         if (lightboxOpen) {
+          var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
           lightbox.style.top = viewportTop + "px";
-          lightbox.style.height = viewportHeight + "px";
-          lightboxImg.style.maxHeight = Math.floor(viewportHeight * 0.7) + "px";
+          lightbox.style.height = vh + "px";
+          lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
         }
       }
     });

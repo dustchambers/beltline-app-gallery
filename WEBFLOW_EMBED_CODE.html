@@ -25,6 +25,7 @@
     } catch(e) {}
   }
 
+  iframe.addEventListener("load", sendViewport);
   window.addEventListener("scroll", sendViewport, { passive: true });
   window.addEventListener("resize", sendViewport);
 
