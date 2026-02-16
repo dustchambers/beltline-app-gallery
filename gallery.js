@@ -59,13 +59,14 @@
     2: "featured",
     3: "featured-wide",
     "2x2": "featured-2x2",
-    "tall": "featured-tall"
+    "tall": "featured-tall",
+    "4x2": "featured-4x2"
   };
 
-  var ALL_SIZE_CLASSES = ["featured", "featured-wide", "featured-2x2", "featured-tall"];
+  var ALL_SIZE_CLASSES = ["featured", "featured-wide", "featured-2x2", "featured-tall", "featured-4x2"];
 
-  var BADGE_LABELS = { 1: "1\u00d7", 2: "2w", "2x2": "2\u00d72", 3: "3w", "tall": "tall" };
-  var BADGE_COLORS = { 1: "rgba(0,0,0,0.5)", 2: "#1a1a1a", "2x2": "#36c", 3: "#c44", "tall": "#2a7" };
+  var BADGE_LABELS = { 1: "1\u00d7", 2: "2w", "2x2": "2\u00d72", 3: "3w", "tall": "tall", "4x2": "4\u00d72" };
+  var BADGE_COLORS = { 1: "rgba(0,0,0,0.5)", 2: "#1a1a1a", "2x2": "#36c", 3: "#c44", "tall": "#2a7", "4x2": "#a4c" };
 
   var DRAG_THRESHOLD = 8;
 
@@ -155,6 +156,7 @@
   // ── Size Helpers ──
 
   function getSize(item) {
+    if (item.classList.contains("featured-4x2")) return "4x2";
     if (item.classList.contains("featured-tall")) return "tall";
     if (item.classList.contains("featured-wide")) return 3;
     if (item.classList.contains("featured-2x2")) return "2x2";
@@ -363,7 +365,7 @@
   }
 
   // ── Size Cycling ──
-  // 1x -> 2w -> 2x2 -> 3w -> tall -> 1x
+  // 1x -> 2w -> 2x2 -> 3w -> tall -> 4x2 -> 1x
 
   function cycleSize(item) {
     var current = getSize(item);
@@ -377,8 +379,10 @@
       item.classList.add("featured-wide");
     } else if (current === 3) {
       item.classList.add("featured-tall");
+    } else if (current === "tall") {
+      item.classList.add("featured-4x2");
     }
-    // "tall" -> back to 1 (no class added)
+    // "4x2" -> back to 1 (no class added)
 
     updateBadge(item);
     autoSave();
@@ -603,7 +607,9 @@
           : "";
 
       var cls;
-      if (size === "tall") {
+      if (size === "4x2") {
+        cls = ' class="gallery-item featured-4x2"';
+      } else if (size === "tall") {
         cls = ' class="gallery-item featured-tall"';
       } else if (size === 3) {
         cls = ' class="gallery-item featured-wide"';

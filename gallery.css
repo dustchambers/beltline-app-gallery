@@ -83,6 +83,11 @@ body.embedded .gallery {
   grid-row: span 2;
 }
 
+.gallery-item.featured-4x2 {
+  grid-column: span 4;
+  grid-row: span 2;
+}
+
 .gallery-item.hidden {
   display: none;
 }
@@ -333,6 +338,11 @@ body.edit-mode .gallery-item:hover .delete-btn {
     grid-column: span 3;
     grid-row: span 2;
   }
+
+  .gallery-item.featured-4x2 {
+    grid-column: span 3;
+    grid-row: span 2;
+  }
 }
 
 @media (max-width: 900px) {
@@ -344,7 +354,8 @@ body.edit-mode .gallery-item:hover .delete-btn {
 
   .gallery-item.featured,
   .gallery-item.featured-wide,
-  .gallery-item.featured-2x2 {
+  .gallery-item.featured-2x2,
+  .gallery-item.featured-4x2 {
     grid-column: span 2;
     grid-row: span 1;
   }
@@ -359,7 +370,8 @@ body.edit-mode .gallery-item:hover .delete-btn {
 
   .gallery-item.featured,
   .gallery-item.featured-wide,
-  .gallery-item.featured-2x2 {
+  .gallery-item.featured-2x2,
+  .gallery-item.featured-4x2 {
     grid-column: span 2;
   }
 }
@@ -373,7 +385,8 @@ body.edit-mode .gallery-item:hover .delete-btn {
   .gallery-item.featured,
   .gallery-item.featured-wide,
   .gallery-item.featured-tall,
-  .gallery-item.featured-2x2 {
+  .gallery-item.featured-2x2,
+  .gallery-item.featured-4x2 {
     grid-column: span 1;
     grid-row: span 1;
   }
