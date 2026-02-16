@@ -286,19 +286,13 @@
     lightboxOpen = true;
 
     if (isIframe) {
+      // Request fresh viewport coordinates — don't show until they arrive
       window.parent.postMessage({ type: "requestViewport" }, "*");
-      // Use viewport height from parent, but fall back to something reasonable
-      var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
-      lightbox.style.top = viewportTop + "px";
-      lightbox.style.height = vh + "px";
-      lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
+      return;
     }
 
     lightbox.classList.add("active");
-
-    if (!isIframe) {
-      document.body.style.overflow = "hidden";
-    }
+    document.body.style.overflow = "hidden";
   }
 
   function closeLightbox() {
@@ -955,6 +949,9 @@
           lightbox.style.top = viewportTop + "px";
           lightbox.style.height = vh + "px";
           lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
+          if (!lightbox.classList.contains("active")) {
+            lightbox.classList.add("active");
+          }
         }
       }
     });
