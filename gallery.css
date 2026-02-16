@@ -18,9 +18,7 @@ body.embedded .gallery {
   padding-top: 12px;
 }
 
-body.embedded .lightbox {
-  position: absolute;
-}
+/* Lightbox uses position:fixed — parent fixes iframe over viewport when open */
 
 /* ── Gallery Header ── */
 .gallery-header {

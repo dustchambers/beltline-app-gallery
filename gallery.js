@@ -268,23 +268,7 @@
   // ── Lightbox ──
 
   var isIframe = window.self !== window.top;
-  var viewportTop = 0;
-  var viewportHeight = window.innerHeight;
   var lightboxOpen = false;
-
-  // Register viewport listener EARLY so we capture parent messages
-  // even before the async config fetch completes.
-  var earlyMsgCount = 0;
-  if (isIframe) {
-    window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "viewport") {
-        viewportTop = e.data.top;
-        viewportHeight = e.data.height;
-        earlyMsgCount++;
-        window.parent.postMessage({ type: "debugEarly", count: earlyMsgCount, top: e.data.top }, "*");
-      }
-    });
-  }
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -300,28 +284,22 @@
     lightboxOpen = true;
 
     if (isIframe) {
-      // DEBUG: report viewport state back to parent
-      window.parent.postMessage({ type: "debug", viewportTop: viewportTop, viewportHeight: viewportHeight }, "*");
-      // Position with current viewport data and show
-      var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
-      lightbox.style.top = viewportTop + "px";
-      lightbox.style.height = vh + "px";
-      lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
-      lightbox.classList.add("active");
-      // Request fresh data — listener will reposition if needed
-      window.parent.postMessage({ type: "requestViewport" }, "*");
-      return;
+      // Tell parent to fix iframe over viewport so position:fixed works
+      window.parent.postMessage({ type: "lightboxOpen" }, "*");
     }
 
     lightbox.classList.add("active");
-    document.body.style.overflow = "hidden";
+    if (!isIframe) document.body.style.overflow = "hidden";
   }
 
   function closeLightbox() {
     lightbox.classList.remove("active");
     lightboxOpen = false;
 
-    if (!isIframe) {
+    if (isIframe) {
+      // Tell parent to restore iframe to normal flow
+      window.parent.postMessage({ type: "lightboxClose" }, "*");
+    } else {
       document.body.style.overflow = "";
     }
   }
@@ -960,22 +938,6 @@
       childList: true,
       subtree: true,
       attributes: true
-    });
-
-    window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "viewport") {
-        viewportTop = e.data.top;
-        viewportHeight = e.data.height;
-        if (lightboxOpen) {
-          var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
-          lightbox.style.top = viewportTop + "px";
-          lightbox.style.height = vh + "px";
-          lightboxImg.style.maxHeight = Math.floor(vh * 0.7) + "px";
-          if (!lightbox.classList.contains("active")) {
-            lightbox.classList.add("active");
-          }
-        }
-      }
     });
   }
 

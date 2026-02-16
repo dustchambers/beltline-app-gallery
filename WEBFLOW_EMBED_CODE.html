@@ -16,28 +16,31 @@
   }
   iframe.src = iframeSrc;
 
-  function sendViewport() {
-    try {
-      var rect = iframe.getBoundingClientRect();
-      iframe.contentWindow.postMessage({
-        type: "viewport",
-        top: Math.max(0, -rect.top),
-        height: window.innerHeight
-      }, "*");
-    } catch(e) {}
-  }
-
-  iframe.addEventListener("load", sendViewport);
-  window.addEventListener("scroll", sendViewport, { passive: true });
-  window.addEventListener("resize", sendViewport);
+  var savedHeight = "";
+  var savedScrollY = 0;
 
   window.addEventListener("message", function(e) {
     if (e.data && e.data.type === "resize") {
       iframe.style.height = e.data.height + "px";
-      sendViewport();
     }
-    if (e.data && e.data.type === "requestViewport") {
-      sendViewport();
+    if (e.data && e.data.type === "lightboxOpen") {
+      savedHeight = iframe.style.height;
+      savedScrollY = window.scrollY;
+      iframe.style.position = "fixed";
+      iframe.style.top = "0";
+      iframe.style.left = "0";
+      iframe.style.width = "100%";
+      iframe.style.height = "100vh";
+      iframe.style.zIndex = "999999";
+    }
+    if (e.data && e.data.type === "lightboxClose") {
+      iframe.style.position = "";
+      iframe.style.top = "";
+      iframe.style.left = "";
+      iframe.style.width = "100%";
+      iframe.style.height = savedHeight;
+      iframe.style.zIndex = "";
+      window.scrollTo(0, savedScrollY);
     }
   });
 </script>
