@@ -279,9 +279,12 @@
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
-    // For iframe embeds, wait for viewport position before showing
+    // For iframe embeds, always request fresh viewport position
     if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
       pendingLightboxOpen = true;
+      lightbox.style.top = "";
+      lightbox.style.height = "";
+      lightbox.style.bottom = "";
       window.parent.postMessage({ type: "get-viewport-position" }, "*");
       return; // Don't show yet - wait for position message
     }
@@ -301,8 +304,10 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
 
-      // DON'T clear stored values - keep them for comparison
-      // DON'T clear styles - they'll be overwritten on next open
+      // Reset inline positioning so next open starts from CSS defaults
+      lightbox.style.top = "";
+      lightbox.style.height = "";
+      lightbox.style.bottom = "";
     }
   }
 
