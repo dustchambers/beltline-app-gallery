@@ -265,8 +265,6 @@
 
   // ── Lightbox ──
 
-  var lightboxViewportTop = null;
-  var lightboxViewportHeight = null;
   var lightboxIsCurrentlyOpen = false;
 
   function openLightbox(index) {
@@ -281,31 +279,9 @@
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
     // For iframe embeds, position lightbox to center in visible viewport
-    // MUST happen BEFORE adding "active" class to avoid transition shift
-    if (window.self !== window.top) {
-      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-      var viewportHeight = window.innerHeight;
-
-      console.log("openLightbox:", {
-        lightboxIsCurrentlyOpen: lightboxIsCurrentlyOpen,
-        currentScroll: scrollY,
-        storedScroll: lightboxViewportTop,
-        currentHeight: viewportHeight,
-        storedHeight: lightboxViewportHeight
-      });
-
-      if (!lightboxIsCurrentlyOpen) {
-        // Opening fresh (not navigating) - calculate current viewport position
-        lightboxViewportTop = scrollY;
-        lightboxViewportHeight = viewportHeight;
-
-        window.parent.postMessage({ type: "lightbox-open" }, "*");
-      }
-
-      // Always apply positioning (whether first open, reopen, or navigation)
-      lightbox.style.top = lightboxViewportTop + "px";
-      lightbox.style.height = lightboxViewportHeight + "px";
-      lightbox.style.bottom = "auto";
+    if (window.self !== window.top && !lightboxIsCurrentlyOpen) {
+      // Request viewport position from parent
+      window.parent.postMessage({ type: "get-viewport-position" }, "*");
     }
 
     lightbox.classList.add("active");
@@ -905,6 +881,16 @@
       childList: true,
       subtree: true,
       attributes: true
+    });
+
+    // Listen for viewport position from parent
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "viewport-position") {
+        // Position lightbox to match visible viewport
+        lightbox.style.top = e.data.top + "px";
+        lightbox.style.height = e.data.height + "px";
+        lightbox.style.bottom = "auto";
+      }
     });
   }
 

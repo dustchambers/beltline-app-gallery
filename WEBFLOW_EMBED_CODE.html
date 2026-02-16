@@ -24,8 +24,18 @@
       iframe.style.height = e.data.height + "px";
     }
 
-    // Handle lightbox open - prevent parent page scrolling
-    if (e.data && e.data.type === "lightbox-open") {
+    // Handle viewport position request - tell iframe where it's visible
+    if (e.data && e.data.type === "get-viewport-position") {
+      var rect = iframe.getBoundingClientRect();
+      var viewportTop = Math.max(0, -rect.top); // How far down iframe is scrolled past viewport top
+      var viewportHeight = window.innerHeight;
+
+      iframe.contentWindow.postMessage({
+        type: "viewport-position",
+        top: viewportTop,
+        height: viewportHeight
+      }, "*");
+
       document.body.style.overflow = "hidden";
     }
 
