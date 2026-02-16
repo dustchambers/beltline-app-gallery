@@ -274,11 +274,14 @@
 
   // Register viewport listener EARLY so we capture parent messages
   // even before the async config fetch completes.
+  var earlyMsgCount = 0;
   if (isIframe) {
     window.addEventListener("message", function(e) {
       if (e.data && e.data.type === "viewport") {
         viewportTop = e.data.top;
         viewportHeight = e.data.height;
+        earlyMsgCount++;
+        window.parent.postMessage({ type: "debugEarly", count: earlyMsgCount, top: e.data.top }, "*");
       }
     });
   }
@@ -297,6 +300,8 @@
     lightboxOpen = true;
 
     if (isIframe) {
+      // DEBUG: report viewport state back to parent
+      window.parent.postMessage({ type: "debug", viewportTop: viewportTop, viewportHeight: viewportHeight }, "*");
       // Position with current viewport data and show
       var vh = viewportHeight > 300 ? viewportHeight : window.innerHeight;
       lightbox.style.top = viewportTop + "px";
