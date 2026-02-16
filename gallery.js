@@ -267,6 +267,7 @@
 
   var lightboxViewportTop = null;
   var lightboxViewportHeight = null;
+  var lightboxIsCurrentlyOpen = false;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -282,19 +283,18 @@
     // For iframe embeds, position lightbox to center in visible viewport
     // MUST happen BEFORE adding "active" class to avoid transition shift
     if (window.self !== window.top) {
-      var isAlreadyOpen = lightbox.classList.contains("active");
       var scrollY = window.pageYOffset || document.documentElement.scrollTop;
       var viewportHeight = window.innerHeight;
 
       console.log("openLightbox:", {
-        isAlreadyOpen: isAlreadyOpen,
+        lightboxIsCurrentlyOpen: lightboxIsCurrentlyOpen,
         currentScroll: scrollY,
         storedScroll: lightboxViewportTop,
         currentHeight: viewportHeight,
         storedHeight: lightboxViewportHeight
       });
 
-      if (!isAlreadyOpen) {
+      if (!lightboxIsCurrentlyOpen) {
         // Opening fresh (not navigating) - calculate current viewport position
         lightboxViewportTop = scrollY;
         lightboxViewportHeight = viewportHeight;
@@ -309,11 +309,13 @@
     }
 
     lightbox.classList.add("active");
+    lightboxIsCurrentlyOpen = true;
     document.body.style.overflow = "hidden";
   }
 
   function closeLightbox() {
     lightbox.classList.remove("active");
+    lightboxIsCurrentlyOpen = false;
     document.body.style.overflow = "";
 
     // Notify parent to restore scrolling (for iframe embeds)
