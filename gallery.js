@@ -265,7 +265,8 @@
 
   // ── Lightbox ──
 
-  var lightboxIsOpen = false;
+  var lightboxViewportTop = null;
+  var lightboxViewportHeight = null;
 
   function openLightbox(index) {
     if (editorMode) return;
@@ -277,27 +278,30 @@
     lightboxImg.alt = img.alt;
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
-    
-    lightbox.classList.add("active");
-    document.body.style.overflow = "hidden";
 
     // For iframe embeds, position lightbox to center in visible viewport
+    // MUST happen BEFORE adding "active" class to avoid transition shift
     if (window.self !== window.top) {
-      if (!lightboxIsOpen) {
-        // First open - calculate and store viewport position
-        lightboxIsOpen = true;
+      if (lightboxViewportTop === null) {
+        // First open - calculate viewport position
         window.parent.postMessage({ type: "lightbox-open" }, "*");
-        
+
         var scrollY = window.pageYOffset || document.documentElement.scrollTop;
         var viewportHeight = window.innerHeight;
-        
-        // Position lightbox container to match visible viewport
-        lightbox.style.top = scrollY + "px";
-        lightbox.style.height = viewportHeight + "px";
-        lightbox.style.bottom = "auto";
+
+        // Store position
+        lightboxViewportTop = scrollY;
+        lightboxViewportHeight = viewportHeight;
       }
-      // If already open (navigating), position stays the same
+
+      // Always apply positioning (in case something cleared it)
+      lightbox.style.top = lightboxViewportTop + "px";
+      lightbox.style.height = lightboxViewportHeight + "px";
+      lightbox.style.bottom = "auto";
     }
+
+    lightbox.classList.add("active");
+    document.body.style.overflow = "hidden";
   }
 
   function closeLightbox() {
@@ -308,11 +312,12 @@
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-close" }, "*");
       
-      // Reset lightbox positioning and state
+      // Reset lightbox positioning and stored values
       lightbox.style.top = "";
       lightbox.style.height = "";
       lightbox.style.bottom = "";
-      lightboxIsOpen = false;
+      lightboxViewportTop = null;
+      lightboxViewportHeight = null;
     }
   }
 
