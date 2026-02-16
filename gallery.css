@@ -289,9 +289,10 @@ body.edit-mode .gallery-item:active {
 
   .gallery-item.featured,
   .gallery-item.featured-wide,
+  .gallery-item.featured-tall,
   .gallery-item.featured-2x2,
   .gallery-item.featured-4x2 {
-    grid-column: span 2;
+    grid-column: span 1;
     grid-row: span 1;
   }
 }
