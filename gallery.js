@@ -283,12 +283,19 @@
     // MUST happen BEFORE adding "active" class to avoid transition shift
     if (window.self !== window.top) {
       var isAlreadyOpen = lightbox.classList.contains("active");
+      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+      var viewportHeight = window.innerHeight;
+
+      console.log("openLightbox:", {
+        isAlreadyOpen: isAlreadyOpen,
+        currentScroll: scrollY,
+        storedScroll: lightboxViewportTop,
+        currentHeight: viewportHeight,
+        storedHeight: lightboxViewportHeight
+      });
 
       if (!isAlreadyOpen) {
         // Opening fresh (not navigating) - calculate current viewport position
-        var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-        var viewportHeight = window.innerHeight;
-
         lightboxViewportTop = scrollY;
         lightboxViewportHeight = viewportHeight;
 
