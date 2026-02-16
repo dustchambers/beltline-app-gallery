@@ -86,6 +86,7 @@
   var isCropping = false;
   var dragGhost = null;
   var lastDropTarget = null;
+  var lastInsertBefore = true;
 
   // ── DOM Helpers ──
 
@@ -390,6 +391,28 @@
 
   // ── Reorder Drag (Live Sliding Preview) ──
 
+  function flipAnimate(draggedItem) {
+    var items = getGalleryItems();
+    var firstRects = [];
+    items.forEach(function (item) {
+      if (item === draggedItem) return;
+      firstRects.push({ el: item, rect: item.getBoundingClientRect() });
+    });
+    return function play() {
+      firstRects.forEach(function (entry) {
+        var last = entry.el.getBoundingClientRect();
+        var dx = entry.rect.left - last.left;
+        var dy = entry.rect.top - last.top;
+        if (dx === 0 && dy === 0) return;
+        entry.el.style.transition = "none";
+        entry.el.style.transform = "translate(" + dx + "px," + dy + "px)";
+        entry.el.offsetHeight; // force reflow
+        entry.el.style.transition = "transform 0.25s ease";
+        entry.el.style.transform = "";
+      });
+    };
+  }
+
   function startDrag(item, e) {
     item.classList.add("drag-placeholder");
     item.style.cursor = "grabbing";
@@ -411,6 +434,7 @@
     document.body.appendChild(dragGhost);
 
     lastDropTarget = null;
+    lastInsertBefore = true;
   }
 
   function moveDrag(e) {
@@ -436,12 +460,36 @@
       if (dist < minDist) {
         minDist = dist;
         closestItem = item;
-        insertBefore = e.clientX < centerX;
       }
     });
 
-    if (closestItem && closestItem !== lastDropTarget) {
+    if (!closestItem) return;
+
+    // Hysteresis: require 15px improvement to switch targets
+    if (lastDropTarget && closestItem !== lastDropTarget) {
+      var lastRect = lastDropTarget.getBoundingClientRect();
+      var lastDist = Math.sqrt(
+        Math.pow(e.clientX - (lastRect.left + lastRect.width / 2), 2) +
+        Math.pow(e.clientY - (lastRect.top + lastRect.height / 2), 2)
+      );
+      if (minDist > lastDist - 15) return;
+    }
+
+    // Dead zone for insert side
+    var closestRect = closestItem.getBoundingClientRect();
+    var centerX = closestRect.left + closestRect.width / 2;
+    var deadZone = closestRect.width * 0.2;
+    if (e.clientX < centerX - deadZone) {
+      insertBefore = true;
+    } else if (e.clientX > centerX + deadZone) {
+      insertBefore = false;
+    } else {
+      insertBefore = lastInsertBefore;
+    }
+
+    if (closestItem !== lastDropTarget || insertBefore !== lastInsertBefore) {
       var gallery = getGallery();
+      var play = flipAnimate(activeItem);
 
       if (insertBefore) {
         gallery.insertBefore(activeItem, closestItem);
@@ -454,7 +502,9 @@
         }
       }
 
+      play();
       lastDropTarget = closestItem;
+      lastInsertBefore = insertBefore;
       refreshOrderNumbers();
     }
   }
@@ -469,6 +519,7 @@
     activeItem.style.cursor = "grab";
 
     lastDropTarget = null;
+    lastInsertBefore = true;
     refreshOrderNumbers();
     autoSave();
   }
