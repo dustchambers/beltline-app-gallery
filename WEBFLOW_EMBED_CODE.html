@@ -24,9 +24,15 @@
       iframe.style.height = e.data.height + "px";
     }
 
-    // Handle lightbox open - prevent parent page scrolling
+    // Handle lightbox open - prevent parent page scrolling and send viewport info
     if (e.data && e.data.type === "lightbox-open") {
       document.body.style.overflow = "hidden";
+      
+      // Send parent viewport height back to iframe for centering calculation
+      iframe.contentWindow.postMessage({
+        type: "parent-viewport-info",
+        height: window.innerHeight
+      }, "*");
     }
 
     // Handle lightbox close - restore parent page scrolling

@@ -265,6 +265,31 @@
 
   // ── Lightbox ──
 
+  var parentViewportInfo = null;
+  
+  // Listen for parent viewport info
+  window.addEventListener("message", function(e) {
+    if (e.data && e.data.type === "parent-viewport-info") {
+      parentViewportInfo = e.data;
+      // Apply positioning if lightbox is already open
+      if (lightbox.classList.contains("active")) {
+        applyLightboxPosition();
+      }
+    }
+  });
+  
+  function applyLightboxPosition() {
+    if (!parentViewportInfo) return;
+    
+    // Calculate how much of the iframe is above the visible viewport
+    var rect = document.documentElement.getBoundingClientRect();
+    var iframeScrolledAbove = -rect.top;
+    
+    // Position lightbox so it appears centered in the browser viewport
+    lightbox.style.top = iframeScrolledAbove + "px";
+    lightbox.style.height = parentViewportInfo.height + "px";
+  }
+
   function openLightbox(index) {
     if (editorMode) return;
     currentIndex = index;
@@ -281,12 +306,7 @@
     // Notify parent to prevent scrolling (for iframe embeds)
     if (window.self !== window.top) {
       window.parent.postMessage({ type: "lightbox-open" }, "*");
-      
-      // Adjust lightbox position to center relative to browser viewport
-      var rect = document.documentElement.getBoundingClientRect();
-      var offsetTop = -rect.top; // How far iframe is scrolled into view
-      lightbox.style.top = offsetTop + "px";
-      lightbox.style.height = window.parent.innerHeight + "px";
+      // Position will be applied when parent sends viewport info back
     }
   }
 
