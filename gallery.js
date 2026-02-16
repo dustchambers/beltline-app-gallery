@@ -868,12 +868,12 @@
     document.body.classList.add("embedded");
 
     function postHeight() {
-      // Temporarily hide lightbox so its absolute position doesn't inflate height
-      var lb = document.querySelector(".lightbox");
-      var prev = lb ? lb.style.display : "";
-      if (lb) lb.style.display = "none";
-      var h = document.documentElement.scrollHeight;
-      if (lb) lb.style.display = prev;
+      // Measure gallery element directly so the lightbox (position:absolute)
+      // can't inflate the reported height
+      var g = document.getElementById("gallery");
+      if (!g) return;
+      var r = g.getBoundingClientRect();
+      var h = Math.ceil(r.top + r.height);
       window.parent.postMessage({ type: "resize", height: h }, "*");
     }
 
