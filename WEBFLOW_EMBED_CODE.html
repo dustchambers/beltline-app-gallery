@@ -14,9 +14,24 @@
   iframe.src =
     "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
 
+  function sendViewport() {
+    try {
+      var rect = iframe.getBoundingClientRect();
+      iframe.contentWindow.postMessage({
+        type: "viewport",
+        top: Math.max(0, -rect.top),
+        height: window.innerHeight
+      }, "*");
+    } catch(e) {}
+  }
+
+  window.addEventListener("scroll", sendViewport, { passive: true });
+  window.addEventListener("resize", sendViewport);
+
   window.addEventListener("message", function(e) {
     if (e.data && e.data.type === "resize") {
       iframe.style.height = e.data.height + "px";
+      sendViewport();
     }
   });
 </script>
