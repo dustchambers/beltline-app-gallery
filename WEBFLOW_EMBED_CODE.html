@@ -10,8 +10,11 @@
 <script>
   var slug = window.location.pathname.split("/").pop();
   var iframe = document.getElementById("lot43-gallery");
-  iframe.src =
-    "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
+  var iframeSrc = "https://dustchambers.github.io/beltline-app-gallery/gallery.html?id=" + slug;
+  if (new URLSearchParams(window.location.search).has("edit")) {
+    iframeSrc += "&edit";
+  }
+  iframe.src = iframeSrc;
 
   function sendViewport() {
     try {

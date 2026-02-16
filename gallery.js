@@ -17,6 +17,8 @@
     config = cfg;
     STORAGE_KEY = "galleryLayout_" + config.id;
     init();
+    // Auto-enter edit mode if ?edit is in URL
+    if (hasEditParam()) toggleEditor();
   }
 
   if (config) {
@@ -994,5 +996,6 @@
   // If fetching from API, boot() calls init() after the fetch resolves.
   if (config) {
     init();
+    if (hasEditParam()) toggleEditor();
   }
 })();
