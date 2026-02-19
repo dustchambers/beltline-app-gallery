@@ -929,44 +929,25 @@
     return sizeMap[getSize(item)] || 1;
   }
 
-  function refreshSlots() {
-    // Remove existing slots
-    getGallery().querySelectorAll(".g9-slot").forEach(function (s) { s.remove(); });
-    if (!editorMode) return;
-
-    // Count columns used in the last partial row
-    var items = getGalleryItems();
-    var colsUsed = 0;
-    items.forEach(function (item) {
-      var spans = isSpacer(item) ? getSpacerSpans(item) : { cols: getColSpan(item), rows: 1 };
-      colsUsed = (colsUsed + spans.cols) % 18;
-    });
-
-    // One unified slot spanning all remaining columns — looks like a single empty block
-    var remainder = colsUsed === 0 ? 0 : 18 - colsUsed;
-    if (remainder === 0) return;
-
+  function makeSlot(remainder, insertBeforeNode) {
+    // Build one unified slot spanning `remainder` columns.
+    // Clicking it replaces itself with a spacer of the same span.
     var gallery = getGallery();
     var slot = document.createElement("div");
     slot.className = "g9-slot";
     slot.style.gridColumn = "span " + remainder;
     slot.style.gridRow = "span 1";
 
-    // Small + button centered in the unified block
     var plusBtn = document.createElement("button");
     plusBtn.className = "slot-plus-btn";
     plusBtn.textContent = "+";
     plusBtn.title = "Add spacer (" + remainder + "\u00d71)";
     plusBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      // Create a spacer exactly the same size as the empty space
+      // Replace THIS slot with a correctly-sized spacer at the same position
       var spacer = createSpacerElement(remainder, 1);
-      var existingSlot = getGallery().querySelector(".g9-slot");
-      if (existingSlot) {
-        getGallery().insertBefore(spacer, existingSlot);
-      } else {
-        getGallery().appendChild(spacer);
-      }
+      gallery.insertBefore(spacer, slot);
+      slot.remove();
       setupEditorItem(spacer);
       refreshOrderNumbers();
       refreshSlots();
@@ -974,7 +955,49 @@
     });
     slot.appendChild(plusBtn);
 
-    gallery.appendChild(slot);
+    if (insertBeforeNode) {
+      gallery.insertBefore(slot, insertBeforeNode);
+    } else {
+      gallery.appendChild(slot);
+    }
+  }
+
+  function refreshSlots() {
+    // Remove existing slots
+    getGallery().querySelectorAll(".g9-slot").forEach(function (s) { s.remove(); });
+    if (!editorMode) return;
+
+    // Walk items in DOM order, tracking column position within each row.
+    // Whenever a row is "full" (colsUsed resets to 0), check if the item
+    // that caused the wrap left a gap — if so, insert a slot at that point.
+    // Also handle the trailing partial row at the end.
+    var items = getGalleryItems();
+    var colsUsed = 0;
+
+    items.forEach(function (item, i) {
+      var cols = isSpacer(item) ? getSpacerSpans(item).cols : getColSpan(item);
+
+      var newTotal = colsUsed + cols;
+
+      if (newTotal > 18) {
+        // This item wraps to a new row — the current row has a gap before it.
+        // The gap sits before this item in DOM order.
+        var gap = 18 - colsUsed;
+        if (gap > 0) {
+          makeSlot(gap, item); // insert slot before this item
+        }
+        colsUsed = cols % 18; // item starts fresh row
+      } else if (newTotal === 18) {
+        colsUsed = 0; // row exactly full — no gap
+      } else {
+        colsUsed = newTotal;
+      }
+    });
+
+    // Trailing partial row at end of DOM
+    if (colsUsed > 0) {
+      makeSlot(18 - colsUsed, null); // append at end
+    }
   }
 
   // ── Orientation Buttons ──
@@ -1041,12 +1064,16 @@
       dragGhost.style.top = e.clientY + "px";
     }
 
+    // Include slots as drop candidates so dragging into a gap row works
     var items = getGalleryItems();
+    var slots = [].slice.call(getGallery().querySelectorAll(".g9-slot"));
+    var candidates = items.concat(slots);
+
     var closestItem = null;
     var insertBefore = true;
     var minDist = Infinity;
 
-    items.forEach(function (item) {
+    candidates.forEach(function (item) {
       if (item === activeItem) return;
       var rect = item.getBoundingClientRect();
       var centerX = rect.left + rect.width / 2;
@@ -1073,11 +1100,16 @@
       if (minDist > lastDist - 15) return;
     }
 
-    // Dead zone for insert side
+    // Slots are always "insert before" — place the dragged item into the gap
+    var isSlot = closestItem.classList.contains("g9-slot");
+
+    // Dead zone for insert side (not applicable to slots — they only accept before)
     var closestRect = closestItem.getBoundingClientRect();
     var centerX = closestRect.left + closestRect.width / 2;
     var deadZone = closestRect.width * 0.2;
-    if (e.clientX < centerX - deadZone) {
+    if (isSlot) {
+      insertBefore = true;
+    } else if (e.clientX < centerX - deadZone) {
       insertBefore = true;
     } else if (e.clientX > centerX + deadZone) {
       insertBefore = false;
@@ -1104,6 +1136,7 @@
       lastDropTarget = closestItem;
       lastInsertBefore = insertBefore;
       refreshOrderNumbers();
+      refreshSlots(); // recompute gaps after every DOM reorder
     }
   }
 
@@ -1119,6 +1152,7 @@
     lastDropTarget = null;
     lastInsertBefore = true;
     refreshOrderNumbers();
+    refreshSlots();
     autoSave();
   }
 
