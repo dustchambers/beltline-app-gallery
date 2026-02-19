@@ -2297,6 +2297,10 @@
       dragCellCursor.remove();
       dragCellCursor = null;
     }
+    // Suppress fadeInUp re-fire during the DOM reorder at drop.
+    // Must be added BEFORE removing "dragging" (which would re-enable the animation)
+    // and kept until after all appendChild calls settle.
+    document.body.classList.add("no-animate");
     document.body.classList.remove("dragging");
 
     var gallery = getGallery();
@@ -2333,6 +2337,13 @@
       activeItem.style.visibility = "";
       activeItem.style.cursor = "grab";
     }
+
+    // Remove no-animate after two paint frames so the settled layout is committed first.
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        document.body.classList.remove("no-animate");
+      });
+    });
 
     lastDropTarget = null;
     lastInsertBefore = true;
