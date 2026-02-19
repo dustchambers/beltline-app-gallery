@@ -382,13 +382,14 @@ body:not(.edit-mode) .spacer-text:empty::before {
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
 }
 
-/* ── Text Style Cycle Button (I / II / III = body / title / header) ── */
-/* Positioned diagonally from the T button (30px right, 26px down) so it
-   doesn't collide with the H-align row or V-align column. */
-.spacer-style-btn {
-  position: absolute;
-  top: 40px;
-  left: 30px; /* diagonal: same column as H-align bar, below T-button */
+/* ── Diagonal Text Style Buttons (I / II / III = body / title / header) ── */
+/* Three buttons fan out diagonally from the T button at 45°:
+   T   at top:14px  left:4px
+   I   at top:40px  left:30px   (+26, +26 from T)
+   II  at top:66px  left:56px   (+26, +26 from I)
+   III at top:92px  left:82px   (+26, +26 from II)
+   The transition-delay is set inline by JS for sequential fan-out animation.  */
+.spacer-style-diag-btn {
   width: 22px;
   height: 22px;
   display: flex;
@@ -405,11 +406,33 @@ body:not(.edit-mode) .spacer-text:empty::before {
   cursor: pointer;
   z-index: 25;
   padding: 0;
-  transition: background 0.15s;
+  /* Hidden by default — animated in diagonally (slide from T direction) */
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-6px, -6px);
+  /* transition property list must match the inline delay format */
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s;
 }
 
-.spacer-style-btn:hover {
+.spacer-style-diag-btn:hover {
   background: rgba(26,26,26,0.85);
+}
+
+.spacer-style-diag-btn.active {
+  background: rgba(26,26,26,0.9);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+}
+
+/* Visible state — animate into position */
+.spacer-style-diag-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+/* Reverse stagger on close — fastest (furthest) first */
+.spacer-style-diag-btn.visible:nth-of-type(n) {
+  /* The closing delay is reset inline via JS's transition-delay on removal of .visible */
 }
 
 /* ── Color Fill Button ── */

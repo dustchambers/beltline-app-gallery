@@ -571,25 +571,51 @@
     });
     item.appendChild(vAlignBar);
 
-    // T toggle button — enables/disables text editing on the spacer
+    // T toggle button — toggles control panel visibility (NOT text mode).
+    // Text mode activates on any non-drag click on the spacer body.
     var textBtn = document.createElement("button");
     textBtn.className = "spacer-text-btn";
     textBtn.textContent = "T";
-    textBtn.title = "Add text";
+    textBtn.title = "Toggle text controls";
 
     var textActive = false;
+    var controlsVisible = false;
     // Guard flag: set true on mousedown of any in-spacer button so focusout
     // doesn't deactivate before the click event fires (relatedTarget is
     // unreliable across browsers when clicking buttons).
     var suppressDeactivate = false;
 
+    function showControls() {
+      controlsVisible = true;
+      alignBar.classList.add("visible");
+      vAlignBar.classList.add("visible");
+      // Restore forward stagger delays before animating in
+      var openDelays = ["0ms", "55ms", "110ms"];
+      styleBtns.forEach(function (sb, i) {
+        sb.style.transitionDelay = openDelays[i] + "," + openDelays[i] + ",0ms";
+        sb.classList.add("visible");
+      });
+      textBtn.classList.add("active");
+    }
+
+    function hideControls() {
+      controlsVisible = false;
+      alignBar.classList.remove("visible");
+      vAlignBar.classList.remove("visible");
+      // Reverse stagger: furthest button fades first (0ms), then closer ones
+      var closeDelays = ["110ms", "55ms", "0ms"];
+      styleBtns.forEach(function (sb, i) {
+        sb.style.transitionDelay = closeDelays[i] + "," + closeDelays[i] + ",0ms";
+        sb.classList.remove("visible");
+      });
+      textBtn.classList.remove("active");
+    }
+
     function activateTextMode() {
       textActive = true;
       textEl.contentEditable = "true";
       textEl.classList.add("editing");
-      alignBar.classList.add("visible");
-      vAlignBar.classList.add("visible");
-      textBtn.classList.add("active");
+      showControls();
       textEl.focus();
       // Place cursor at end
       if (textEl.textContent.length) {
@@ -606,9 +632,7 @@
       textActive = false;
       textEl.contentEditable = "false";
       textEl.classList.remove("editing");
-      alignBar.classList.remove("visible");
-      vAlignBar.classList.remove("visible");
-      textBtn.classList.remove("active");
+      hideControls();
       syncTextState();
       autoSave();
     }
@@ -625,42 +649,64 @@
     };
 
     textBtn.addEventListener("mousedown", suppressNext);
+    // T toggles only the control panels — NOT text mode.
+    // Text editing persists even when the panels are hidden.
     textBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (textActive) {
-        deactivateTextMode();
+      if (controlsVisible) {
+        hideControls();
       } else {
-        activateTextMode();
+        showControls();
+        // If we're re-showing controls while already in text mode, re-focus.
+        if (textActive) {
+          setTimeout(function () { textEl.focus(); }, 0);
+        }
       }
     });
     item.appendChild(textBtn);
 
-    // ── Text style cycle button (I / II / III = body / title / header) ──
-    var styleBtn = document.createElement("button");
-    styleBtn.className = "spacer-style-btn";
-    styleBtn.title = "Text style";
-    var STYLE_CYCLE = ["body", "title", "header"];
-    var STYLE_LABELS = { body: "I", title: "II", header: "III" };
+    // ── Diagonal style fan: I / II / III (body / title / header) ──
+    // Three buttons fan out diagonally from the T button position,
+    // each stepping +26px right and +26px down from the previous.
+    //   T  = top:14px  left:4px
+    //   I  = top:40px  left:30px  (step 1: +26,+26)
+    //   II = top:66px  left:56px  (step 2: +26,+26)
+    //  III = top:92px  left:82px  (step 3: +26,+26)
+    var STYLE_DEFS = [
+      { style: "body",   label: "I",   top: 40, left: 30, delay: "0ms"   },
+      { style: "title",  label: "II",  top: 66, left: 56, delay: "55ms"  },
+      { style: "header", label: "III", top: 92, left: 82, delay: "110ms" }
+    ];
+
     function getCurrentStyle() {
       if (textEl.classList.contains("text-header")) return "header";
       if (textEl.classList.contains("text-title"))  return "title";
       return "body";
     }
-    function updateStyleBtn() {
-      styleBtn.textContent = STYLE_LABELS[getCurrentStyle()];
-    }
-    updateStyleBtn();
-    styleBtn.addEventListener("mousedown", function (e) { if (suppressNext) suppressNext(e); });
-    styleBtn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      var cur = getCurrentStyle();
-      var next = STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length];
-      textEl.classList.remove("text-header", "text-title", "text-body");
-      if (next !== "body") textEl.classList.add("text-" + next);
-      updateStyleBtn();
-      autoSave();
+
+    var styleBtns = STYLE_DEFS.map(function (def) {
+      var btn = document.createElement("button");
+      btn.className = "spacer-style-diag-btn";
+      btn.textContent = def.label;
+      btn.title = "Style: " + def.style;
+      btn.dataset.style = def.style;
+      btn.style.cssText =
+        "position:absolute; top:" + def.top + "px; left:" + def.left + "px;" +
+        "transition-delay:" + def.delay + "," + def.delay + ",0ms;";
+      if (getCurrentStyle() === def.style) btn.classList.add("active");
+      btn.addEventListener("mousedown", function (e) { if (suppressNext) suppressNext(e); });
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        textEl.classList.remove("text-header", "text-title");
+        if (def.style !== "body") textEl.classList.add("text-" + def.style);
+        styleBtns.forEach(function (sb) {
+          sb.classList.toggle("active", sb.dataset.style === def.style);
+        });
+        autoSave();
+      });
+      item.appendChild(btn);
+      return btn;
     });
-    item.appendChild(styleBtn);
 
     // ── Color fill button ──
     var colorBtn = document.createElement("button");
@@ -735,16 +781,20 @@
     });
     item.appendChild(colorBtn);
 
-    // textEl area also suppresses deactivation when in edit mode
-    // (buttons call suppressNext directly — no need for bar-level listener)
+    // Expose activateTextMode on the textEl so the global mouseup handler
+    // can trigger it when a spacer body click (no drag) is detected.
+    textEl._activateTextMode = activateTextMode;
 
-    // Clicking the text area activates text mode if not already active,
-    // or simply lets the cursor land when already editing.
+    // textEl area: stop propagation so the drag system never sees clicks here.
+    // activateTextMode is called via _activateTextMode from the mouseup path.
     textEl.addEventListener("mousedown", function (e) {
-      if (textActive) {
-        e.stopPropagation(); // already editing — just let click place cursor
-      } else {
-        e.stopPropagation();
+      e.stopPropagation(); // never let the drag system capture a click on the text area
+    });
+
+    // Also handle direct clicks on the text area in text mode so cursor placement works.
+    textEl.addEventListener("mouseup", function (e) {
+      e.stopPropagation();
+      if (!textActive) {
         activateTextMode();
       }
     });
@@ -771,7 +821,8 @@
   function removeSpacerHandles(item) {
     item.querySelectorAll(
       ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, " +
-      ".spacer-text-btn, .spacer-style-btn, .spacer-color-btn, .spacer-color-panel, " +
+      ".spacer-text-btn, .spacer-style-btn, .spacer-style-diag-btn, " +
+      ".spacer-color-btn, .spacer-color-panel, " +
       ".spacer-align-bar, .spacer-align-vbar"
     ).forEach(function (h) { h.remove(); });
     // Lock text element back to non-editable
@@ -779,6 +830,7 @@
     if (textEl) {
       textEl.contentEditable = "false";
       textEl.classList.remove("editing");
+      textEl._activateTextMode = null;
     }
   }
 
@@ -807,7 +859,9 @@
         var rowP = parseGridStyle(item.style.gridRow);
         resizeStartCol = colP.start || 1;
         resizeStartRow = rowP.start || 1;
-        // Snapshot all other items' positions for Shift+resize push behaviour
+        // Snapshot all other items' positions for Shift+resize push behaviour.
+        // pushRightOriginals includes row info so applyPushRight can limit pushing
+        // to items that overlap vertically with the resizing item.
         isPushDown = false; lastPushDownRow = -1; pushDownOriginals = [];
         isPushRight = false; lastPushRightCol = -1; pushRightOriginals = [];
         getGalleryItems().forEach(function (el) {
@@ -815,7 +869,11 @@
           var rp = parseGridStyle(el.style.gridRow);
           var cp2 = parseGridStyle(el.style.gridColumn);
           if (rp.start !== null)  pushDownOriginals.push({ item: el, origRow: rp.start, span: rp.span });
-          if (cp2.start !== null) pushRightOriginals.push({ item: el, origCol: cp2.start, span: cp2.span });
+          if (cp2.start !== null) pushRightOriginals.push({
+            item: el, origCol: cp2.start, span: cp2.span,
+            // Include row info for vertical overlap filtering
+            origRow: rp.start || 1, rowSpan: rp.span || 1
+          });
         });
       });
       item.appendChild(h);
@@ -910,9 +968,11 @@
 
     if (e.shiftKey && resizeMode === "image") {
       if (bottomEdge && newRows > resizeStartRows) {
-        // New bottom row of the resizing item
-        var newBottom = rowStart + newRows; // first row below the expanded item
-        applyPushDown(newBottom, newRows - resizeStartRows);
+        // Use the ORIGINAL bottom edge as the push threshold, not the new bottom.
+        // Items that start at or below the original bottom should always be pushed,
+        // even when they start above the new (expanded) bottom.
+        var originalBottom = resizeStartRow + resizeStartRows; // first row below original item
+        applyPushDown(originalBottom, newRows - resizeStartRows);
       } else if (isPushDown) {
         restorePushDown();
       }
@@ -1841,16 +1901,23 @@
     lastPushRightCol = -1;
   }
 
-  // Shift all bystander items whose original colStart >= targetCol rightward
-  // by `shift` columns. Items to the left of targetCol are restored.
+  // Shift bystander items whose original colStart >= targetCol rightward
+  // by `shift` columns — but ONLY items that overlap vertically with the
+  // resizing item (same row band). Items in other row bands are unaffected.
+  // resizeItemRowStart/rowSpan are read from the closure via outer vars.
   function applyPushRight(targetCol, shift) {
     if (lastPushRightCol === targetCol && isPushRight) return; // debounce
     lastPushRightCol = targetCol;
     isPushRight = true;
+    var itemRowEnd = resizeStartRow + resizeStartRows - 1; // last row of resizing item
     pushRightOriginals.forEach(function (entry) {
-      if (entry.origCol >= targetCol) {
+      // Only push items that overlap the resizing item's row band
+      var overlapsVertically = entry.origRow <= itemRowEnd &&
+                               (entry.origRow + entry.rowSpan - 1) >= resizeStartRow;
+      if (overlapsVertically && entry.origCol >= targetCol) {
         entry.item.style.gridColumn = (entry.origCol + shift) + " / span " + entry.span;
       } else {
+        // Outside the row band or left of the push target — restore
         entry.item.style.gridColumn = entry.origCol + " / span " + entry.span;
       }
     });
@@ -2229,27 +2296,42 @@
           ? (tEl.classList.contains("valign-middle") ? "middle"
            : tEl.classList.contains("valign-bottom") ? "bottom" : null)
           : null;
+        var tStyle = tEl
+          ? (tEl.classList.contains("text-header") ? "header"
+           : tEl.classList.contains("text-title")  ? "title" : null)
+          : null;
+        var spc = parseGridStyle(item.style.gridColumn);
+        var spr = parseGridStyle(item.style.gridRow);
         return {
-          type:   "spacer",
-          cols:   spans.cols,
-          rows:   spans.rows,
-          text:   tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
-          align:  tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
-          valign: tValign
+          type:      "spacer",
+          cols:      spans.cols,
+          rows:      spans.rows,
+          colStart:  spc.start || null,
+          rowStart:  spr.start || null,
+          text:      tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align:     tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
+          valign:    tValign,
+          textStyle: tStyle    || null,
+          bgColor:   item.style.backgroundColor || null
         };
       }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
       var spans = getItemSpans(item);
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
       var entry = {
-        id: img.dataset.imageId || "",
-        crop: (crop && crop !== "50% 50%") ? crop : null
+        id:       img.dataset.imageId || "",
+        crop:     (crop && crop !== "50% 50%") ? crop : null,
+        colStart: colP.start || null,
+        rowStart: rowP.start || null
       };
       if (spans.custom) {
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
-        entry.size = getSize(item);
+        var sz = getSize(item);
+        entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       return entry;
     });
@@ -2295,28 +2377,43 @@
           ? (tEl.classList.contains("valign-middle") ? "middle"
            : tEl.classList.contains("valign-bottom") ? "bottom" : null)
           : null;
+        var tStyle = tEl
+          ? (tEl.classList.contains("text-header") ? "header"
+           : tEl.classList.contains("text-title")  ? "title" : null)
+          : null;
+        var spc = parseGridStyle(item.style.gridColumn);
+        var spr = parseGridStyle(item.style.gridRow);
         return {
-          type:   "spacer",
-          cols:   spans.cols,
-          rows:   spans.rows,
-          text:   tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
-          align:  tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
-          valign: tValign
+          type:      "spacer",
+          cols:      spans.cols,
+          rows:      spans.rows,
+          colStart:  spc.start || null,
+          rowStart:  spr.start || null,
+          text:      tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align:     tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
+          valign:    tValign,
+          textStyle: tStyle    || null,
+          bgColor:   item.style.backgroundColor || null
         };
       }
       var img = item.querySelector("img");
       var objPos = img.style.objectPosition || "";
       var spans = getItemSpans(item);
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
       var entry = {
-        id: img.dataset.imageId || "",
-        src: img.src,
-        alt: img.alt || ""
+        id:       img.dataset.imageId || "",
+        src:      img.src,
+        alt:      img.alt || "",
+        colStart: colP.start || null,
+        rowStart: rowP.start || null
       };
       if (spans.custom) {
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
-        entry.size = getSize(item);
+        var sz = getSize(item);
+        entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       if (objPos && objPos !== "50% 50%") {
         entry.crop = objPos;
@@ -2493,6 +2590,16 @@
             // Plain click on unselected item — clear selection
             if (selectedItems.indexOf(activeItem) === -1) {
               clearSelection();
+            }
+          }
+          // ── Spacer click-without-drag → activate text editing mode ──
+          // If the clicked item was a spacer and no drag occurred, treat the
+          // click as intent to type. This lets users click anywhere on the
+          // spacer body (not just the text area) to start editing.
+          if (isSpacer(activeItem) && !e.shiftKey) {
+            var spacerTextEl = activeItem.querySelector(".spacer-text");
+            if (spacerTextEl && spacerTextEl._activateTextMode) {
+              spacerTextEl._activateTextMode();
             }
           }
           // Clean up any push-down/push-right state that didn't lead to a drop
