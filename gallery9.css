@@ -1,0 +1,1000 @@
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap');
+
+/* ── Reset & Background ── */
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #ECEAE4;
+}
+
+/* ── Embed Mode ── */
+body.embedded .navbar,
+body.embedded .hero,
+body.embedded .footer {
+  display: none !important;
+}
+
+body.embedded .gallery {
+  padding-top: 12px;
+}
+
+/* ── Gallery Header ── */
+.gallery-header {
+  text-align: center;
+  padding: 3rem 1rem 1.5rem;
+}
+
+.gallery-title {
+  font-family: 'Inconsolata', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #333;
+  margin: 0;
+}
+
+.gallery-subtitle {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: #888;
+  margin: 0.4rem 0 0;
+}
+
+/* ── Unified Spacing Token ── */
+/* --s drives gap, side margins, and the row-height formula simultaneously.
+   Formula: (max-viewport - (cols+1)×gap) / cols  →  square cells.
+   For 18 cols that's 19 gaps (left margin + 17 gutters + right margin). */
+:root {
+  --s: clamp(10px, 1.6vw, 20px);
+}
+
+/* ── Gallery Grid ── */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(18, 1fr);
+  /* Each cell is square: full width minus 19 gaps, divided by 18 columns */
+  grid-auto-rows: calc((min(100vw, 1400px) - 19 * var(--s)) / 18);
+  /* No dense packing — items stay in source order, gaps remain as gaps */
+  grid-auto-flow: row;
+  gap: var(--s);
+  padding: 0 var(--s) calc(var(--s) * 2);
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative; /* needed for absolute-positioned drop preview */
+}
+
+/* ── Edit-mode background grid ── */
+body.edit-mode .gallery {
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+  /* Tile size = one cell + one gap, matching the 18-col formula */
+  background-size:
+    calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s))
+    calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s));
+  background-position: -1px -1px;
+}
+
+/* ── Suppress hover-zoom during drag ── */
+/* Prevents flickering as the cursor enters/leaves images while dragging. */
+body.dragging .g9-item img {
+  transition: none !important;
+}
+
+/* During drag: boost grid visibility so user can see where cells are */
+body.dragging .gallery {
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.10) 1px, transparent 1px);
+  background-size:
+    calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s))
+    calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s));
+  background-position: -1px -1px;
+}
+
+/* ── Drag cell cursor highlight — 1×1 cell under mouse during drag ── */
+.drag-cell-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9998;
+  background: rgba(26,26,26,0.06);
+  border: 1px solid rgba(26,26,26,0.18);
+  border-radius: 1px;
+  box-sizing: border-box;
+  /* No transition — must track cursor instantly */
+}
+
+/* ── Drop Cell Preview (shown during drag) ── */
+.drop-cell {
+  position: absolute;
+  pointer-events: none;
+  z-index: 9999;
+  background: rgba(26, 26, 26, 0.10);
+  border: 2px dashed rgba(26, 26, 26, 0.45);
+  border-radius: 3px;
+  box-sizing: border-box;
+  transition: left 0.06s ease, top 0.06s ease, width 0.06s ease, height 0.06s ease;
+}
+
+/* ── Gallery Items ── */
+.g9-item {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  /* No aspect-ratio here — rows are sized by grid-auto-rows */
+  /* Items are visible by default. The entrance animation temporarily overrides
+     this via the `from` keyframe. Once the animation completes, JS adds
+     .g9-animated which locks animation:none — so DOM moves (bring-to-front,
+     undo, drag-drop) never re-trigger the entrance animation. */
+  opacity: 1;
+  transform: none;
+  animation: fadeInUp 0.6s ease both;
+}
+
+/* Permanently suppress the entrance animation once it has played.
+   Set by JS via animationend listener on each item. */
+.g9-item.g9-animated {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* 18-col size classes — all fill their grid area naturally.
+   Default photo sizes: 6x4 (horiz, 1/3 width) and 4x6 (vert, 2/9 width).
+   Spacer bars: 9x1 (half-width), 18x1 (full-width), 9x2, 18x2.
+   Squares: 4x4, 6x6.
+   Wide: 9x4 (half), 12x4 (2/3), 18x4, 18x6 (full-bleed). */
+
+/* ── Square ── */
+.g9-item.g9-2x2  { grid-column: span 2;  grid-row: span 2; }
+.g9-item.g9-4x4  { grid-column: span 4;  grid-row: span 4; }
+.g9-item.g9-6x6  { grid-column: span 6;  grid-row: span 6; }
+
+/* ── Horizontal ── */
+.g9-item.g9-6x4  { grid-column: span 6;  grid-row: span 4; }
+.g9-item.g9-9x4  { grid-column: span 9;  grid-row: span 4; }
+.g9-item.g9-9x6  { grid-column: span 9;  grid-row: span 6; }
+.g9-item.g9-12x4 { grid-column: span 12; grid-row: span 4; }
+.g9-item.g9-12x6 { grid-column: span 12; grid-row: span 6; }
+.g9-item.g9-18x4 { grid-column: span 18; grid-row: span 4; }
+.g9-item.g9-18x6 { grid-column: span 18; grid-row: span 6; }
+.g9-item.g9-18x8 { grid-column: span 18; grid-row: span 8; }
+
+/* ── Vertical ── */
+.g9-item.g9-4x6  { grid-column: span 4;  grid-row: span 6; }
+.g9-item.g9-4x8  { grid-column: span 4;  grid-row: span 8; }
+.g9-item.g9-6x8  { grid-column: span 6;  grid-row: span 8; }
+.g9-item.g9-6x9  { grid-column: span 6;  grid-row: span 9; }
+
+/* ── Spacer Bars ── */
+.g9-item.g9-9x1  { grid-column: span 9;  grid-row: span 1; }
+.g9-item.g9-9x2  { grid-column: span 9;  grid-row: span 2; }
+.g9-item.g9-18x1 { grid-column: span 18; grid-row: span 1; }
+.g9-item.g9-18x2 { grid-column: span 18; grid-row: span 2; }
+
+.g9-item.hidden { display: none; }
+
+/* ── Spacer ── */
+.g9-item.g9-spacer {
+  background: #ECEAE4;
+  cursor: default;
+}
+
+.g9-spacer-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Inconsolata', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(0,0,0,0.25);
+  pointer-events: none;
+  display: none;
+}
+
+body.edit-mode .g9-spacer-label {
+  display: block;
+}
+
+body.edit-mode .g9-item.g9-spacer {
+  outline: 1px dashed rgba(0,0,0,0.2);
+  cursor: grab;
+}
+
+/* ── Spacer Text Overlay ── */
+/* Flex column: justify-content positions the text block vertically,
+   align-items:stretch ensures the editable div is full-width so
+   text-align (left/center/right) has room to work. */
+.spacer-text {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  align-items: stretch; /* full-width child so text-align works */
+  overflow: hidden;
+  box-sizing: border-box;
+  outline: none;
+  /* Typography defaults */
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  line-height: 1.55;
+  color: #333;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Vertical alignment variants — justify-content on column flex = vertical */
+.spacer-text.valign-top    { justify-content: flex-start; }
+.spacer-text.valign-middle { justify-content: center; }
+.spacer-text.valign-bottom { justify-content: flex-end; }
+
+/* Show text when spacer has content */
+.g9-item.has-text .spacer-text {
+  display: flex;
+}
+
+/* In view mode: text cursor over spacer text content */
+.g9-item.has-text .spacer-text {
+  cursor: text;
+  user-select: text;
+}
+
+/* Always show in edit mode so user can type into it */
+body.edit-mode .spacer-text {
+  display: flex;
+  cursor: default; /* overridden to text when editing */
+}
+
+/* In edit mode: spacer body uses grab, text area uses default until actively editing */
+body.edit-mode .g9-item.g9-spacer .spacer-text {
+  cursor: default;
+}
+
+/* Editable state — cursor only; the item outline signals editing, not interior color */
+.spacer-text.editing {
+  cursor: text;
+}
+
+/* Outline the block while text editing is active */
+body.edit-mode .g9-item.text-editing {
+  outline: 2px solid rgba(60, 120, 220, 0.85) !important;
+  outline-offset: -2px;
+}
+
+/* Placeholder shown when text element is empty */
+.spacer-text:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0,0,0,0.2);
+  pointer-events: none;
+  font-style: italic;
+}
+
+/* Don't show placeholder when not in edit mode */
+body:not(.edit-mode) .spacer-text:empty::before {
+  content: none;
+}
+
+/* ── Spacer Text Toggle (T) button ── */
+.spacer-text-btn {
+  position: absolute;
+  top: 14px;
+  left: 4px; /* mirror del-btn which sits at right: 4px */
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.45);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.spacer-text-btn:hover,
+.spacer-text-btn.active {
+  background: rgba(26,26,26,0.85);
+}
+
+/* ── Spacer Alignment Bars (horizontal L/C/R  and  vertical T/M/B) ── */
+/* H-align bar fans out to the RIGHT of the T button (same top, row direction).
+   V-align bar stacks DOWN below the T button (column direction).
+   Both use CSS transitions for animated open/close. */
+.spacer-align-bar,
+.spacer-align-vbar {
+  position: absolute;
+  left: 4px;
+  display: flex; /* always flex — visibility controlled via opacity+pointer-events */
+  gap: 3px;
+  z-index: 25;
+}
+
+/* H-align: same row as T button, fanning right */
+.spacer-align-bar {
+  top: 14px;           /* same top as T button */
+  left: 30px;          /* start just to the right of T button (4px + 22px + 4px gap) */
+  flex-direction: row;
+}
+
+/* V-align: column below T button */
+.spacer-align-vbar {
+  top: 42px;           /* 14px top + 22px T button + 6px gap */
+  left: 4px;
+  flex-direction: column;
+}
+
+/* ── Individual button animation ── */
+/* Buttons start hidden (off to the side / upward, transparent) */
+.spacer-align-bar .spacer-align-btn {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s;
+}
+
+.spacer-align-vbar .spacer-align-btn {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s;
+}
+
+/* Stagger delays — fan out sequentially */
+.spacer-align-bar .spacer-align-btn:nth-child(1) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-bar .spacer-align-btn:nth-child(2) { transition-delay: 55ms,  55ms,  0ms; }
+.spacer-align-bar .spacer-align-btn:nth-child(3) { transition-delay: 110ms, 110ms, 0ms; }
+
+.spacer-align-vbar .spacer-align-btn:nth-child(1) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-vbar .spacer-align-btn:nth-child(2) { transition-delay: 55ms,  55ms,  0ms; }
+.spacer-align-vbar .spacer-align-btn:nth-child(3) { transition-delay: 110ms, 110ms, 0ms; }
+
+/* Visible state — buttons animate in */
+.spacer-align-bar.visible .spacer-align-btn,
+.spacer-align-vbar.visible .spacer-align-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+/* Reverse stagger on close (fastest first) */
+.spacer-align-bar:not(.visible) .spacer-align-btn:nth-child(3) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-bar:not(.visible) .spacer-align-btn:nth-child(2) { transition-delay: 40ms,  40ms,  0ms; }
+.spacer-align-bar:not(.visible) .spacer-align-btn:nth-child(1) { transition-delay: 80ms,  80ms,  0ms; }
+
+.spacer-align-vbar:not(.visible) .spacer-align-btn:nth-child(3) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-vbar:not(.visible) .spacer-align-btn:nth-child(2) { transition-delay: 40ms,  40ms,  0ms; }
+.spacer-align-vbar:not(.visible) .spacer-align-btn:nth-child(1) { transition-delay: 80ms,  80ms,  0ms; }
+
+.spacer-align-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.45);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.spacer-align-btn:hover {
+  background: rgba(26,26,26,0.7);
+}
+
+.spacer-align-btn.active {
+  background: rgba(26,26,26,0.9);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+}
+
+/* ── Diagonal Text Style Buttons (I / II / III = body / title / header) ── */
+/* Three buttons fan out diagonally from the T button at 45°:
+   T   at top:14px  left:4px
+   I   at top:40px  left:30px   (+26, +26 from T)
+   II  at top:66px  left:56px   (+26, +26 from I)
+   III at top:92px  left:82px   (+26, +26 from II)
+   The transition-delay is set inline by JS for sequential fan-out animation.  */
+.spacer-style-diag-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.45);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25;
+  padding: 0;
+  /* Hidden by default — animated in diagonally (slide from T direction) */
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-6px, -6px);
+  /* transition property list must match the inline delay format */
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s;
+}
+
+.spacer-style-diag-btn:hover {
+  background: rgba(26,26,26,0.85);
+}
+
+.spacer-style-diag-btn.active {
+  background: rgba(26,26,26,0.9);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+}
+
+/* Visible state — animate into position */
+.spacer-style-diag-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+/* Reverse stagger on close — fastest (furthest) first */
+.spacer-style-diag-btn.visible:nth-of-type(n) {
+  /* The closing delay is reset inline via JS's transition-delay on removal of .visible */
+}
+
+/* ── Color Fill Button ── */
+/* Sits directly below the T button in the left column. */
+.spacer-color-btn {
+  position: absolute;
+  top: 66px; /* 14px (T top) + 22px (T height) + 6px gap + 24px (style btn height+gap) */
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.45);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25;
+  padding: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.spacer-color-btn:hover,
+.spacer-color-btn.active {
+  background: rgba(26,26,26,0.85);
+}
+
+/* ── Color Panel ── */
+/* Floats to the right of the color button, hidden by default.
+   Contains two rows: one for background fill, one for text color. */
+.spacer-color-panel {
+  position: absolute;
+  top: 60px;
+  left: 30px;
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(26,26,26,0.88);
+  border-radius: 5px;
+  padding: 7px 8px;
+  z-index: 30;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+
+.spacer-color-panel.visible {
+  display: flex;
+}
+
+/* Each row: label + swatch + hex input + clear button */
+.spacer-color-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.spacer-color-label {
+  font-family: 'Inconsolata', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(237,235,224,0.5);
+  width: 32px;
+  flex-shrink: 0;
+}
+
+/* Native color wheel input — styled to a compact swatch */
+.spacer-color-picker {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-appearance: none;
+}
+
+.spacer-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 2px;
+}
+.spacer-color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+/* Hex text input */
+.spacer-hex-input {
+  width: 68px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 3px;
+  color: #EDEBE0;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  padding: 3px 6px;
+  outline: none;
+  text-transform: lowercase;
+}
+
+.spacer-hex-input:focus {
+  border-color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.18);
+}
+
+/* Clear color × button */
+.spacer-color-clear {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.1);
+  color: #EDEBE0;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.spacer-color-clear:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* ── Text Style Variants ── */
+/* Body (default): Georgia serif at clamp-fluid size — already on .spacer-text */
+
+/* Title: slightly larger, tighter tracking, semi-bold Georgia */
+.spacer-text.text-title {
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  font-weight: normal;
+  letter-spacing: 0.02em;
+  font-style: italic;
+  color: #2a2a2a;
+}
+
+/* Header: large display text, monospace, spaced caps */
+.spacer-text.text-header {
+  font-family: 'Inconsolata', monospace;
+  font-size: clamp(1.4rem, 3vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+/* ── Empty Slot (edit mode only) ── */
+/* One unified block spanning the remaining columns — no individual cells */
+.g9-slot {
+  border: 1px dashed rgba(0,0,0,0.12);
+  background: transparent;
+  pointer-events: auto;
+  opacity: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Slot Plus Button — small circle centered in the empty block ── */
+.slot-plus-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.1);
+  color: rgba(0,0,0,0.4);
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  font-family: 'Inconsolata', monospace;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.slot-plus-btn:hover {
+  background: rgba(0,0,0,0.22);
+  color: rgba(0,0,0,0.7);
+}
+
+
+/* ── Images ── */
+.g9-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Crisper hover: ease-out decelerates fast — feels snappier than symmetric ease.
+     filter included so blur-up transition is driven by the same curve. */
+  transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              filter    0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.g9-item:hover img {
+  transform: scale(1.022);
+}
+
+/* ── Blur-up: images load sharp from a blurred placeholder ── */
+/* JS adds .g9-img-loading immediately; removes it once the image fires load.
+   scale(1.03) slightly overflows the container to hide the soft blur edge. */
+.g9-item img.g9-img-loading {
+  filter: blur(10px);
+  transform: scale(1.03);
+  opacity: 1;
+}
+
+
+/* ── Stagger animation ── */
+.g9-item:nth-child(1)  { animation-delay: 0.05s; }
+.g9-item:nth-child(2)  { animation-delay: 0.10s; }
+.g9-item:nth-child(3)  { animation-delay: 0.15s; }
+.g9-item:nth-child(4)  { animation-delay: 0.20s; }
+.g9-item:nth-child(5)  { animation-delay: 0.25s; }
+.g9-item:nth-child(6)  { animation-delay: 0.30s; }
+.g9-item:nth-child(7)  { animation-delay: 0.35s; }
+.g9-item:nth-child(8)  { animation-delay: 0.40s; }
+.g9-item:nth-child(9)  { animation-delay: 0.45s; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Lightbox ── */
+.lightbox {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26,26,26,0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.lightbox.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.lightbox img {
+  max-width: 90vw;
+  max-height: 88vh;
+  object-fit: contain;
+  transition: opacity 0.3s ease;
+}
+
+.lightbox-caption {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.95rem;
+  color: rgba(232,228,223,0.5);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 2rem; right: 2.5rem;
+  background: none; border: none;
+  color: #EDEBE0; font-size: 2.2rem;
+  cursor: pointer; opacity: 0.6;
+  transition: opacity 0.3s;
+  font-family: 'Lato', sans-serif;
+  font-weight: 100;
+  z-index: 1001;
+}
+.lightbox-close:hover { opacity: 1; }
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  background: none; border: none;
+  color: #EDEBE0; font-size: 3rem;
+  cursor: pointer; opacity: 0.3;
+  transition: opacity 0.3s;
+  padding: 2rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 100;
+  z-index: 1001;
+}
+.lightbox-nav:hover { opacity: 1; }
+.lightbox-prev { left: 0.5rem; }
+.lightbox-next { right: 0.5rem; }
+
+.lightbox-counter {
+  position: absolute;
+  bottom: 2rem;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.85rem;
+  color: rgba(232,228,223,0.4);
+  letter-spacing: 0.15em;
+}
+
+/* ── Edit Mode ── */
+#edit-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 200;
+}
+
+.edit-banner {
+  background: #1a1a1a;
+  color: #EDEBE0;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Row 1 — instructional text + save indicator */
+.edit-banner-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.7rem 2rem 0.6rem;
+  opacity: 0.55;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.save-indicator {
+  opacity: 0.6;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+/* Row 2 — buttons only */
+.edit-banner-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 2rem 0.65rem;
+}
+
+.edit-banner-actions button {
+  background: #EDEBE0;
+  color: #1a1a1a;
+  border: none;
+  padding: 0.35rem 1.1rem;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.edit-banner-actions button:hover { opacity: 0.7; }
+
+/* Export dropdown anchor */
+.editor-export-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+body.edit-mode .g9-item {
+  outline: 1px dashed rgba(0,0,0,0.15);
+  /* No transition in edit mode — prevents flash/pop when items are reordered
+     (bring-to-front via appendChild, undo restore, send-to-back, etc.) */
+}
+
+body.edit-mode .g9-item:active {
+  outline-color: rgba(0,0,0,0.4);
+}
+
+.g9-item.drag-placeholder {
+  opacity: 0.15;
+}
+.g9-item.drag-placeholder img { opacity: 0; }
+
+/* ── Multi-select highlight ── */
+/* Shown when an item is shift+clicked into the selection set */
+body.edit-mode .g9-item.g9-selected {
+  outline: 2px solid rgba(60, 120, 220, 0.85) !important;
+  outline-offset: -2px;
+}
+
+/* No overlay — selection is indicated by outline only */
+
+/* Drop position indicator — same grid span as dragged item, no pointer events */
+.drop-indicator {
+  background: rgba(26,26,26,0.07);
+  border: 2px dashed rgba(26,26,26,0.3);
+  border-radius: 2px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* ── Spacer Corner Handles ── */
+.spacer-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: rgba(26,26,26,0.6);
+  cursor: nwse-resize;
+  z-index: 20;
+}
+.spacer-handle.tl { top: 0; left: 0; cursor: nwse-resize; }
+.spacer-handle.tr { top: 0; right: 0; cursor: nesw-resize; }
+.spacer-handle.bl { bottom: 0; left: 0; cursor: nesw-resize; }
+.spacer-handle.br { bottom: 0; right: 0; cursor: nwse-resize; }
+
+/* ── Spacer Action Buttons (dup + delete) ── */
+.spacer-dup-btn,
+.spacer-del-btn {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.55);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25; /* above corner handles (z-index: 20) */
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.spacer-del-btn {
+  top: 14px;
+  right: 4px; /* inside the right edge, below the tr corner handle */
+}
+
+.spacer-dup-btn {
+  top: 40px;  /* del-btn top (14) + del-btn height (22) + 4px gap */
+  right: 4px; /* stacked directly below delete button */
+}
+
+.spacer-back-btn {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.55);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25;
+  transition: background 0.15s;
+  padding: 0;
+  top: 66px;  /* dup-btn top (40) + dup-btn height (22) + 4px gap */
+  right: 4px;
+}
+
+.spacer-dup-btn:hover,
+.spacer-back-btn:hover,
+.spacer-del-btn:hover {
+  background: rgba(26,26,26,0.85);
+}
+
+/* ── Image Edge / Corner Resize Handles ── */
+.item-resize-handle {
+  position: absolute;
+  z-index: 15;
+  /* Hidden until edit mode — body.edit-mode reveals them */
+  display: none;
+}
+
+body.edit-mode .item-resize-handle {
+  display: block;
+}
+
+/* ── Image resize edge strips (8px wide/tall, full span) ── */
+.item-resize-r  { top: 0;    right: 0;  width: 8px;  height: 100%; cursor: ew-resize; }
+.item-resize-l  { top: 0;    left: 0;   width: 8px;  height: 100%; cursor: ew-resize; }
+.item-resize-b  { bottom: 0; left: 0;   width: 100%; height: 8px;  cursor: ns-resize; }
+.item-resize-t  { top: 0;    left: 0;   width: 100%; height: 8px;  cursor: ns-resize; }
+
+/* ── Image resize corners (16×16px visible squares) ── */
+.item-resize-br,
+.item-resize-bl,
+.item-resize-tr,
+.item-resize-tl {
+  width: 16px;
+  height: 16px;
+  background: rgba(26,26,26,0.35);
+  border-radius: 2px;
+}
+
+.item-resize-br { bottom: 0; right: 0;  cursor: nwse-resize; border-radius: 2px 0 0 0; }
+.item-resize-bl { bottom: 0; left: 0;   cursor: nesw-resize; border-radius: 0 2px 0 0; }
+.item-resize-tr { top: 0;    right: 0;  cursor: nesw-resize; border-radius: 0 0 0 2px; }
+.item-resize-tl { top: 0;    left: 0;   cursor: nwse-resize; border-radius: 0 0 2px 0; }
+
+body.edit-mode .g9-item:hover .item-resize-br,
+body.edit-mode .g9-item:hover .item-resize-bl,
+body.edit-mode .g9-item:hover .item-resize-tr,
+body.edit-mode .g9-item:hover .item-resize-tl {
+  background: rgba(26,26,26,0.6);
+}
+
+/* ── Drag Ghost ── */
+.drag-ghost {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  width: 120px;
+  height: 90px;
+  opacity: 0.9;
+  border: 2px solid #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+  transform: translate(-50%, -50%) scale(1.05);
+  transition: none;
+}
+
+/* ── Responsive ── */
+/* No breakpoint reflow — the 18-column grid scales proportionally with the
+   viewport at all widths. The vw-based grid-auto-rows formula keeps cells
+   square, and all spans stay exactly as set, preserving the curated layout. */
