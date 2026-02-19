@@ -1288,56 +1288,70 @@
 
     if (maxRow === 0) return;
 
-    // For each grid row band 1..maxRow, find which columns are unoccupied
-    // but have occupied cells in the same row band on at least one side
-    // (meaning it's a genuine gap, not trailing space).
-    var gallery = getGallery();
-    var slotsAdded = 0;
+    // ── Pass 1: collect all 1-row gap segments ──
+    // gaps[key] = [ { rowStart, rowSpan:1 }, ... ] keyed by "colStart,colSpan"
+    var gaps = {}; // "colStart,colSpan" → sorted list of {row}
 
     for (var r = 1; r <= maxRow; r++) {
       // Which columns are occupied in this row?
-      var occupied = {}; // col → true
+      var occupied = {};
       rects.forEach(function (rc) {
         if (rc.rStart <= r && rc.rEnd >= r) {
-          for (var c = rc.cStart; c <= rc.cEnd; c++) {
-            occupied[c] = true;
-          }
+          for (var c = rc.cStart; c <= rc.cEnd; c++) occupied[c] = true;
         }
       });
 
-      // Find contiguous runs of unoccupied columns
+      // Only emit gaps in rows that have at least one occupied cell
+      // (avoids spurious trailing rows)
+      var rowHasContent = false;
+      for (var cc = 1; cc <= 18; cc++) {
+        if (occupied[cc]) { rowHasContent = true; break; }
+      }
+      if (!rowHasContent) continue;
+
+      // Find contiguous runs of unoccupied columns → gap segments
       var c = 1;
       while (c <= 18) {
         if (!occupied[c]) {
-          // Start of a gap
           var gapStart = c;
           while (c <= 18 && !occupied[c]) c++;
-          var gapEnd = c - 1; // inclusive
-          var gapWidth = gapEnd - gapStart + 1;
-
-          // Only emit a slot if this row actually has something occupied
-          // (i.e. it's not an entirely empty row band — avoid spurious trailing rows)
-          var rowHasContent = false;
-          for (var cc = 1; cc <= 18; cc++) {
-            if (occupied[cc]) { rowHasContent = true; break; }
-          }
-          if (rowHasContent) {
-            // How tall is this gap? Find the max height of items adjacent to it
-            // For simplicity: use 1 row tall — the slot will just fill its visual band
-            makeSlot(gapWidth, 1, null);
-            // Manually set explicit position so it lands in the right cell
-            var lastSlot = gallery.lastChild;
-            if (lastSlot && lastSlot.classList.contains("g9-slot")) {
-              lastSlot.style.gridColumn = gapStart + " / span " + gapWidth;
-              lastSlot.style.gridRow    = r + " / span 1";
-              slotsAdded++;
-            }
-          }
+          var gapWidth = c - gapStart;
+          var key = gapStart + "," + gapWidth;
+          if (!gaps[key]) gaps[key] = [];
+          gaps[key].push(r);
         } else {
           c++;
         }
       }
     }
+
+    // ── Pass 2: merge consecutive rows within each column band → one slot per run ──
+    var gallery = getGallery();
+    Object.keys(gaps).forEach(function (key) {
+      var parts = key.split(",");
+      var colStart = parseInt(parts[0], 10);
+      var colSpan  = parseInt(parts[1], 10);
+      var rows = gaps[key]; // already in ascending order (we scanned r=1..maxRow)
+
+      // Walk rows, grouping consecutive integers into runs
+      var i = 0;
+      while (i < rows.length) {
+        var runStart = rows[i];
+        var runEnd   = rows[i];
+        while (i + 1 < rows.length && rows[i + 1] === runEnd + 1) {
+          i++;
+          runEnd = rows[i];
+        }
+        var runHeight = runEnd - runStart + 1;
+
+        // Emit a single slot spanning the whole run
+        var slot = makeSlot(colSpan, runHeight, null);
+        slot.style.gridColumn = colStart + " / span " + colSpan;
+        slot.style.gridRow    = runStart + " / span " + runHeight;
+
+        i++;
+      }
+    });
   }
 
   // ── Spacer Merge ──
