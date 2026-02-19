@@ -146,15 +146,32 @@
     return item.classList.contains("g9-spacer");
   }
 
-  function createSpacerElement(cols, rows) {
+  function createSpacerElement(cols, rows, text, align) {
     var div = document.createElement("div");
     div.className = "g9-item g9-spacer";
     if (cols > 1) div.style.gridColumn = "span " + cols;
     if (rows > 1) div.style.gridRow = "span " + rows;
+
+    // Faint "spacer" label (hidden when text overlay is active)
     var label = document.createElement("span");
     label.className = "g9-spacer-label";
     label.textContent = "spacer";
     div.appendChild(label);
+
+    // Text overlay — always present; empty = hidden in view mode
+    var textEl = document.createElement("div");
+    textEl.className = "spacer-text";
+    textEl.contentEditable = "false"; // enabled only in edit mode via addSpacerHandles
+    textEl.dataset.placeholder = "Type here\u2026";
+    if (text) textEl.textContent = text;
+    if (align) textEl.style.textAlign = align;
+    // Show the text layer and hide the "spacer" label when there is content
+    if (text) {
+      label.style.display = "none";
+      div.classList.add("has-text");
+    }
+    div.appendChild(textEl);
+
     return div;
   }
 
@@ -164,7 +181,10 @@
 
     config.images.forEach(function (entry) {
       if (entry.type === "spacer") {
-        var spacer = createSpacerElement(entry.cols || 1, entry.rows || 1);
+        var spacer = createSpacerElement(
+          entry.cols || 1, entry.rows || 1,
+          entry.text || null, entry.align || null
+        );
         gallery.appendChild(spacer);
         return;
       }
@@ -396,10 +416,128 @@
       autoSave();
     });
     item.appendChild(delBtn);
+
+    // ── Text controls ──
+    var textEl = item.querySelector(".spacer-text");
+
+    // Helper: sync the has-text class and label visibility
+    function syncTextState() {
+      var hasText = textEl.textContent.trim().length > 0;
+      var label = item.querySelector(".g9-spacer-label");
+      item.classList.toggle("has-text", hasText);
+      if (label) label.style.display = hasText ? "none" : "";
+    }
+
+    // Alignment buttons (L / C / R) — start hidden, shown when T is active
+    var alignBar = document.createElement("div");
+    alignBar.className = "spacer-align-bar";
+    ["left", "center", "right"].forEach(function (align) {
+      var btn = document.createElement("button");
+      btn.className = "spacer-align-btn";
+      btn.dataset.align = align;
+      btn.title = align.charAt(0).toUpperCase() + align.slice(1) + " align";
+      // Unicode arrows: ← ↔ →  (but cleaner: use simple L/C/R labels)
+      btn.textContent = align === "left" ? "\u2190" : align === "center" ? "\u2194" : "\u2192";
+      btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        textEl.style.textAlign = align;
+        // Update active state
+        alignBar.querySelectorAll(".spacer-align-btn").forEach(function (b) {
+          b.classList.toggle("active", b.dataset.align === align);
+        });
+        autoSave();
+      });
+      // Mark the current alignment as active
+      var currentAlign = textEl.style.textAlign || "left";
+      if (align === currentAlign) btn.classList.add("active");
+      alignBar.appendChild(btn);
+    });
+    item.appendChild(alignBar);
+
+    // T toggle button — enables/disables text editing on the spacer
+    var textBtn = document.createElement("button");
+    textBtn.className = "spacer-text-btn";
+    textBtn.textContent = "T";
+    textBtn.title = "Add text";
+
+    var textActive = false;
+
+    function activateTextMode() {
+      textActive = true;
+      textEl.contentEditable = "true";
+      textEl.classList.add("editing");
+      alignBar.classList.add("visible");
+      textBtn.classList.add("active");
+      textEl.focus();
+      // Place cursor at end
+      if (textEl.textContent.length) {
+        var range = document.createRange();
+        range.selectNodeContents(textEl);
+        range.collapse(false);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+
+    function deactivateTextMode() {
+      textActive = false;
+      textEl.contentEditable = "false";
+      textEl.classList.remove("editing");
+      alignBar.classList.remove("visible");
+      textBtn.classList.remove("active");
+      syncTextState();
+      autoSave();
+    }
+
+    textBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    textBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (textActive) {
+        deactivateTextMode();
+      } else {
+        activateTextMode();
+      }
+    });
+    item.appendChild(textBtn);
+
+    // Prevent text-area clicks from triggering drag
+    textEl.addEventListener("mousedown", function (e) {
+      if (textActive) e.stopPropagation();
+    });
+
+    // Debounced save on text input
+    var saveTimer = null;
+    textEl.addEventListener("input", function () {
+      syncTextState();
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(autoSave, 600);
+    });
+
+    // Deactivate text mode when clicking outside the spacer
+    textEl.addEventListener("blur", function () {
+      if (textActive) {
+        // Small delay so click on align buttons registers first
+        setTimeout(function () {
+          if (textActive && document.activeElement !== textEl) {
+            deactivateTextMode();
+          }
+        }, 150);
+      }
+    });
   }
 
   function removeSpacerHandles(item) {
-    item.querySelectorAll(".spacer-handle, .spacer-dup-btn, .spacer-del-btn").forEach(function (h) { h.remove(); });
+    item.querySelectorAll(
+      ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, .spacer-text-btn, .spacer-align-bar"
+    ).forEach(function (h) { h.remove(); });
+    // Lock text element back to non-editable
+    var textEl = item.querySelector(".spacer-text");
+    if (textEl) {
+      textEl.contentEditable = "false";
+      textEl.classList.remove("editing");
+    }
   }
 
   // ── Image Edge-Drag Resize Handles ──
@@ -485,7 +623,16 @@
     var state = items.map(function (item) {
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
-        return { type: "spacer", cols: spans.cols, rows: spans.rows };
+        var textEl = item.querySelector(".spacer-text");
+        var spacerText  = textEl ? textEl.textContent.trim() : "";
+        var spacerAlign = textEl ? (textEl.style.textAlign || "") : "";
+        return {
+          type:  "spacer",
+          cols:  spans.cols,
+          rows:  spans.rows,
+          text:  spacerText  || null,
+          align: spacerAlign || null
+        };
       }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
@@ -525,7 +672,10 @@
 
       state.forEach(function (entry) {
         if (entry.type === "spacer") {
-          var spacer = createSpacerElement(entry.cols || 1, entry.rows || 1);
+          var spacer = createSpacerElement(
+            entry.cols || 1, entry.rows || 1,
+            entry.text || null, entry.align || null
+          );
           gallery.appendChild(spacer);
           if (editorMode) setupEditorItem(spacer);
           return;
@@ -1026,7 +1176,16 @@
         var style = "";
         if (spans.cols > 1) style += "grid-column:span " + spans.cols + ";";
         if (spans.rows > 1) style += "grid-row:span " + spans.rows + ";";
-        output += '<div class="g9-item g9-spacer"' + (style ? ' style="' + style + '"' : '') + '></div>\n';
+        var textEl = item.querySelector(".spacer-text");
+        var sText  = textEl ? textEl.textContent.trim() : "";
+        var sAlign = textEl ? (textEl.style.textAlign || "") : "";
+        var inner  = sText
+          ? '\n  <div class="spacer-text"' +
+            (sAlign ? ' style="text-align:' + sAlign + '"' : '') +
+            '>' + sText + '</div>\n'
+          : "";
+        output += '<div class="g9-item g9-spacer"' +
+          (style ? ' style="' + style + '"' : '') + '>' + inner + '</div>\n';
         return;
       }
 
@@ -1072,7 +1231,14 @@
     var layout = items.map(function (item) {
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
-        return { type: "spacer", cols: spans.cols, rows: spans.rows };
+        var tEl = item.querySelector(".spacer-text");
+        return {
+          type:  "spacer",
+          cols:  spans.cols,
+          rows:  spans.rows,
+          text:  tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align: tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null
+        };
       }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
@@ -1126,7 +1292,14 @@
     var result = items.map(function (item) {
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
-        return { type: "spacer", cols: spans.cols, rows: spans.rows };
+        var tEl = item.querySelector(".spacer-text");
+        return {
+          type:  "spacer",
+          cols:  spans.cols,
+          rows:  spans.rows,
+          text:  tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align: tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null
+        };
       }
       var img = item.querySelector("img");
       var objPos = img.style.objectPosition || "";

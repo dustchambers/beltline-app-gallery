@@ -48,11 +48,37 @@ body.embedded .gallery {
   grid-template-columns: repeat(9, 1fr);
   /* Row height = one cell = (viewport width capped at 1400px, minus 2rem padding, minus 8*8px gaps) / 9 */
   grid-auto-rows: calc((min(100vw, 1400px) - 2rem - 64px) / 9);
-  grid-auto-flow: row;
+  /* dense: auto-placed items backfill gaps left by explicitly-placed items */
+  grid-auto-flow: dense;
   gap: 8px;
   padding: 0 1rem 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  position: relative; /* needed for absolute-positioned drop preview */
+}
+
+/* ── Edit-mode background grid ── */
+body.edit-mode .gallery {
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
+  /* Cell size matches grid-auto-rows; gap 8px baked in via background-size */
+  background-size:
+    calc((min(100vw, 1400px) - 2rem - 64px) / 9 + 8px)
+    calc((min(100vw, 1400px) - 2rem - 64px) / 9 + 8px);
+  background-position: -1px -1px;
+}
+
+/* ── Drop Cell Preview (shown during drag) ── */
+.drop-cell {
+  position: absolute;
+  pointer-events: none;
+  z-index: 9999;
+  background: rgba(26, 26, 26, 0.10);
+  border: 2px dashed rgba(26, 26, 26, 0.45);
+  border-radius: 3px;
+  box-sizing: border-box;
+  transition: left 0.06s ease, top 0.06s ease, width 0.06s ease, height 0.06s ease;
 }
 
 /* ── Gallery Items ── */
@@ -109,6 +135,124 @@ body.edit-mode .g9-spacer-label {
 body.edit-mode .g9-item.g9-spacer {
   outline: 1px dashed rgba(0,0,0,0.2);
   cursor: grab;
+}
+
+/* ── Spacer Text Overlay ── */
+.spacer-text {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  z-index: 5;
+  /* Typography defaults */
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  line-height: 1.55;
+  color: #333;
+  text-align: left;
+  /* Hide when empty in view mode */
+  display: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  outline: none;
+}
+
+/* Show text when spacer has content */
+.g9-item.has-text .spacer-text {
+  display: block;
+}
+
+/* Always show in edit mode so user can type into it */
+body.edit-mode .spacer-text {
+  display: block;
+  cursor: default; /* overridden to text when editing */
+}
+
+/* Editable state — cursor + subtle focus ring */
+.spacer-text.editing {
+  cursor: text;
+  background: rgba(255,255,255,0.35);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+  border-radius: 2px;
+}
+
+/* Placeholder shown when text element is empty */
+.spacer-text:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0,0,0,0.2);
+  pointer-events: none;
+  font-style: italic;
+}
+
+/* Don't show placeholder when not in edit mode */
+body:not(.edit-mode) .spacer-text:empty::before {
+  content: none;
+}
+
+/* ── Spacer Text Toggle (T) button ── */
+.spacer-text-btn {
+  position: absolute;
+  top: 14px;
+  left: 4px; /* mirror del-btn which sits at right: 4px */
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.45);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.spacer-text-btn:hover,
+.spacer-text-btn.active {
+  background: rgba(26,26,26,0.85);
+}
+
+/* ── Spacer Alignment Bar (L / C / R) ── */
+.spacer-align-bar {
+  position: absolute;
+  top: 42px; /* 14px top + 22px button + 6px gap */
+  left: 4px;
+  display: none; /* shown only when text mode is active */
+  flex-direction: column;
+  gap: 3px;
+  z-index: 25;
+}
+
+.spacer-align-bar.visible {
+  display: flex;
+}
+
+.spacer-align-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.45);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.spacer-align-btn:hover,
+.spacer-align-btn.active {
+  background: rgba(26,26,26,0.85);
 }
 
 /* ── Empty Slot (edit mode only) ── */
