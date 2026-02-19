@@ -147,6 +147,14 @@
   var undoStack = [];
   var MAX_UNDO = 30;
 
+  // Push-down drag state
+  // When shift is held during a drag, all items below the drop target are
+  // shifted down to make room. We store original positions so we can
+  // restore them if shift is released mid-drag.
+  var isPushDown = false;                // true while shift is held during drag
+  var pushDownOriginals = [];            // [{item, origRow}] for non-group items
+  var lastPushDownRow = -1;              // last targetRow we applied, to debounce
+
   // Spacer / image edge-drag resize state
   var resizingItem = null;
   var resizeCorner = null;   // "tl"|"tr"|"bl"|"br" (spacer) | "r"|"b"|"br" (image)
@@ -1595,8 +1603,48 @@
     var anchorEntry = dragGroupOffsets.filter(function (ge) { return ge.item === item; })[0];
     dropIndicator = anchorEntry ? anchorEntry.indicator : dragGroupOffsets[0].indicator;
 
+    // Snapshot original row positions for all non-group bystander items so
+    // push-down mode can shift them live and restore on shift-release.
+    isPushDown = false;
+    lastPushDownRow = -1;
+    pushDownOriginals = [];
+    var groupSet = group; // items being dragged
+    getGalleryItems().forEach(function (el) {
+      if (groupSet.indexOf(el) !== -1) return; // skip group members
+      var rp = parseGridStyle(el.style.gridRow);
+      if (rp.start !== null) {
+        pushDownOriginals.push({ item: el, origRow: rp.start, span: rp.span });
+      }
+    });
+
     lastDropTarget = null;
     lastInsertBefore = true;
+  }
+
+  // Restore all bystander items to their original row positions (pre-push-down).
+  function restorePushDown() {
+    pushDownOriginals.forEach(function (entry) {
+      var cp = parseGridStyle(entry.item.style.gridColumn);
+      entry.item.style.gridRow = entry.origRow + " / span " + entry.span;
+    });
+    isPushDown = false;
+    lastPushDownRow = -1;
+  }
+
+  // Shift all bystander items whose original rowStart >= targetRow downward
+  // by `shift` rows. Items above targetRow are restored to their originals.
+  function applyPushDown(targetRow, shift) {
+    if (lastPushDownRow === targetRow && isPushDown) return; // debounce
+    lastPushDownRow = targetRow;
+    isPushDown = true;
+    pushDownOriginals.forEach(function (entry) {
+      if (entry.origRow >= targetRow) {
+        entry.item.style.gridRow = (entry.origRow + shift) + " / span " + entry.span;
+      } else {
+        // Above the drop — restore to original
+        entry.item.style.gridRow = entry.origRow + " / span " + entry.span;
+      }
+    });
   }
 
   function moveDrag(e) {
@@ -1626,6 +1674,29 @@
     } else {
       dropIndicator.style.gridColumn = startCol + " / span " + spans.cols;
       dropIndicator.style.gridRow    = startRow + " / span " + spans.rows;
+    }
+
+    // ── Push-down mode (Shift held during drag) ──
+    // Shift all items whose original rowStart >= the indicator's target row
+    // downward by the dragged item's row span, making a gap exactly big enough
+    // to land in.
+    if (e.shiftKey && isDragging) {
+      // Find the bottom of the drag group's footprint at the current target position
+      var groupBottom = startRow; // default for single item
+      if (dragGroupOffsets.length > 0) {
+        dragGroupOffsets.forEach(function (entry) {
+          var er = Math.max(1, startRow + entry.dRow);
+          groupBottom = Math.max(groupBottom, er + entry.spans.rows - 1);
+        });
+      } else {
+        groupBottom = startRow + spans.rows - 1;
+      }
+      // How many rows the group occupies in the vertical dimension
+      var groupRowSpan = groupBottom - startRow + 1;
+      applyPushDown(startRow, groupRowSpan);
+    } else if (isPushDown) {
+      // Shift key released mid-drag — restore bystanders
+      restorePushDown();
     }
   }
 
@@ -1669,6 +1740,17 @@
 
     lastDropTarget = null;
     lastInsertBefore = true;
+
+    // If push-down was NOT active at drop time, restore any bystanders that
+    // were shifted during a mid-drag shift-press that was then released.
+    if (!isPushDown) {
+      restorePushDown();
+    }
+    // Clear push-down state regardless
+    isPushDown = false;
+    pushDownOriginals = [];
+    lastPushDownRow = -1;
+
     mergeAdjacentSpacers();
     refreshOrderNumbers();
     refreshSlots();
@@ -1973,7 +2055,7 @@
       editorOverlay.id = "edit-overlay";
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
-        "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo \u00b7 " +
+        "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo \u00b7 " +
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
         (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
@@ -2057,6 +2139,10 @@
         } else {
           // Plain tap: no-op (crop cycle removed)
           // Shift+click selection is handled in _onMouseDown
+          // Clean up any push-down state that didn't lead to a drop
+          if (isPushDown) restorePushDown();
+          isPushDown = false;
+          pushDownOriginals = [];
         }
 
         activeItem = null;
