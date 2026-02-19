@@ -952,31 +952,80 @@ body.edit-mode .g9-item:hover .item-resize-tl {
 }
 
 /* ── Responsive ── */
-/* At 900px: collapse to 6 columns (÷3 from 18) with unified --s token */
+/* Strategy: divide col spans by 3 for tablet, by 6 for mobile.
+   Row spans stay the same so aspect ratios are preserved.
+   6×4 (the most common photo) becomes full-width at both breakpoints
+   with correct 3:2 landscape proportions. */
+
+/* ── Tablet (≤900px): 6-column grid, col spans ÷3 ── */
 @media (max-width: 900px) {
   .gallery {
     grid-template-columns: repeat(6, 1fr);
+    /* Row height formula: same square-cell logic for 6 cols */
     grid-auto-rows: calc((100vw - 7 * var(--s)) / 6);
   }
 
-  /* All named sizes collapse to 1×1 on narrow screens */
-  .g9-item.g9-2x2,
-  .g9-item.g9-4x4, .g9-item.g9-6x6,
-  .g9-item.g9-6x4, .g9-item.g9-9x4, .g9-item.g9-9x6,
-  .g9-item.g9-12x4, .g9-item.g9-12x6,
-  .g9-item.g9-18x4, .g9-item.g9-18x6, .g9-item.g9-18x8,
-  .g9-item.g9-4x6, .g9-item.g9-4x8,
-  .g9-item.g9-6x8, .g9-item.g9-6x9,
-  .g9-item.g9-9x1, .g9-item.g9-9x2,
-  .g9-item.g9-18x1, .g9-item.g9-18x2 {
-    grid-column: span 1;
-    grid-row: span 1;
-  }
+  /* Squares */
+  .g9-item.g9-2x2  { grid-column: span 1; grid-row: span 1; } /* 1×1 */
+  .g9-item.g9-4x4  { grid-column: span 2; grid-row: span 2; } /* 2×2 */
+  .g9-item.g9-6x6  { grid-column: span 2; grid-row: span 2; } /* 2×2 */
+
+  /* Horizontal — col ÷3, row unchanged */
+  .g9-item.g9-6x4  { grid-column: span 6; grid-row: span 4; } /* full-width landscape ✓ */
+  .g9-item.g9-9x4  { grid-column: span 6; grid-row: span 4; } /* clamp to full-width */
+  .g9-item.g9-9x6  { grid-column: span 6; grid-row: span 6; }
+  .g9-item.g9-12x4 { grid-column: span 6; grid-row: span 4; }
+  .g9-item.g9-12x6 { grid-column: span 6; grid-row: span 6; }
+  .g9-item.g9-18x4 { grid-column: span 6; grid-row: span 4; }
+  .g9-item.g9-18x6 { grid-column: span 6; grid-row: span 6; }
+  .g9-item.g9-18x8 { grid-column: span 6; grid-row: span 8; }
+
+  /* Vertical — col ÷3, row unchanged */
+  .g9-item.g9-4x6  { grid-column: span 2; grid-row: span 6; } /* 2-col portrait */
+  .g9-item.g9-4x8  { grid-column: span 2; grid-row: span 8; }
+  .g9-item.g9-6x8  { grid-column: span 2; grid-row: span 8; }
+  .g9-item.g9-6x9  { grid-column: span 2; grid-row: span 9; }
+
+  /* Spacer bars — col ÷3, row unchanged */
+  .g9-item.g9-9x1  { grid-column: span 3; grid-row: span 1; } /* half-width */
+  .g9-item.g9-9x2  { grid-column: span 3; grid-row: span 2; }
+  .g9-item.g9-18x1 { grid-column: span 6; grid-row: span 1; } /* full-width */
+  .g9-item.g9-18x2 { grid-column: span 6; grid-row: span 2; }
 }
 
+/* ── Mobile (≤480px): 3-column grid, col spans ÷6 ── */
+/* Row height is 1/2 of column width so that a 6×4 item (3 cols × 4 rows)
+   renders at 3:2 landscape ratio: width = 3 cols, height = 4 × (col/2) = 2 cols. */
 @media (max-width: 480px) {
   .gallery {
-    grid-template-columns: 1fr;
-    grid-auto-rows: calc(100vw - 2 * var(--s));
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: calc((100vw - 4 * var(--s)) / 6);
   }
+
+  /* Squares */
+  .g9-item.g9-2x2  { grid-column: span 1; grid-row: span 1; }
+  .g9-item.g9-4x4  { grid-column: span 1; grid-row: span 1; }
+  .g9-item.g9-6x6  { grid-column: span 2; grid-row: span 2; }
+
+  /* Horizontal — col ÷6, row unchanged */
+  .g9-item.g9-6x4  { grid-column: span 3; grid-row: span 4; } /* full-width landscape ✓ */
+  .g9-item.g9-9x4  { grid-column: span 3; grid-row: span 4; }
+  .g9-item.g9-9x6  { grid-column: span 3; grid-row: span 6; }
+  .g9-item.g9-12x4 { grid-column: span 3; grid-row: span 4; }
+  .g9-item.g9-12x6 { grid-column: span 3; grid-row: span 6; }
+  .g9-item.g9-18x4 { grid-column: span 3; grid-row: span 4; }
+  .g9-item.g9-18x6 { grid-column: span 3; grid-row: span 6; }
+  .g9-item.g9-18x8 { grid-column: span 3; grid-row: span 8; }
+
+  /* Vertical — col ÷6, row unchanged */
+  .g9-item.g9-4x6  { grid-column: span 2; grid-row: span 6; } /* 2/3 width portrait */
+  .g9-item.g9-4x8  { grid-column: span 2; grid-row: span 8; }
+  .g9-item.g9-6x8  { grid-column: span 2; grid-row: span 8; }
+  .g9-item.g9-6x9  { grid-column: span 2; grid-row: span 9; }
+
+  /* Spacer bars */
+  .g9-item.g9-9x1  { grid-column: span 2; grid-row: span 1; }
+  .g9-item.g9-9x2  { grid-column: span 2; grid-row: span 2; }
+  .g9-item.g9-18x1 { grid-column: span 3; grid-row: span 1; }
+  .g9-item.g9-18x2 { grid-column: span 3; grid-row: span 2; }
 }
