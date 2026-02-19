@@ -197,6 +197,19 @@
     return item.classList.contains("g9-spacer");
   }
 
+  // Mark a gallery item as "animation done" so DOM moves never re-trigger
+  // the fadeInUp entrance animation.  Call once per item after creation.
+  // If the animation hasn't finished yet, wait for animationend; if the
+  // item already has the class (undo re-attach) it's a no-op.
+  function lockAnimation(el) {
+    if (el.classList.contains("g9-animated")) return;
+    function mark() { el.classList.add("g9-animated"); }
+    el.addEventListener("animationend", mark, { once: true });
+    // Fallback: if animation was already skipped (e.g. item added in edit mode
+    // after page load where no animation fires), lock immediately.
+    el.addEventListener("animationcancel", mark, { once: true });
+  }
+
   function createSpacerElement(cols, rows, text, align, valign, textStyle, bgColor, textColor) {
     var div = document.createElement("div");
     div.className = "g9-item g9-spacer";
@@ -233,6 +246,7 @@
     }
     div.appendChild(textEl);
 
+    lockAnimation(div);
     return div;
   }
 
@@ -288,6 +302,7 @@
       });
 
       div.appendChild(img);
+      lockAnimation(div);
       gallery.appendChild(div);
     });
   }
@@ -523,16 +538,9 @@
         item.style.gridRow    = cs.gridRowStart    + " / " + cs.gridRowEnd;
       }
       // Move item to beginning of gallery (before the first .g9-item).
-      // Suppress fadeInUp re-fire during the DOM reorder.
       var firstItem = gal.querySelector(".g9-item");
       if (firstItem && firstItem !== item) {
-        document.body.classList.add("no-animate");
         gal.insertBefore(item, firstItem);
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            document.body.classList.remove("no-animate");
-          });
-        });
       }
       autoSave();
     });
@@ -1416,10 +1424,6 @@
   function applyUndoSnapshot(snapshot) {
     var gallery = getGallery();
 
-    // Suppress fadeInUp animation while we re-insert items — otherwise every
-    // restored item plays the entrance animation, causing the "viewport flash".
-    document.body.classList.add("no-animate");
-
     // Remove all current non-slot items from gallery (keep them in memory)
     var existingItems = getGalleryItems();
     existingItems.forEach(function (el) { el.remove(); });
@@ -1482,14 +1486,6 @@
     refreshOrderNumbers();
     refreshSlots();
     saveState(); // persist the restored state
-
-    // Remove no-animate after the browser has painted the restored layout.
-    // rAF → rAF ensures two paint frames: first frame commits DOM, second removes class.
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        document.body.classList.remove("no-animate");
-      });
-    });
   }
 
   function flashUndoIndicator(msg) {
@@ -2297,10 +2293,6 @@
       dragCellCursor.remove();
       dragCellCursor = null;
     }
-    // Suppress fadeInUp re-fire during the DOM reorder at drop.
-    // Must be added BEFORE removing "dragging" (which would re-enable the animation)
-    // and kept until after all appendChild calls settle.
-    document.body.classList.add("no-animate");
     document.body.classList.remove("dragging");
 
     var gallery = getGallery();
@@ -2337,13 +2329,6 @@
       activeItem.style.visibility = "";
       activeItem.style.cursor = "grab";
     }
-
-    // Remove no-animate after two paint frames so the settled layout is committed first.
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        document.body.classList.remove("no-animate");
-      });
-    });
 
     lastDropTarget = null;
     lastInsertBefore = true;
@@ -2458,18 +2443,10 @@
           item.style.gridColumn = compCol;
           item.style.gridRow    = compRow;
         }
-        // Suppress fadeInUp re-fire during the DOM reorder (bring-to-front).
-        // The class is removed after two rAF frames so the item is never invisible.
-        document.body.classList.add("no-animate");
         // Insert before the slot (if any) or at end
         var slot = gal.querySelector(".g9-slot");
         if (slot) gal.insertBefore(item, slot);
         else gal.appendChild(item);
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            document.body.classList.remove("no-animate");
-          });
-        });
       }
 
       // Record which cell within the item was grabbed so the drop indicator

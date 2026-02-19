@@ -77,14 +77,9 @@ body.edit-mode .gallery {
   background-position: -1px -1px;
 }
 
-/* ── Suppress all animations/transitions during drag and undo/redo restore ── */
-/* During drag: no hover-zoom on images (flickering as cursor enters/leaves items),
-   no fadeInUp re-fire on items moved in DOM, no item-level transitions. */
-body.dragging .g9-item,
-body.dragging .g9-item img,
-body.no-animate .g9-item,
-body.no-animate .g9-item img {
-  animation: none !important;
+/* ── Suppress hover-zoom during drag ── */
+/* Prevents flickering as the cursor enters/leaves images while dragging. */
+body.dragging .g9-item img {
   transition: none !important;
 }
 
@@ -129,12 +124,21 @@ body.dragging .gallery {
   overflow: hidden;
   cursor: pointer;
   /* No aspect-ratio here — rows are sized by grid-auto-rows */
-  /* Items are visible by default — the animation overrides from opacity:0.
-     This way, cancelling the animation (body.dragging, body.no-animate)
-     leaves items fully visible instead of snapping to invisible. */
+  /* Items are visible by default. The entrance animation temporarily overrides
+     this via the `from` keyframe. Once the animation completes, JS adds
+     .g9-animated which locks animation:none — so DOM moves (bring-to-front,
+     undo, drag-drop) never re-trigger the entrance animation. */
   opacity: 1;
   transform: none;
   animation: fadeInUp 0.6s ease both;
+}
+
+/* Permanently suppress the entrance animation once it has played.
+   Set by JS via animationend listener on each item. */
+.g9-item.g9-animated {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* 18-col size classes — all fill their grid area naturally.
