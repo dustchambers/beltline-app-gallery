@@ -71,7 +71,9 @@ body.embedded .gallery {
 .g9-item.g9-3x3  { grid-column: span 3; grid-row: span 3; }
 .g9-item.g9-3x2  { grid-column: span 3; grid-row: span 2; }
 .g9-item.g9-4x2  { grid-column: span 4; grid-row: span 2; }
+.g9-item.g9-4x3  { grid-column: span 4; grid-row: span 3; }
 .g9-item.g9-6x4  { grid-column: span 6; grid-row: span 4; }
+.g9-item.g9-7x4  { grid-column: span 7; grid-row: span 4; }
 .g9-item.g9-9x6  { grid-column: span 9; grid-row: span 6; }
 .g9-item.g9-2x3  { grid-column: span 2; grid-row: span 3; }
 .g9-item.g9-2x4  { grid-column: span 2; grid-row: span 4; }
@@ -345,8 +347,8 @@ body.edit-mode .g9-item:active {
   }
 
   .g9-item.g9-2x2, .g9-item.g9-3x3,
-  .g9-item.g9-3x2, .g9-item.g9-4x2,
-  .g9-item.g9-6x4, .g9-item.g9-9x6,
+  .g9-item.g9-3x2, .g9-item.g9-4x2, .g9-item.g9-4x3,
+  .g9-item.g9-6x4, .g9-item.g9-7x4, .g9-item.g9-9x6,
   .g9-item.g9-2x3, .g9-item.g9-2x4,
   .g9-item.g9-4x6 {
     grid-column: span 1;

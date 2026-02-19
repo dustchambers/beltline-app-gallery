@@ -60,7 +60,9 @@
     "3x3": "g9-3x3",
     "3x2": "g9-3x2",
     "4x2": "g9-4x2",
+    "4x3": "g9-4x3",
     "6x4": "g9-6x4",
+    "7x4": "g9-7x4",
     "9x6": "g9-9x6",
     "2x3": "g9-2x3",
     "2x4": "g9-2x4",
@@ -68,30 +70,30 @@
   };
 
   var ALL_SIZE_CLASSES = [
-    "g9-2x2", "g9-3x3", "g9-3x2", "g9-4x2",
-    "g9-6x4", "g9-9x6", "g9-2x3", "g9-2x4", "g9-4x6"
+    "g9-2x2", "g9-3x3", "g9-3x2", "g9-4x2", "g9-4x3",
+    "g9-6x4", "g9-7x4", "g9-9x6", "g9-2x3", "g9-2x4", "g9-4x6"
   ];
 
   // Orientation groups for the 3-button UI
   var ORIENT_GROUPS = {
     square: ["1x1", "2x2", "3x3"],
-    horiz:  ["3x2", "4x2", "6x4", "9x6"],
+    horiz:  ["3x2", "4x2", "4x3", "7x4", "6x4", "9x6"],
     vert:   ["2x3", "2x4", "4x6"]
   };
 
   var BADGE_LABELS = {
     "1x1": "1\u00d71",
     "2x2": "2\u00d72", "3x3": "3\u00d73",
-    "3x2": "3\u00d72", "4x2": "4\u00d72",
-    "6x4": "6\u00d74", "9x6": "9\u00d76",
+    "3x2": "3\u00d72", "4x2": "4\u00d72", "4x3": "4\u00d73",
+    "6x4": "6\u00d74", "7x4": "7\u00d74", "9x6": "9\u00d76",
     "2x3": "2\u00d73", "2x4": "2\u00d74", "4x6": "4\u00d76"
   };
 
   var BADGE_COLORS = {
     "1x1": "rgba(0,0,0,0.5)",
     "2x2": "#1a1a1a", "3x3": "#555",
-    "3x2": "#c44",    "4x2": "#a44",
-    "6x4": "#36c",    "9x6": "#24a",
+    "3x2": "#c44",    "4x2": "#a44", "4x3": "#b44",
+    "6x4": "#36c",    "7x4": "#25b", "9x6": "#24a",
     "2x3": "#2a7",    "2x4": "#1a6", "4x6": "#084"
   };
 
@@ -231,8 +233,10 @@
 
   function getSize(item) {
     if (item.classList.contains("g9-9x6")) return "9x6";
+    if (item.classList.contains("g9-7x4")) return "7x4";
     if (item.classList.contains("g9-6x4")) return "6x4";
     if (item.classList.contains("g9-4x6")) return "4x6";
+    if (item.classList.contains("g9-4x3")) return "4x3";
     if (item.classList.contains("g9-4x2")) return "4x2";
     if (item.classList.contains("g9-3x3")) return "3x3";
     if (item.classList.contains("g9-3x2")) return "3x2";
@@ -537,7 +541,8 @@
 
   function getColSpan(item) {
     var sizeMap = {
-      "9x6": 9, "6x4": 6, "4x6": 4, "4x2": 4,
+      "9x6": 9, "7x4": 7, "6x4": 6,
+      "4x6": 4, "4x3": 4, "4x2": 4,
       "3x3": 3, "3x2": 3,
       "2x4": 2, "2x3": 2, "2x2": 2
     };
@@ -1078,12 +1083,9 @@
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          // Plain tap: cycle crop position (unless item is square, which has no meaningful crop offset)
-          var tappedSize = getSize(activeItem);
-          var tappedGroup = getOrientGroup(tappedSize);
-          if (tappedGroup !== "square") {
-            cycleCrop(activeItem);
-          }
+          // Plain tap: cycle to next size within current orientation group
+          var tappedGroup = getOrientGroup(getSize(activeItem));
+          setOrientation(activeItem, tappedGroup);
         }
 
         activeItem = null;
