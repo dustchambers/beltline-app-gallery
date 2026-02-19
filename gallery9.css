@@ -354,7 +354,8 @@ body.edit-mode .g9-item:active {
 .spacer-dup-btn,
 .spacer-del-btn {
   position: absolute;
-  top: 4px;
+  /* Sit below the top corner handles (12px tall) so they never overlap */
+  top: 14px;
   width: 22px;
   height: 22px;
   display: flex;
@@ -367,7 +368,7 @@ body.edit-mode .g9-item:active {
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-  z-index: 20;
+  z-index: 25; /* above corner handles (z-index: 20) */
   transition: background 0.15s;
   padding: 0;
 }
@@ -378,12 +379,57 @@ body.edit-mode .g9-item:active {
 }
 
 .spacer-del-btn {
-  right: 18px; /* offset from corner handle */
+  right: 4px; /* inside the right edge, below the tr corner handle */
 }
 
 .spacer-dup-btn:hover,
 .spacer-del-btn:hover {
   background: rgba(26,26,26,0.85);
+}
+
+/* ── Image Edge / Corner Resize Handles ── */
+.item-resize-handle {
+  position: absolute;
+  z-index: 15;
+  /* Hidden until edit mode — body.edit-mode reveals them */
+  display: none;
+}
+
+body.edit-mode .item-resize-handle {
+  display: block;
+}
+
+/* Right edge: full height strip */
+.item-resize-r {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+/* Bottom edge: full width strip */
+.item-resize-b {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+/* Bottom-right corner: drag both axes */
+.item-resize-br {
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: rgba(26,26,26,0.35);
+  border-radius: 2px 0 0 0;
+}
+
+body.edit-mode .g9-item:hover .item-resize-br {
+  background: rgba(26,26,26,0.6);
 }
 
 /* ── Drag Ghost ── */

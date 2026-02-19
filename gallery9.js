@@ -118,9 +118,10 @@
   var lastDropTarget = null;
   var lastInsertBefore = true;
 
-  // Spacer corner-drag resize state
+  // Spacer / image edge-drag resize state
   var resizingItem = null;
-  var resizeCorner = null;   // "tl" | "tr" | "bl" | "br"
+  var resizeCorner = null;   // "tl"|"tr"|"bl"|"br" (spacer) | "r"|"b"|"br" (image)
+  var resizeMode   = null;   // "spacer" | "image"
   var resizeStartX = 0;
   var resizeStartY = 0;
   var resizeStartCols = 1;
@@ -233,6 +234,14 @@
   // ── Size Helpers ──
 
   function getSize(item) {
+    // Custom drag-resize: no named class, but inline grid spans set
+    var col = item.style.gridColumn || "";
+    var row = item.style.gridRow || "";
+    var inlineCols = parseInt((col.match(/span (\d+)/) || [0, 0])[1]);
+    var inlineRows = parseInt((row.match(/span (\d+)/) || [0, 0])[1]);
+    if (inlineCols && inlineRows && !isSpacer(item)) {
+      return inlineCols + "x" + inlineRows;
+    }
     if (item.classList.contains("g9-9x6")) return "9x6";
     if (item.classList.contains("g9-9x4")) return "9x4";
     if (item.classList.contains("g9-7x4")) return "7x4";
@@ -293,6 +302,32 @@
     var cols = parseInt((col.match(/span (\d+)/) || [0, 1])[1]);
     var rows = parseInt((row.match(/span (\d+)/) || [0, 1])[1]);
     return { cols: cols || 1, rows: rows || 1 };
+  }
+
+  // Named size → row count lookup (col count comes from getColSpan)
+  var SIZE_ROWS = {
+    "1x1": 1, "2x2": 2, "3x3": 3,
+    "3x2": 2, "4x2": 2, "4x3": 3,
+    "6x4": 4, "7x4": 4, "9x4": 4, "9x6": 6,
+    "2x3": 3, "2x4": 4, "4x6": 6
+  };
+
+  function getItemSpans(item) {
+    // If the item has inline grid styles (custom drag-resize), use those.
+    // Otherwise derive from the named size class.
+    var col = item.style.gridColumn || "";
+    var row = item.style.gridRow || "";
+    var inlineCols = parseInt((col.match(/span (\d+)/) || [0, 0])[1]);
+    var inlineRows = parseInt((row.match(/span (\d+)/) || [0, 0])[1]);
+    if (inlineCols && inlineRows) {
+      return { cols: inlineCols, rows: inlineRows, custom: true };
+    }
+    var size = getSize(item);
+    return {
+      cols: getColSpan(item),
+      rows: SIZE_ROWS[size] || 1,
+      custom: false
+    };
   }
 
   function getGridMetrics() {
@@ -367,6 +402,33 @@
     item.querySelectorAll(".spacer-handle, .spacer-dup-btn, .spacer-del-btn").forEach(function (h) { h.remove(); });
   }
 
+  // ── Image Edge-Drag Resize Handles ──
+
+  function addItemResizeHandles(item) {
+    ["r", "b", "br"].forEach(function (edge) {
+      var h = document.createElement("div");
+      h.className = "item-resize-handle item-resize-" + edge;
+      h.dataset.edge = edge;
+      h.addEventListener("mousedown", function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        resizingItem = item;
+        resizeCorner = edge;
+        resizeMode   = "image";
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        var spans = getItemSpans(item);
+        resizeStartCols = spans.cols;
+        resizeStartRows = spans.rows;
+      });
+      item.appendChild(h);
+    });
+  }
+
+  function removeItemResizeHandles(item) {
+    item.querySelectorAll(".item-resize-handle").forEach(function (h) { h.remove(); });
+  }
+
   function moveResize(e) {
     if (!resizingItem) return;
     var m = getGridMetrics();
@@ -376,18 +438,28 @@
     var dRows = Math.round(dy / (m.rowHeight + m.gap));
 
     var newCols, newRows;
-    if (resizeCorner === "br") {
-      newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
-      newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
-    } else if (resizeCorner === "bl") {
-      newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
-      newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
-    } else if (resizeCorner === "tr") {
-      newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
-      newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
-    } else { // tl
-      newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
-      newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+
+    if (resizeMode === "image") {
+      // Image edge-drag: only right (cols) and/or bottom (rows) — always additive
+      newCols = (resizeCorner === "b") ? resizeStartCols
+                                       : Math.max(1, Math.min(9, resizeStartCols + dCols));
+      newRows = (resizeCorner === "r") ? resizeStartRows
+                                       : Math.max(1, Math.min(12, resizeStartRows + dRows));
+    } else {
+      // Spacer four-corner drag
+      if (resizeCorner === "br") {
+        newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
+        newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
+      } else if (resizeCorner === "bl") {
+        newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
+        newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
+      } else if (resizeCorner === "tr") {
+        newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
+        newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+      } else { // tl
+        newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
+        newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+      }
     }
 
     resizingItem.style.gridColumn = "span " + newCols;
@@ -396,10 +468,16 @@
 
   function endResize() {
     if (!resizingItem) return;
+    if (resizeMode === "image") {
+      // Strip named size classes — item now lives entirely by inline spans
+      clearSizeClasses(resizingItem);
+      updateBadge(resizingItem);
+    }
     autoSave();
     refreshSlots();
     resizingItem = null;
     resizeCorner = null;
+    resizeMode   = null;
   }
 
   function saveState() {
@@ -411,11 +489,19 @@
       }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
-      return {
+      var spans = getItemSpans(item);
+      var entry = {
         id: img.dataset.imageId || "",
-        size: getSize(item),
         crop: (crop && crop !== "50% 50%") ? crop : null
       };
+      if (spans.custom) {
+        // Custom inline-drag size: persist raw col/row counts, no size class
+        entry.cols = spans.cols;
+        entry.rows = spans.rows;
+      } else {
+        entry.size = getSize(item);
+      }
+      return entry;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
@@ -449,7 +535,15 @@
 
         gallery.appendChild(item);
         restoredIds[entry.id] = true;
-        applySizeClass(item, entry.size);
+
+        if (entry.cols && entry.rows) {
+          // Custom drag-resized item: restore raw inline spans
+          clearSizeClasses(item);
+          item.style.gridColumn = "span " + entry.cols;
+          item.style.gridRow    = "span " + entry.rows;
+        } else {
+          applySizeClass(item, entry.size);
+        }
 
         if (entry.crop) {
           item.querySelector("img").style.objectPosition = entry.crop;
@@ -903,6 +997,7 @@
     item.style.cursor = "grab";
     if (!isSpacer(item)) {
       showOrientBtns(item);
+      addItemResizeHandles(item);
     } else {
       addSpacerHandles(item);
     }
@@ -936,14 +1031,23 @@
       }
 
       var img = item.querySelector("img");
-      var size = getSize(item);
       var objPos = img.style.objectPosition;
       var posAttr = objPos && objPos !== "50% 50%" ? ' style="object-position: ' + objPos + '"' : "";
-      var sizeCls = SIZE_CLASS_MAP[size];
-      var cls = sizeCls ? ' class="g9-item ' + sizeCls + '"' : ' class="g9-item"';
+      var spans = getItemSpans(item);
+      var divStyle = "";
+      var cls;
+      if (spans.custom) {
+        // Custom drag-resized: no size class, use inline grid spans
+        divStyle = ' style="grid-column:span ' + spans.cols + ';grid-row:span ' + spans.rows + ';"';
+        cls = ' class="g9-item"';
+      } else {
+        var size = getSize(item);
+        var sizeCls = SIZE_CLASS_MAP[size];
+        cls = sizeCls ? ' class="g9-item ' + sizeCls + '"' : ' class="g9-item"';
+      }
 
       output +=
-        "<div" + cls + ">\n" +
+        "<div" + cls + divStyle + ">\n" +
         '  <img src="' + img.src + '" alt="' + (img.alt || "") + '" loading="lazy"' + posAttr + ">\n" +
         "</div>\n";
     });
@@ -972,11 +1076,18 @@
       }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
-      return {
+      var spans = getItemSpans(item);
+      var entry = {
         id: img.dataset.imageId || "",
-        size: getSize(item),
         crop: (crop && crop !== "50% 50%") ? crop : null
       };
+      if (spans.custom) {
+        entry.cols = spans.cols;
+        entry.rows = spans.rows;
+      } else {
+        entry.size = getSize(item);
+      }
+      return entry;
     });
 
     var btn = document.getElementById("editor-publish");
@@ -1018,14 +1129,19 @@
         return { type: "spacer", cols: spans.cols, rows: spans.rows };
       }
       var img = item.querySelector("img");
-      var size = getSize(item);
       var objPos = img.style.objectPosition || "";
+      var spans = getItemSpans(item);
       var entry = {
         id: img.dataset.imageId || "",
         src: img.src,
-        alt: img.alt || "",
-        size: size
+        alt: img.alt || ""
       };
+      if (spans.custom) {
+        entry.cols = spans.cols;
+        entry.rows = spans.rows;
+      } else {
+        entry.size = getSize(item);
+      }
       if (objPos && objPos !== "50% 50%") {
         entry.crop = objPos;
       }
