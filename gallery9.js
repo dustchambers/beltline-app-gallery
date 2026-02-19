@@ -272,9 +272,22 @@
 
   // ── Save & Restore State ──
 
+  function getSpacerSpans(item) {
+    // Read inline grid-column/row span values set by corner-drag
+    var col = item.style.gridColumn || "";
+    var row = item.style.gridRow || "";
+    var cols = parseInt((col.match(/span (\d+)/) || [0, 1])[1]);
+    var rows = parseInt((row.match(/span (\d+)/) || [0, 1])[1]);
+    return { cols: cols || 1, rows: rows || 1 };
+  }
+
   function saveState() {
     var items = getGalleryItems();
     var state = items.map(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        return { type: "spacer", cols: spans.cols, rows: spans.rows };
+      }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
       return {
@@ -297,21 +310,24 @@
 
       var itemMap = {};
       items.forEach(function (item) {
-        var id = item.querySelector("img").dataset.imageId;
-        if (id) {
-          itemMap[id] = item;
-        }
+        var img = item.querySelector("img");
+        if (img) itemMap[img.dataset.imageId] = item;
       });
 
       var restoredIds = {};
 
       state.forEach(function (entry) {
+        if (entry.type === "spacer") {
+          var spacer = createSpacerElement(entry.cols || 1, entry.rows || 1);
+          gallery.appendChild(spacer);
+          if (editorMode) setupEditorItem(spacer);
+          return;
+        }
         var item = itemMap[entry.id];
         if (!item) return;
 
         gallery.appendChild(item);
         restoredIds[entry.id] = true;
-
         applySizeClass(item, entry.size);
 
         if (entry.crop) {
@@ -319,10 +335,9 @@
         }
       });
 
-      // Append any new images not present in saved state
       items.forEach(function (item) {
-        var id = item.querySelector("img").dataset.imageId;
-        if (!restoredIds[id]) {
+        var img = item.querySelector("img");
+        if (img && !restoredIds[img.dataset.imageId]) {
           gallery.appendChild(item);
         }
       });
