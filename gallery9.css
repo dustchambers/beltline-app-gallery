@@ -74,6 +74,7 @@ body.embedded .gallery {
 .g9-item.g9-4x3  { grid-column: span 4; grid-row: span 3; }
 .g9-item.g9-6x4  { grid-column: span 6; grid-row: span 4; }
 .g9-item.g9-7x4  { grid-column: span 7; grid-row: span 4; }
+.g9-item.g9-9x4  { grid-column: span 9; grid-row: span 4; }
 .g9-item.g9-9x6  { grid-column: span 9; grid-row: span 6; }
 .g9-item.g9-2x3  { grid-column: span 2; grid-row: span 3; }
 .g9-item.g9-2x4  { grid-column: span 2; grid-row: span 4; }
@@ -112,10 +113,38 @@ body.edit-mode .g9-item.g9-spacer {
 
 /* ── Empty Slot (edit mode only) ── */
 .g9-slot {
-  border: 1px dotted rgba(0,0,0,0.1);
+  border: 1px dotted rgba(0,0,0,0.15);
   background: transparent;
-  pointer-events: none;
+  pointer-events: auto;
   opacity: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Slot Fill Button ── */
+.slot-fill-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 4px 8px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 10px;
+  color: rgba(0,0,0,0.35);
+  background: transparent;
+  border: 1px dashed rgba(0,0,0,0.2);
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.slot-fill-btn:hover {
+  color: rgba(0,0,0,0.7);
+  border-color: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.04);
 }
 
 /* ── Images ── */
@@ -321,6 +350,42 @@ body.edit-mode .g9-item:active {
 .spacer-handle.bl { bottom: 0; left: 0; cursor: nesw-resize; }
 .spacer-handle.br { bottom: 0; right: 0; cursor: nwse-resize; }
 
+/* ── Spacer Action Buttons (dup + delete) ── */
+.spacer-dup-btn,
+.spacer-del-btn {
+  position: absolute;
+  top: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.55);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 20;
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.spacer-dup-btn {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.spacer-del-btn {
+  right: 18px; /* offset from corner handle */
+}
+
+.spacer-dup-btn:hover,
+.spacer-del-btn:hover {
+  background: rgba(26,26,26,0.85);
+}
+
 /* ── Drag Ghost ── */
 .drag-ghost {
   position: fixed;
@@ -348,7 +413,7 @@ body.edit-mode .g9-item:active {
 
   .g9-item.g9-2x2, .g9-item.g9-3x3,
   .g9-item.g9-3x2, .g9-item.g9-4x2, .g9-item.g9-4x3,
-  .g9-item.g9-6x4, .g9-item.g9-7x4, .g9-item.g9-9x6,
+  .g9-item.g9-6x4, .g9-item.g9-7x4, .g9-item.g9-9x4, .g9-item.g9-9x6,
   .g9-item.g9-2x3, .g9-item.g9-2x4,
   .g9-item.g9-4x6 {
     grid-column: span 1;

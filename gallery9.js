@@ -63,6 +63,7 @@
     "4x3": "g9-4x3",
     "6x4": "g9-6x4",
     "7x4": "g9-7x4",
+    "9x4": "g9-9x4",
     "9x6": "g9-9x6",
     "2x3": "g9-2x3",
     "2x4": "g9-2x4",
@@ -71,13 +72,13 @@
 
   var ALL_SIZE_CLASSES = [
     "g9-2x2", "g9-3x3", "g9-3x2", "g9-4x2", "g9-4x3",
-    "g9-6x4", "g9-7x4", "g9-9x6", "g9-2x3", "g9-2x4", "g9-4x6"
+    "g9-6x4", "g9-7x4", "g9-9x4", "g9-9x6", "g9-2x3", "g9-2x4", "g9-4x6"
   ];
 
   // Orientation groups for the 3-button UI
   var ORIENT_GROUPS = {
     square: ["1x1", "2x2", "3x3"],
-    horiz:  ["3x2", "4x2", "4x3", "7x4", "6x4", "9x6"],
+    horiz:  ["3x2", "4x2", "4x3", "7x4", "6x4", "9x4", "9x6"],
     vert:   ["2x3", "2x4", "4x6"]
   };
 
@@ -85,7 +86,7 @@
     "1x1": "1\u00d71",
     "2x2": "2\u00d72", "3x3": "3\u00d73",
     "3x2": "3\u00d72", "4x2": "4\u00d72", "4x3": "4\u00d73",
-    "6x4": "6\u00d74", "7x4": "7\u00d74", "9x6": "9\u00d76",
+    "6x4": "6\u00d74", "7x4": "7\u00d74", "9x4": "9\u00d74", "9x6": "9\u00d76",
     "2x3": "2\u00d73", "2x4": "2\u00d74", "4x6": "4\u00d76"
   };
 
@@ -93,7 +94,7 @@
     "1x1": "rgba(0,0,0,0.5)",
     "2x2": "#1a1a1a", "3x3": "#555",
     "3x2": "#c44",    "4x2": "#a44", "4x3": "#b44",
-    "6x4": "#36c",    "7x4": "#25b", "9x6": "#24a",
+    "6x4": "#36c",    "7x4": "#25b", "9x4": "#147", "9x6": "#24a",
     "2x3": "#2a7",    "2x4": "#1a6", "4x6": "#084"
   };
 
@@ -233,6 +234,7 @@
 
   function getSize(item) {
     if (item.classList.contains("g9-9x6")) return "9x6";
+    if (item.classList.contains("g9-9x4")) return "9x4";
     if (item.classList.contains("g9-7x4")) return "7x4";
     if (item.classList.contains("g9-6x4")) return "6x4";
     if (item.classList.contains("g9-4x6")) return "4x6";
@@ -320,10 +322,49 @@
       });
       item.appendChild(h);
     });
+
+    // Duplicate button — top-center of spacer
+    var dupBtn = document.createElement("button");
+    dupBtn.className = "spacer-dup-btn";
+    dupBtn.textContent = "\u29c9"; // ⧉
+    dupBtn.title = "Duplicate spacer";
+    dupBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    dupBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var spans = getSpacerSpans(item);
+      var clone = createSpacerElement(spans.cols, spans.rows);
+      // Insert immediately after the original
+      var next = item.nextSibling;
+      if (next) {
+        getGallery().insertBefore(clone, next);
+      } else {
+        getGallery().appendChild(clone);
+      }
+      setupEditorItem(clone);
+      refreshOrderNumbers();
+      refreshSlots();
+      autoSave();
+    });
+    item.appendChild(dupBtn);
+
+    // Delete button — top-right of spacer
+    var delBtn = document.createElement("button");
+    delBtn.className = "spacer-del-btn";
+    delBtn.textContent = "\u00d7"; // ×
+    delBtn.title = "Delete spacer";
+    delBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    delBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      item.remove();
+      refreshOrderNumbers();
+      refreshSlots();
+      autoSave();
+    });
+    item.appendChild(delBtn);
   }
 
   function removeSpacerHandles(item) {
-    item.querySelectorAll(".spacer-handle").forEach(function (h) { h.remove(); });
+    item.querySelectorAll(".spacer-handle, .spacer-dup-btn, .spacer-del-btn").forEach(function (h) { h.remove(); });
   }
 
   function moveResize(e) {
@@ -541,7 +582,7 @@
 
   function getColSpan(item) {
     var sizeMap = {
-      "9x6": 9, "7x4": 7, "6x4": 6,
+      "9x6": 9, "9x4": 9, "7x4": 7, "6x4": 6,
       "4x6": 4, "4x3": 4, "4x2": 4,
       "3x3": 3, "3x2": 3,
       "2x4": 2, "2x3": 2, "2x2": 2
@@ -562,12 +603,35 @@
       colsUsed = (colsUsed + spans.cols) % 9;
     });
 
-    // Fill the trailing partial row
+    // Fill the trailing partial row with interactive slots
     var remainder = colsUsed === 0 ? 0 : 9 - colsUsed;
     var gallery = getGallery();
     for (var i = 0; i < remainder; i++) {
       var slot = document.createElement("div");
       slot.className = "g9-slot";
+
+      // "Fill with spacer" button centered in the slot
+      var fillBtn = document.createElement("button");
+      fillBtn.className = "slot-fill-btn";
+      fillBtn.textContent = "+ spacer";
+      fillBtn.title = "Fill this slot with a spacer";
+      fillBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        // Insert 1×1 spacer before the first slot (takes this visual position)
+        var firstSlot = getGallery().querySelector(".g9-slot");
+        var spacer = createSpacerElement(1, 1);
+        if (firstSlot) {
+          getGallery().insertBefore(spacer, firstSlot);
+        } else {
+          getGallery().appendChild(spacer);
+        }
+        setupEditorItem(spacer);
+        refreshOrderNumbers();
+        refreshSlots();
+        autoSave();
+      });
+      slot.appendChild(fillBtn);
+
       gallery.appendChild(slot);
     }
   }
