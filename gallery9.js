@@ -407,7 +407,9 @@
     var cols = 18;
     // Read the computed gap from the CSS custom property --s
     var gap = parseFloat(getComputedStyle(grid).getPropertyValue("gap")) || 16;
-    var colWidth = (rect.width - gap * (cols - 1)) / cols;
+    // CSS formula: calc((min(100vw,1400px) - 19 * var(--s)) / 18)
+    // 19 gaps = left padding + 17 internal gutters + right padding
+    var colWidth = (rect.width - gap * (cols + 1)) / cols;
     return { colWidth: colWidth, rowHeight: colWidth, gap: gap, rect: rect };
   }
 
@@ -754,9 +756,19 @@
         rowStart = resizeStartRow;
       }
     } else {
-      // Spacer: four-corner drag, colStart/rowStart are fixed
-      colStart = resizeStartCol;
-      rowStart = resizeStartRow;
+      // Spacer corner drag: left corners (tl/bl) shift colStart; top corners (tl/tr) shift rowStart.
+      // This mirrors image left/top-edge behaviour so dragging inward from the left
+      // shrinks from the left rather than from the right.
+      if (resizeCorner === "tl" || resizeCorner === "bl") {
+        colStart = Math.max(1, resizeStartCol + dCols);
+      } else {
+        colStart = resizeStartCol;
+      }
+      if (resizeCorner === "tl" || resizeCorner === "tr") {
+        rowStart = Math.max(1, resizeStartRow + dRows);
+      } else {
+        rowStart = resizeStartRow;
+      }
     }
 
     resizingItem.style.gridColumn = colStart + " / span " + newCols;
@@ -1472,18 +1484,14 @@
     });
   }
 
-  // Convert clientX/Y to 1-based grid col/row. Returns null if outside grid.
+  // Convert clientX/Y to 1-based grid col/row.
+  // getBoundingClientRect() is viewport-relative; clientX/Y are also viewport-relative,
+  // so (clientX - rect.left) gives the correct pixel offset regardless of scroll position.
+  // We subtract one gap for the grid's left padding (padding: 0 var(--s)).
   function clientToGridCell(clientX, clientY) {
     var m = getGridMetrics();
-    var x = clientX - m.rect.left;
-    var y = clientY - m.rect.top + window.scrollY; // account for scroll
-
-    // Also account for scroll in rect
-    var scrolledY = clientY - (m.rect.top - (window.pageYOffset || document.documentElement.scrollTop));
-
-    // Recompute without scroll confusion: use the actual viewport rect
-    x = clientX - m.rect.left;
-    y = clientY - m.rect.top;
+    var x = clientX - m.rect.left - m.gap; // subtract left padding
+    var y = clientY - m.rect.top;
 
     var cellStep = m.colWidth + m.gap;
     var col = Math.floor(x / cellStep) + 1; // 1-based
