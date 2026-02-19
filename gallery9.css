@@ -587,32 +587,6 @@ body:not(.edit-mode) .spacer-text:empty::before {
   color: rgba(0,0,0,0.7);
 }
 
-/* ── Slot Close-Gap Button (full-width row gaps only) ── */
-/* Positioned in the top-right corner of the gap slot, distinct from the + button */
-.slot-close-gap-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  height: 22px;
-  padding: 0 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.12);
-  color: rgba(0,0,0,0.5);
-  border: 1px solid rgba(0,0,0,0.15);
-  border-radius: 3px;
-  font-family: 'Inconsolata', monospace;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.slot-close-gap-btn:hover {
-  background: rgba(0,0,0,0.25);
-  color: rgba(0,0,0,0.85);
-}
 
 /* ── Images ── */
 .g9-item img {

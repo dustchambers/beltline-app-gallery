@@ -947,6 +947,7 @@
     isPushDown = false;  pushDownOriginals = [];  lastPushDownRow = -1;
     isPushRight = false; pushRightOriginals = []; lastPushRightCol = -1;
 
+    collapseFullWidthGaps();
     autoSave();
     refreshSlots();
     resizingItem = null;
@@ -1480,30 +1481,8 @@
         slot.style.gridColumn = colStart + " / span " + colSpan;
         slot.style.gridRow    = runStart + " / span " + runHeight;
 
-        // Full-width uninterrupted horizontal gap: add a "close gap" button
-        // that shifts all items below the gap upward to fill it.
-        if (colSpan === 18 && colStart === 1) {
-          (function (gapRowStart, gapRowEnd, gapHeight) {
-            var closeBtn = document.createElement("button");
-            closeBtn.className = "slot-close-gap-btn";
-            closeBtn.textContent = "\u2191\u2191"; // ↑↑
-            closeBtn.title = "Close gap (" + gapHeight + " row" + (gapHeight > 1 ? "s" : "") + ")";
-            closeBtn.addEventListener("click", function (ev) {
-              ev.stopPropagation();
-              pushUndo();
-              // Shift all items whose rowStart >= gapRowEnd up by gapHeight
-              getGalleryItems().forEach(function (it) {
-                var rp = parseGridStyle(it.style.gridRow);
-                if (rp.start !== null && rp.start >= gapRowEnd) {
-                  it.style.gridRow = (rp.start - gapHeight) + " / span " + rp.span;
-                }
-              });
-              autoSave();
-              refreshSlots();
-            });
-            slot.appendChild(closeBtn);
-          })(runStart, runEnd + 1, runHeight);
-        }
+        // (Full-width gaps auto-collapse via collapseFullWidthGaps in endDrag/endResize.
+        //  Partial-width gaps show only the + button.)
 
         i++;
       }
@@ -1953,6 +1932,72 @@
     }
   }
 
+  // Close any full-width (col 1–18) uninterrupted horizontal gaps by shifting
+  // all items below each gap upward. Processes gaps bottom-to-top so that
+  // closing an upper gap doesn't invalidate already-computed row numbers.
+  function collapseFullWidthGaps() {
+    var items = getGalleryItems();
+    if (items.length === 0) return;
+
+    // Build occupancy map row-by-row
+    var rects = [];
+    var maxRow = 0;
+    items.forEach(function (item) {
+      var cp = parseGridStyle(item.style.gridColumn);
+      var rp = parseGridStyle(item.style.gridRow);
+      var cStart = cp.start || 1;
+      var rStart = rp.start || 1;
+      if (rp.start === null) return; // unpinned — skip (shouldn't exist post-endDrag)
+      rects.push({ cStart: cStart, cEnd: cStart + cp.span - 1, rStart: rStart, rEnd: rStart + rp.span - 1 });
+      maxRow = Math.max(maxRow, rStart + rp.span - 1);
+    });
+    if (maxRow === 0) return;
+
+    // Find all full-width gap runs (col 1–18 entirely empty) in ascending order
+    var fullGaps = []; // [{rowStart, height}]
+    var r = 1;
+    while (r <= maxRow) {
+      // Is this row fully empty?
+      var occupied = false;
+      for (var i = 0; i < rects.length; i++) {
+        if (rects[i].rStart <= r && rects[i].rEnd >= r) {
+          occupied = true;
+          break;
+        }
+      }
+      if (!occupied) {
+        // Find run length
+        var runStart = r;
+        while (r <= maxRow) {
+          var rowOccupied = false;
+          for (var j = 0; j < rects.length; j++) {
+            if (rects[j].rStart <= r && rects[j].rEnd >= r) { rowOccupied = true; break; }
+          }
+          if (!rowOccupied) { r++; } else { break; }
+        }
+        fullGaps.push({ rowStart: runStart, height: r - runStart });
+      } else {
+        r++;
+      }
+    }
+
+    if (fullGaps.length === 0) return;
+
+    // Close gaps bottom-to-top so shifting one gap doesn't corrupt row numbers
+    // of gaps above it.
+    for (var g = fullGaps.length - 1; g >= 0; g--) {
+      var gap = fullGaps[g];
+      var gapEnd  = gap.rowStart + gap.height; // first row after the gap
+      var shift   = gap.height;
+      items.forEach(function (item) {
+        var rp = parseGridStyle(item.style.gridRow);
+        if (rp.start !== null && rp.start >= gapEnd) {
+          item.style.gridRow = (rp.start - shift) + " / span " + rp.span;
+        }
+      });
+    }
+  }
+
   function endDrag() {
     pushUndo(); // capture pre-drop state for undo
     if (dragGhost) {
@@ -2012,6 +2057,10 @@
     isPushDown = false;
     pushDownOriginals = [];
     lastPushDownRow = -1;
+
+    // Automatically close any full-width horizontal gaps that remain after
+    // the drop (e.g. gaps left behind by Shift+drag push-down).
+    collapseFullWidthGaps();
 
     mergeAdjacentSpacers();
     refreshOrderNumbers();
