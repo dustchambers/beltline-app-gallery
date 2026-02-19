@@ -656,12 +656,52 @@ body:not(.edit-mode) .spacer-text:empty::before {
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.5s ease, opacity 0.5s ease;
+  /* Crisper hover: ease-out decelerates fast — feels snappier than symmetric ease.
+     blur/filter included so blur-up transition is driven by the same curve. */
+  transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity   0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              filter    0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .g9-item:hover img {
-  transform: scale(1.02);
-  opacity: 0.85;
+  transform: scale(1.025);
+  opacity: 0.88;
+}
+
+/* ── Blur-up: images load sharp from a blurred placeholder ── */
+/* JS adds .g9-img-loading immediately; removes it once the image fires load.
+   scale(1.03) slightly overflows the container to hide the soft blur edge. */
+.g9-item img.g9-img-loading {
+  filter: blur(10px);
+  transform: scale(1.03);
+  opacity: 1;
+}
+
+/* ── Vignette overlay on hover ── */
+/* ::after sits above the image (z-index 1) but below any edit-mode UI (z-index 15+).
+   pointer-events: none so clicks pass through to the image / lightbox handler. */
+.g9-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(15, 12, 10, 0.52) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.g9-item:hover::after {
+  opacity: 1;
+}
+
+/* Don't show vignette on spacers — they have no image to darken */
+.g9-item.g9-spacer::after {
+  display: none;
 }
 
 /* ── Stagger animation ── */
@@ -678,6 +718,19 @@ body:not(.edit-mode) .spacer-text:empty::before {
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Gap pulse — fires once on load via .g9-gap-pulse class added by JS ── */
+/* Breathes the gap open then settles back, revealing the underlying grid structure
+   for a moment before the gallery "locks in". Duration matches the stagger tail. */
+@keyframes gapPulse {
+  0%   { gap: var(--s); }
+  40%  { gap: calc(var(--s) * 2.8); }
+  100% { gap: var(--s); }
+}
+
+.gallery.g9-gap-pulse {
+  animation: gapPulse 0.75s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /* ── Lightbox ── */

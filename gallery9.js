@@ -285,6 +285,13 @@
         img.style.objectPosition = entry.crop;
       }
 
+      // Blur-up: start blurred, clear once image data arrives.
+      // Already-cached images fire load synchronously before classList.add runs,
+      // so we check .complete first and skip the blur for instant hits.
+      if (!img.complete) {
+        img.classList.add("g9-img-loading");
+      }
+
       // Auto-default size: apply 6x4 immediately for all unsized (or unrecognised-size)
       // images so they are never 1×1 placeholders. The onload listener refines to 4x6
       // for portrait images once naturalWidth/Height are known.
@@ -292,6 +299,9 @@
         applySizeClass(div, "6x4"); // provisional landscape default
       }
       img.addEventListener("load", function () {
+        // Blur-up: transition to sharp
+        img.classList.remove("g9-img-loading");
+
         if (hasSavedSize) return; // saved size takes priority — don't overwrite
         // Only correct if it's still the provisional 6x4
         if (img.naturalHeight > img.naturalWidth * 1.1) {
@@ -3025,6 +3035,20 @@
     ensureLightbox();
     restoreState();
     bindClicks();
+
+    // Gap pulse — fires once after first paint to "breathe" the grid open and
+    // back. rAF defers until the browser has committed the initial layout so
+    // the animation is always visible (not swallowed by paint).
+    var gallery = getGallery();
+    if (gallery) {
+      requestAnimationFrame(function () {
+        gallery.classList.add("g9-gap-pulse");
+        gallery.addEventListener("animationend", function onPulseEnd() {
+          gallery.classList.remove("g9-gap-pulse");
+          gallery.removeEventListener("animationend", onPulseEnd);
+        });
+      });
+    }
 
     // Lightbox controls
     document
