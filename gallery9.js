@@ -407,10 +407,12 @@
   }
 
   function bindClicks() {
-    visibleItems = getGalleryItems();
+    visibleItems = getGalleryItems().filter(function (item) {
+      return !isSpacer(item);
+    });
     visibleItems.forEach(function (item, i) {
       item.onclick = function () {
-        openLightbox(i);
+        if (!editorMode) openLightbox(i);
       };
     });
   }
@@ -418,6 +420,7 @@
   // ── Badges & Order Numbers ──
 
   function updateBadge(item) {
+    if (isSpacer(item)) return; // spacers have no badge
     var badge = item.querySelector(".layout-badge");
     if (!badge) {
       badge = document.createElement("span");
@@ -425,13 +428,13 @@
       item.appendChild(badge);
     }
     var size = getSize(item);
-    badge.textContent = BADGE_LABELS[size];
+    badge.textContent = BADGE_LABELS[size] || size;
     badge.style.cssText =
-      "position: absolute; top: 8px; left: 8px;" +
-      "background: " + BADGE_COLORS[size] + ";" +
-      "color: #EDEBE0; padding: 4px 10px;" +
-      "font-family: 'Inconsolata', monospace; font-size: 13px;" +
-      "letter-spacing: 0.1em; z-index: 10; pointer-events: none;";
+      "position: absolute; bottom: 6px; left: 6px;" +
+      "background: " + (BADGE_COLORS[size] || "rgba(0,0,0,0.5)") + ";" +
+      "color: #EDEBE0; padding: 3px 8px;" +
+      "font-family: 'Inconsolata', monospace; font-size: 11px;" +
+      "letter-spacing: 0.08em; z-index: 10; pointer-events: none;";
   }
 
   function addOrderNumber(item) {
