@@ -1002,37 +1002,20 @@
 
   // ── Orientation Buttons ──
 
-  // ── Reorder Drag (Live Sliding Preview) ──
+  // ── Reorder Drag ──
+  // Strategy: activeItem stays in its original DOM position throughout the drag
+  // (so grid-auto-flow:dense never backfills its space). A lightweight
+  // dropIndicator element moves to show the intended drop position. On
+  // mouseup the actual DOM move happens once — one reflow, no upward snap.
 
-  function flipAnimate(draggedItem) {
-    var items = getGalleryItems();
-    var firstRects = [];
-    items.forEach(function (item) {
-      if (item === draggedItem) return;
-      firstRects.push({ el: item, rect: item.getBoundingClientRect() });
-    });
-    return function play() {
-      firstRects.forEach(function (entry) {
-        var last = entry.el.getBoundingClientRect();
-        var dx = entry.rect.left - last.left;
-        var dy = entry.rect.top - last.top;
-        if (dx === 0 && dy === 0) return;
-        // Only animate items pushed downward — items moving up or left snap
-        // instantly to avoid the flickery "crowding" effect during reorder.
-        if (dy < 0 || (dy === 0 && dx < 0)) return;
-        entry.el.style.transition = "none";
-        entry.el.style.transform = "translate(" + dx + "px," + dy + "px)";
-        entry.el.offsetHeight; // force reflow
-        entry.el.style.transition = "transform 0.25s ease";
-        entry.el.style.transform = "";
-      });
-    };
-  }
+  var dropIndicator = null; // the in-grid insertion preview element
+  var dropBeforeNode = null; // which node to insertBefore on commit (null = append)
 
   function startDrag(item, e) {
     item.classList.add("drag-placeholder");
     item.style.cursor = "grabbing";
 
+    // Ghost follows the cursor
     dragGhost = document.createElement("div");
     dragGhost.className = "drag-ghost";
 
@@ -1054,6 +1037,22 @@
       "transition: none;";
     document.body.appendChild(dragGhost);
 
+    // Drop indicator — same grid span as the dragged item, shown at drop position
+    var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
+    dropIndicator = document.createElement("div");
+    dropIndicator.className = "drop-indicator";
+    dropIndicator.style.cssText =
+      "grid-column: span " + spans.cols + "; grid-row: span " + spans.rows + ";" +
+      "pointer-events: none; z-index: 5;";
+    // Start indicator at item's current position (insert after it)
+    var nextSib = item.nextSibling;
+    if (nextSib) {
+      getGallery().insertBefore(dropIndicator, nextSib);
+    } else {
+      getGallery().appendChild(dropIndicator);
+    }
+    dropBeforeNode = nextSib;
+
     lastDropTarget = null;
     lastInsertBefore = true;
   }
@@ -1064,7 +1063,7 @@
       dragGhost.style.top = e.clientY + "px";
     }
 
-    // Include slots as drop candidates so dragging into a gap row works
+    // Candidates: all items except the dragged one, plus gap slots
     var items = getGalleryItems();
     var slots = [].slice.call(getGallery().querySelectorAll(".g9-slot"));
     var candidates = items.concat(slots);
@@ -1074,14 +1073,13 @@
     var minDist = Infinity;
 
     candidates.forEach(function (item) {
-      if (item === activeItem) return;
+      if (item === activeItem || item === dropIndicator) return;
       var rect = item.getBoundingClientRect();
       var centerX = rect.left + rect.width / 2;
       var centerY = rect.top + rect.height / 2;
       var dist = Math.sqrt(
         Math.pow(e.clientX - centerX, 2) + Math.pow(e.clientY - centerY, 2)
       );
-
       if (dist < minDist) {
         minDist = dist;
         closestItem = item;
@@ -1100,10 +1098,8 @@
       if (minDist > lastDist - 15) return;
     }
 
-    // Slots are always "insert before" — place the dragged item into the gap
+    // Slots always mean "drop here" (insert before slot)
     var isSlot = closestItem.classList.contains("g9-slot");
-
-    // Dead zone for insert side (not applicable to slots — they only accept before)
     var closestRect = closestItem.getBoundingClientRect();
     var centerX = closestRect.left + closestRect.width / 2;
     var deadZone = closestRect.width * 0.2;
@@ -1119,24 +1115,24 @@
 
     if (closestItem !== lastDropTarget || insertBefore !== lastInsertBefore) {
       var gallery = getGallery();
-      var play = flipAnimate(activeItem);
 
+      // Move only the indicator — activeItem stays put
       if (insertBefore) {
-        gallery.insertBefore(activeItem, closestItem);
+        gallery.insertBefore(dropIndicator, closestItem);
+        dropBeforeNode = closestItem;
       } else {
         var next = closestItem.nextSibling;
-        if (next) {
-          gallery.insertBefore(activeItem, next);
-        } else {
-          gallery.appendChild(activeItem);
+        if (next && next !== dropIndicator) {
+          gallery.insertBefore(dropIndicator, next);
+          dropBeforeNode = next;
+        } else if (!next) {
+          gallery.appendChild(dropIndicator);
+          dropBeforeNode = null;
         }
       }
 
-      play();
       lastDropTarget = closestItem;
       lastInsertBefore = insertBefore;
-      refreshOrderNumbers();
-      refreshSlots(); // recompute gaps after every DOM reorder
     }
   }
 
@@ -1144,6 +1140,20 @@
     if (dragGhost) {
       dragGhost.remove();
       dragGhost = null;
+    }
+
+    // Commit: move activeItem to where the indicator is, then remove indicator
+    if (dropIndicator) {
+      var gallery = getGallery();
+      // dropBeforeNode is the node that indicator is before (null = end)
+      if (dropBeforeNode && dropBeforeNode.parentNode === gallery) {
+        gallery.insertBefore(activeItem, dropBeforeNode);
+      } else {
+        gallery.appendChild(activeItem);
+      }
+      dropIndicator.remove();
+      dropIndicator = null;
+      dropBeforeNode = null;
     }
 
     activeItem.classList.remove("drag-placeholder");

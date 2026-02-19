@@ -494,10 +494,18 @@ body.edit-mode .g9-item:active {
 }
 
 .g9-item.drag-placeholder {
-  outline: 2px dashed rgba(0,0,0,0.25) !important;
-  background: rgba(0,0,0,0.04);
+  opacity: 0.15;
 }
 .g9-item.drag-placeholder img { opacity: 0; }
+
+/* Drop position indicator — same grid span as dragged item, no pointer events */
+.drop-indicator {
+  background: rgba(26,26,26,0.07);
+  border: 2px dashed rgba(26,26,26,0.3);
+  border-radius: 2px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
 
 /* ── Spacer Corner Handles ── */
 .spacer-handle {
