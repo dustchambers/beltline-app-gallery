@@ -663,7 +663,7 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 .g9-item:hover img {
-  transform: scale(1.012); /* barely-there zoom — motion without distraction */
+  transform: scale(1.022);
 }
 
 /* ── Blur-up: images load sharp from a blurred placeholder ── */
@@ -790,7 +790,7 @@ body:not(.edit-mode) .spacer-text:empty::before {
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  padding: 0.55rem 2rem;
+  padding: 0.7rem 2rem 0.6rem;
   opacity: 0.55;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
@@ -809,7 +809,7 @@ body:not(.edit-mode) .spacer-text:empty::before {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.45rem 2rem;
+  padding: 0.6rem 2rem 0.65rem;
 }
 
 .edit-banner-actions button {
