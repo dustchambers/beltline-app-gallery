@@ -42,16 +42,24 @@ body.embedded .gallery {
   margin: 0.4rem 0 0;
 }
 
+/* ── Unified Spacing Token ── */
+/* --s drives gap, side margins, and the row-height formula simultaneously.
+   Formula: (max-viewport - (cols+1)×gap) / cols  →  square cells.
+   For 18 cols that's 19 gaps (left margin + 17 gutters + right margin). */
+:root {
+  --s: clamp(10px, 1.6vw, 20px);
+}
+
 /* ── Gallery Grid ── */
 .gallery {
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  /* Row height = one cell = (viewport width capped at 1400px, minus 2rem padding, minus 8*8px gaps) / 9 */
-  grid-auto-rows: calc((min(100vw, 1400px) - 2rem - 64px) / 9);
+  grid-template-columns: repeat(18, 1fr);
+  /* Each cell is square: full width minus 19 gaps, divided by 18 columns */
+  grid-auto-rows: calc((min(100vw, 1400px) - 19 * var(--s)) / 18);
   /* dense: auto-placed items backfill gaps left by explicitly-placed items */
   grid-auto-flow: dense;
-  gap: 8px;
-  padding: 0 1rem 2rem;
+  gap: var(--s);
+  padding: 0 var(--s) calc(var(--s) * 2);
   max-width: 1400px;
   margin: 0 auto;
   position: relative; /* needed for absolute-positioned drop preview */
@@ -62,10 +70,10 @@ body.edit-mode .gallery {
   background-image:
     linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
-  /* Cell size matches grid-auto-rows; gap 8px baked in via background-size */
+  /* Tile size = one cell + one gap, matching the 18-col formula */
   background-size:
-    calc((min(100vw, 1400px) - 2rem - 64px) / 9 + 8px)
-    calc((min(100vw, 1400px) - 2rem - 64px) / 9 + 8px);
+    calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s))
+    calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s));
   background-position: -1px -1px;
 }
 
@@ -92,19 +100,38 @@ body.edit-mode .gallery {
   animation: fadeInUp 0.6s ease forwards;
 }
 
-/* 9-col size classes — all fill their grid area naturally */
-.g9-item.g9-2x2  { grid-column: span 2; grid-row: span 2; }
-.g9-item.g9-3x3  { grid-column: span 3; grid-row: span 3; }
-.g9-item.g9-3x2  { grid-column: span 3; grid-row: span 2; }
-.g9-item.g9-4x2  { grid-column: span 4; grid-row: span 2; }
-.g9-item.g9-4x3  { grid-column: span 4; grid-row: span 3; }
-.g9-item.g9-6x4  { grid-column: span 6; grid-row: span 4; }
-.g9-item.g9-7x4  { grid-column: span 7; grid-row: span 4; }
-.g9-item.g9-9x4  { grid-column: span 9; grid-row: span 4; }
-.g9-item.g9-9x6  { grid-column: span 9; grid-row: span 6; }
-.g9-item.g9-2x3  { grid-column: span 2; grid-row: span 3; }
-.g9-item.g9-2x4  { grid-column: span 2; grid-row: span 4; }
-.g9-item.g9-4x6  { grid-column: span 4; grid-row: span 6; }
+/* 18-col size classes — all fill their grid area naturally.
+   Default photo sizes: 6x4 (horiz, 1/3 width) and 4x6 (vert, 2/9 width).
+   Spacer bars: 9x1 (half-width), 18x1 (full-width), 9x2, 18x2.
+   Squares: 4x4, 6x6.
+   Wide: 9x4 (half), 12x4 (2/3), 18x4, 18x6 (full-bleed). */
+
+/* ── Square ── */
+.g9-item.g9-2x2  { grid-column: span 2;  grid-row: span 2; }
+.g9-item.g9-4x4  { grid-column: span 4;  grid-row: span 4; }
+.g9-item.g9-6x6  { grid-column: span 6;  grid-row: span 6; }
+
+/* ── Horizontal ── */
+.g9-item.g9-6x4  { grid-column: span 6;  grid-row: span 4; }
+.g9-item.g9-9x4  { grid-column: span 9;  grid-row: span 4; }
+.g9-item.g9-9x6  { grid-column: span 9;  grid-row: span 6; }
+.g9-item.g9-12x4 { grid-column: span 12; grid-row: span 4; }
+.g9-item.g9-12x6 { grid-column: span 12; grid-row: span 6; }
+.g9-item.g9-18x4 { grid-column: span 18; grid-row: span 4; }
+.g9-item.g9-18x6 { grid-column: span 18; grid-row: span 6; }
+.g9-item.g9-18x8 { grid-column: span 18; grid-row: span 8; }
+
+/* ── Vertical ── */
+.g9-item.g9-4x6  { grid-column: span 4;  grid-row: span 6; }
+.g9-item.g9-4x8  { grid-column: span 4;  grid-row: span 8; }
+.g9-item.g9-6x8  { grid-column: span 6;  grid-row: span 8; }
+.g9-item.g9-6x9  { grid-column: span 6;  grid-row: span 9; }
+
+/* ── Spacer Bars ── */
+.g9-item.g9-9x1  { grid-column: span 9;  grid-row: span 1; }
+.g9-item.g9-9x2  { grid-column: span 9;  grid-row: span 2; }
+.g9-item.g9-18x1 { grid-column: span 18; grid-row: span 1; }
+.g9-item.g9-18x2 { grid-column: span 18; grid-row: span 2; }
 
 .g9-item.hidden { display: none; }
 
@@ -138,33 +165,42 @@ body.edit-mode .g9-item.g9-spacer {
 }
 
 /* ── Spacer Text Overlay ── */
+/* Uses flex so align-items controls vertical position (top/center/bottom).
+   The inner [data-text-inner] span carries horizontal text-align. */
 .spacer-text {
   position: absolute;
   inset: 0;
   padding: 16px;
   z-index: 5;
+  /* Flex layout enables vertical alignment via align-items */
+  display: none;
+  flex-direction: column;
+  align-items: flex-start; /* vertical: top by default */
+  overflow: hidden;
+  box-sizing: border-box;
+  outline: none;
   /* Typography defaults */
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(0.85rem, 1.5vw, 1.1rem);
   line-height: 1.55;
   color: #333;
-  text-align: left;
-  /* Hide when empty in view mode */
-  display: none;
-  overflow: hidden;
-  box-sizing: border-box;
   word-wrap: break-word;
-  outline: none;
+  white-space: pre-wrap;
 }
+
+/* Vertical alignment variants */
+.spacer-text.valign-top    { justify-content: flex-start; }
+.spacer-text.valign-middle { justify-content: center; }
+.spacer-text.valign-bottom { justify-content: flex-end; }
 
 /* Show text when spacer has content */
 .g9-item.has-text .spacer-text {
-  display: block;
+  display: flex;
 }
 
 /* Always show in edit mode so user can type into it */
 body.edit-mode .spacer-text {
-  display: block;
+  display: flex;
   cursor: default; /* overridden to text when editing */
 }
 
@@ -218,10 +254,11 @@ body:not(.edit-mode) .spacer-text:empty::before {
   background: rgba(26,26,26,0.85);
 }
 
-/* ── Spacer Alignment Bar (L / C / R) ── */
-.spacer-align-bar {
+/* ── Spacer Alignment Bars (horizontal L/C/R  and  vertical T/M/B) ── */
+/* Both bars stack vertically below the T button, with a gap between groups */
+.spacer-align-bar,
+.spacer-align-vbar {
   position: absolute;
-  top: 42px; /* 14px top + 22px button + 6px gap */
   left: 4px;
   display: none; /* shown only when text mode is active */
   flex-direction: column;
@@ -229,7 +266,18 @@ body:not(.edit-mode) .spacer-text:empty::before {
   z-index: 25;
 }
 
-.spacer-align-bar.visible {
+/* Horizontal bar: right below the T button (14px top + 22px btn + 6px) */
+.spacer-align-bar {
+  top: 42px;
+}
+
+/* Vertical bar: below horizontal bar (42px + 3×22px + 3×3px + 8px gap) */
+.spacer-align-vbar {
+  top: 123px; /* 42 + 3×25(btn+gap) + 6 */
+}
+
+.spacer-align-bar.visible,
+.spacer-align-vbar.visible {
   display: flex;
 }
 
@@ -543,36 +591,32 @@ body.edit-mode .item-resize-handle {
   display: block;
 }
 
-/* Right edge: full height strip */
-.item-resize-r {
-  top: 0;
-  right: 0;
-  width: 8px;
-  height: 100%;
-  cursor: ew-resize;
-}
+/* ── Image resize edge strips (8px wide/tall, full span) ── */
+.item-resize-r  { top: 0;    right: 0;  width: 8px;  height: 100%; cursor: ew-resize; }
+.item-resize-l  { top: 0;    left: 0;   width: 8px;  height: 100%; cursor: ew-resize; }
+.item-resize-b  { bottom: 0; left: 0;   width: 100%; height: 8px;  cursor: ns-resize; }
+.item-resize-t  { top: 0;    left: 0;   width: 100%; height: 8px;  cursor: ns-resize; }
 
-/* Bottom edge: full width strip */
-.item-resize-b {
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 8px;
-  cursor: ns-resize;
-}
-
-/* Bottom-right corner: drag both axes */
-.item-resize-br {
-  bottom: 0;
-  right: 0;
+/* ── Image resize corners (16×16px visible squares) ── */
+.item-resize-br,
+.item-resize-bl,
+.item-resize-tr,
+.item-resize-tl {
   width: 16px;
   height: 16px;
-  cursor: nwse-resize;
   background: rgba(26,26,26,0.35);
-  border-radius: 2px 0 0 0;
+  border-radius: 2px;
 }
 
-body.edit-mode .g9-item:hover .item-resize-br {
+.item-resize-br { bottom: 0; right: 0;  cursor: nwse-resize; border-radius: 2px 0 0 0; }
+.item-resize-bl { bottom: 0; left: 0;   cursor: nesw-resize; border-radius: 0 2px 0 0; }
+.item-resize-tr { top: 0;    right: 0;  cursor: nesw-resize; border-radius: 0 0 0 2px; }
+.item-resize-tl { top: 0;    left: 0;   cursor: nwse-resize; border-radius: 0 0 2px 0; }
+
+body.edit-mode .g9-item:hover .item-resize-br,
+body.edit-mode .g9-item:hover .item-resize-bl,
+body.edit-mode .g9-item:hover .item-resize-tr,
+body.edit-mode .g9-item:hover .item-resize-tl {
   background: rgba(26,26,26,0.6);
 }
 
@@ -593,19 +637,23 @@ body.edit-mode .g9-item:hover .item-resize-br {
 }
 
 /* ── Responsive ── */
+/* At 900px: collapse to 6 columns (÷3 from 18) with unified --s token */
 @media (max-width: 900px) {
   .gallery {
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: calc((min(100vw, 900px) - 1.5rem - 12px) / 3);
-    gap: 6px;
-    padding: 0 0.75rem 2rem;
+    grid-template-columns: repeat(6, 1fr);
+    grid-auto-rows: calc((100vw - 7 * var(--s)) / 6);
   }
 
-  .g9-item.g9-2x2, .g9-item.g9-3x3,
-  .g9-item.g9-3x2, .g9-item.g9-4x2, .g9-item.g9-4x3,
-  .g9-item.g9-6x4, .g9-item.g9-7x4, .g9-item.g9-9x4, .g9-item.g9-9x6,
-  .g9-item.g9-2x3, .g9-item.g9-2x4,
-  .g9-item.g9-4x6 {
+  /* All named sizes collapse to 1×1 on narrow screens */
+  .g9-item.g9-2x2,
+  .g9-item.g9-4x4, .g9-item.g9-6x6,
+  .g9-item.g9-6x4, .g9-item.g9-9x4, .g9-item.g9-9x6,
+  .g9-item.g9-12x4, .g9-item.g9-12x6,
+  .g9-item.g9-18x4, .g9-item.g9-18x6, .g9-item.g9-18x8,
+  .g9-item.g9-4x6, .g9-item.g9-4x8,
+  .g9-item.g9-6x8, .g9-item.g9-6x9,
+  .g9-item.g9-9x1, .g9-item.g9-9x2,
+  .g9-item.g9-18x1, .g9-item.g9-18x2 {
     grid-column: span 1;
     grid-row: span 1;
   }
@@ -614,8 +662,6 @@ body.edit-mode .g9-item:hover .item-resize-br {
 @media (max-width: 480px) {
   .gallery {
     grid-template-columns: 1fr;
-    grid-auto-rows: calc(100vw - 1rem - 8px);
-    gap: 4px;
-    padding: 0 0.5rem 2rem;
+    grid-auto-rows: calc(100vw - 2 * var(--s));
   }
 }

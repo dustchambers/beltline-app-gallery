@@ -55,47 +55,73 @@
 
   var STORAGE_KEY = config ? "galleryLayout_" + config.id : "";
 
+  // ── 18-col size vocabulary ──
+  // Default photo: 6x4 (horiz, 1/3 width) and 4x6 (vert).
+  // Spacer bars: 9x1 (half-width), 18x1 (full-width).
   var SIZE_CLASS_MAP = {
-    "2x2": "g9-2x2",
-    "3x3": "g9-3x3",
-    "3x2": "g9-3x2",
-    "4x2": "g9-4x2",
-    "4x3": "g9-4x3",
-    "6x4": "g9-6x4",
-    "7x4": "g9-7x4",
-    "9x4": "g9-9x4",
-    "9x6": "g9-9x6",
-    "2x3": "g9-2x3",
-    "2x4": "g9-2x4",
-    "4x6": "g9-4x6"
+    // Square
+    "2x2":  "g9-2x2",
+    "4x4":  "g9-4x4",
+    "6x6":  "g9-6x6",
+    // Horizontal
+    "6x4":  "g9-6x4",
+    "9x4":  "g9-9x4",
+    "9x6":  "g9-9x6",
+    "12x4": "g9-12x4",
+    "12x6": "g9-12x6",
+    "18x4": "g9-18x4",
+    "18x6": "g9-18x6",
+    "18x8": "g9-18x8",
+    // Vertical
+    "4x6":  "g9-4x6",
+    "4x8":  "g9-4x8",
+    "6x8":  "g9-6x8",
+    "6x9":  "g9-6x9",
+    // Spacer bars
+    "9x1":  "g9-9x1",
+    "9x2":  "g9-9x2",
+    "18x1": "g9-18x1",
+    "18x2": "g9-18x2"
   };
 
   var ALL_SIZE_CLASSES = [
-    "g9-2x2", "g9-3x3", "g9-3x2", "g9-4x2", "g9-4x3",
-    "g9-6x4", "g9-7x4", "g9-9x4", "g9-9x6", "g9-2x3", "g9-2x4", "g9-4x6"
+    "g9-2x2",  "g9-4x4",  "g9-6x6",
+    "g9-6x4",  "g9-9x4",  "g9-9x6",
+    "g9-12x4", "g9-12x6",
+    "g9-18x4", "g9-18x6", "g9-18x8",
+    "g9-4x6",  "g9-4x8",  "g9-6x8", "g9-6x9",
+    "g9-9x1",  "g9-9x2",  "g9-18x1", "g9-18x2"
   ];
 
   // Orientation groups for the 3-button UI
   var ORIENT_GROUPS = {
-    square: ["1x1", "2x2", "3x3"],
-    horiz:  ["3x2", "4x2", "4x3", "7x4", "6x4", "9x4", "9x6"],
-    vert:   ["2x3", "2x4", "4x6"]
+    square: ["2x2", "4x4", "6x6"],
+    horiz:  ["6x4", "9x4", "9x6", "12x4", "12x6", "18x4", "18x6", "18x8"],
+    vert:   ["4x6", "4x8", "6x8", "6x9"]
   };
 
   var BADGE_LABELS = {
-    "1x1": "1\u00d71",
-    "2x2": "2\u00d72", "3x3": "3\u00d73",
-    "3x2": "3\u00d72", "4x2": "4\u00d72", "4x3": "4\u00d73",
-    "6x4": "6\u00d74", "7x4": "7\u00d74", "9x4": "9\u00d74", "9x6": "9\u00d76",
-    "2x3": "2\u00d73", "2x4": "2\u00d74", "4x6": "4\u00d76"
+    "1x1":  "1\u00d71",
+    "2x2":  "2\u00d72",  "4x4":  "4\u00d74",  "6x6":  "6\u00d76",
+    "6x4":  "6\u00d74",  "9x4":  "9\u00d74",  "9x6":  "9\u00d76",
+    "12x4": "12\u00d74", "12x6": "12\u00d76",
+    "18x4": "18\u00d74", "18x6": "18\u00d76", "18x8": "18\u00d78",
+    "4x6":  "4\u00d76",  "4x8":  "4\u00d78",
+    "6x8":  "6\u00d78",  "6x9":  "6\u00d79",
+    "9x1":  "9\u00d71",  "9x2":  "9\u00d72",
+    "18x1": "18\u00d71", "18x2": "18\u00d72"
   };
 
   var BADGE_COLORS = {
-    "1x1": "rgba(0,0,0,0.5)",
-    "2x2": "#1a1a1a", "3x3": "#555",
-    "3x2": "#c44",    "4x2": "#a44", "4x3": "#b44",
-    "6x4": "#36c",    "7x4": "#25b", "9x4": "#147", "9x6": "#24a",
-    "2x3": "#2a7",    "2x4": "#1a6", "4x6": "#084"
+    "1x1":  "rgba(0,0,0,0.5)",
+    "2x2":  "#1a1a1a", "4x4": "#333",  "6x6": "#555",
+    "6x4":  "#36c",    "9x4": "#25b",  "9x6": "#14a",
+    "12x4": "#136",    "12x6":"#124",
+    "18x4": "#047",    "18x6":"#036",  "18x8":"#024",
+    "4x6":  "#2a7",    "4x8": "#196",
+    "6x8":  "#0a5",    "6x9": "#084",
+    "9x1":  "#888",    "9x2": "#666",
+    "18x1": "#555",    "18x2":"#444"
   };
 
   var DRAG_THRESHOLD = 8;
@@ -146,7 +172,7 @@
     return item.classList.contains("g9-spacer");
   }
 
-  function createSpacerElement(cols, rows, text, align) {
+  function createSpacerElement(cols, rows, text, align, valign) {
     var div = document.createElement("div");
     div.className = "g9-item g9-spacer";
     if (cols > 1) div.style.gridColumn = "span " + cols;
@@ -165,6 +191,10 @@
     textEl.dataset.placeholder = "Type here\u2026";
     if (text) textEl.textContent = text;
     if (align) textEl.style.textAlign = align;
+    // Vertical alignment via CSS class
+    textEl.classList.add(valign === "middle" ? "valign-middle"
+                       : valign === "bottom" ? "valign-bottom"
+                       : "valign-top");
     // Show the text layer and hide the "spacer" label when there is content
     if (text) {
       label.style.display = "none";
@@ -183,7 +213,7 @@
       if (entry.type === "spacer") {
         var spacer = createSpacerElement(
           entry.cols || 1, entry.rows || 1,
-          entry.text || null, entry.align || null
+          entry.text || null, entry.align || null, entry.valign || null
         );
         gallery.appendChild(spacer);
         return;
@@ -211,9 +241,9 @@
         if (getSize(div) !== "1x1") return; // already resized
         var defaultSize;
         if (img.naturalWidth > img.naturalHeight * 1.1) {
-          defaultSize = "3x2"; // landscape
+          defaultSize = "6x4"; // landscape — 1/3 width default
         } else if (img.naturalHeight > img.naturalWidth * 1.1) {
-          defaultSize = "2x3"; // portrait
+          defaultSize = "4x6"; // portrait — 2/9 width default
         }
         // square photos stay 1x1
         if (defaultSize) {
@@ -262,18 +292,26 @@
     if (inlineCols && inlineRows && !isSpacer(item)) {
       return inlineCols + "x" + inlineRows;
     }
-    if (item.classList.contains("g9-9x6")) return "9x6";
-    if (item.classList.contains("g9-9x4")) return "9x4";
-    if (item.classList.contains("g9-7x4")) return "7x4";
-    if (item.classList.contains("g9-6x4")) return "6x4";
-    if (item.classList.contains("g9-4x6")) return "4x6";
-    if (item.classList.contains("g9-4x3")) return "4x3";
-    if (item.classList.contains("g9-4x2")) return "4x2";
-    if (item.classList.contains("g9-3x3")) return "3x3";
-    if (item.classList.contains("g9-3x2")) return "3x2";
-    if (item.classList.contains("g9-2x4")) return "2x4";
-    if (item.classList.contains("g9-2x3")) return "2x3";
-    if (item.classList.contains("g9-2x2")) return "2x2";
+    // 18-col named sizes — check widest first to avoid prefix matches
+    if (item.classList.contains("g9-18x8")) return "18x8";
+    if (item.classList.contains("g9-18x6")) return "18x6";
+    if (item.classList.contains("g9-18x4")) return "18x4";
+    if (item.classList.contains("g9-18x2")) return "18x2";
+    if (item.classList.contains("g9-18x1")) return "18x1";
+    if (item.classList.contains("g9-12x6")) return "12x6";
+    if (item.classList.contains("g9-12x4")) return "12x4";
+    if (item.classList.contains("g9-9x6"))  return "9x6";
+    if (item.classList.contains("g9-9x4"))  return "9x4";
+    if (item.classList.contains("g9-9x2"))  return "9x2";
+    if (item.classList.contains("g9-9x1"))  return "9x1";
+    if (item.classList.contains("g9-6x9"))  return "6x9";
+    if (item.classList.contains("g9-6x8"))  return "6x8";
+    if (item.classList.contains("g9-6x6"))  return "6x6";
+    if (item.classList.contains("g9-6x4"))  return "6x4";
+    if (item.classList.contains("g9-4x8"))  return "4x8";
+    if (item.classList.contains("g9-4x6"))  return "4x6";
+    if (item.classList.contains("g9-4x4"))  return "4x4";
+    if (item.classList.contains("g9-2x2"))  return "2x2";
     return "1x1";
   }
 
@@ -326,10 +364,17 @@
 
   // Named size → row count lookup (col count comes from getColSpan)
   var SIZE_ROWS = {
-    "1x1": 1, "2x2": 2, "3x3": 3,
-    "3x2": 2, "4x2": 2, "4x3": 3,
-    "6x4": 4, "7x4": 4, "9x4": 4, "9x6": 6,
-    "2x3": 3, "2x4": 4, "4x6": 6
+    "1x1": 1,
+    // Square
+    "2x2": 2, "4x4": 4, "6x6": 6,
+    // Horizontal
+    "6x4": 4, "9x4": 4, "9x6": 6,
+    "12x4": 4, "12x6": 6,
+    "18x4": 4, "18x6": 6, "18x8": 8,
+    // Vertical
+    "4x6": 6, "4x8": 8, "6x8": 8, "6x9": 9,
+    // Spacer bars
+    "9x1": 1, "9x2": 2, "18x1": 1, "18x2": 2
   };
 
   function getItemSpans(item) {
@@ -353,8 +398,9 @@
   function getGridMetrics() {
     var grid = getGallery();
     var rect = grid.getBoundingClientRect();
-    var cols = 9;
-    var gap = 8;
+    var cols = 18;
+    // Read the computed gap from the CSS custom property --s
+    var gap = parseFloat(getComputedStyle(grid).getPropertyValue("gap")) || 16;
     var colWidth = (rect.width - gap * (cols - 1)) / cols;
     return { colWidth: colWidth, rowHeight: colWidth, gap: gap, rect: rect };
   }
@@ -428,7 +474,7 @@
       if (label) label.style.display = hasText ? "none" : "";
     }
 
-    // Alignment buttons (L / C / R) — start hidden, shown when T is active
+    // ── Horizontal alignment bar (L / C / R) ──
     var alignBar = document.createElement("div");
     alignBar.className = "spacer-align-bar";
     ["left", "center", "right"].forEach(function (align) {
@@ -436,24 +482,54 @@
       btn.className = "spacer-align-btn";
       btn.dataset.align = align;
       btn.title = align.charAt(0).toUpperCase() + align.slice(1) + " align";
-      // Unicode arrows: ← ↔ →  (but cleaner: use simple L/C/R labels)
       btn.textContent = align === "left" ? "\u2190" : align === "center" ? "\u2194" : "\u2192";
       btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         textEl.style.textAlign = align;
-        // Update active state
         alignBar.querySelectorAll(".spacer-align-btn").forEach(function (b) {
           b.classList.toggle("active", b.dataset.align === align);
         });
         autoSave();
       });
-      // Mark the current alignment as active
       var currentAlign = textEl.style.textAlign || "left";
       if (align === currentAlign) btn.classList.add("active");
       alignBar.appendChild(btn);
     });
     item.appendChild(alignBar);
+
+    // ── Vertical alignment bar (T / M / B) ──
+    var vAlignBar = document.createElement("div");
+    vAlignBar.className = "spacer-align-vbar";
+    [
+      { val: "top",    label: "\u2191", title: "Align top" },
+      { val: "middle", label: "\u2195", title: "Align middle" },
+      { val: "bottom", label: "\u2193", title: "Align bottom" }
+    ].forEach(function (def) {
+      var btn = document.createElement("button");
+      btn.className = "spacer-align-btn";
+      btn.dataset.valign = def.val;
+      btn.title = def.title;
+      btn.textContent = def.label;
+      btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        // Remove existing valign classes then apply chosen one
+        textEl.classList.remove("valign-top", "valign-middle", "valign-bottom");
+        textEl.classList.add("valign-" + def.val);
+        vAlignBar.querySelectorAll(".spacer-align-btn").forEach(function (b) {
+          b.classList.toggle("active", b.dataset.valign === def.val);
+        });
+        autoSave();
+      });
+      // Mark active based on current class
+      var currentValign = textEl.classList.contains("valign-middle") ? "middle"
+                        : textEl.classList.contains("valign-bottom") ? "bottom"
+                        : "top";
+      if (def.val === currentValign) btn.classList.add("active");
+      vAlignBar.appendChild(btn);
+    });
+    item.appendChild(vAlignBar);
 
     // T toggle button — enables/disables text editing on the spacer
     var textBtn = document.createElement("button");
@@ -468,6 +544,7 @@
       textEl.contentEditable = "true";
       textEl.classList.add("editing");
       alignBar.classList.add("visible");
+      vAlignBar.classList.add("visible");
       textBtn.classList.add("active");
       textEl.focus();
       // Place cursor at end
@@ -486,6 +563,7 @@
       textEl.contentEditable = "false";
       textEl.classList.remove("editing");
       alignBar.classList.remove("visible");
+      vAlignBar.classList.remove("visible");
       textBtn.classList.remove("active");
       syncTextState();
       autoSave();
@@ -530,7 +608,7 @@
 
   function removeSpacerHandles(item) {
     item.querySelectorAll(
-      ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, .spacer-text-btn, .spacer-align-bar"
+      ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, .spacer-text-btn, .spacer-align-bar, .spacer-align-vbar"
     ).forEach(function (h) { h.remove(); });
     // Lock text element back to non-editable
     var textEl = item.querySelector(".spacer-text");
@@ -543,7 +621,8 @@
   // ── Image Edge-Drag Resize Handles ──
 
   function addItemResizeHandles(item) {
-    ["r", "b", "br"].forEach(function (edge) {
+    // All 8 handles: 4 edges + 4 corners
+    ["r", "l", "b", "t", "br", "bl", "tr", "tl"].forEach(function (edge) {
       var h = document.createElement("div");
       h.className = "item-resize-handle item-resize-" + edge;
       h.dataset.edge = edge;
@@ -578,25 +657,34 @@
     var newCols, newRows;
 
     if (resizeMode === "image") {
-      // Image edge-drag: only right (cols) and/or bottom (rows) — always additive
-      newCols = (resizeCorner === "b") ? resizeStartCols
-                                       : Math.max(1, Math.min(9, resizeStartCols + dCols));
-      newRows = (resizeCorner === "r") ? resizeStartRows
-                                       : Math.max(1, Math.min(12, resizeStartRows + dRows));
+      // Resolve col delta: right/tr/br edges add; left/tl/bl edges invert
+      var colDelta = (resizeCorner === "l"  || resizeCorner === "tl" || resizeCorner === "bl")
+                   ? -dCols : dCols;
+      // Resolve row delta: bottom/bl/br edges add; top/tl/tr edges invert
+      var rowDelta = (resizeCorner === "t"  || resizeCorner === "tl" || resizeCorner === "tr")
+                   ? -dRows : dRows;
+
+      var colOnly = (resizeCorner === "r" || resizeCorner === "l");
+      var rowOnly = (resizeCorner === "b" || resizeCorner === "t");
+
+      newCols = rowOnly ? resizeStartCols
+                        : Math.max(1, Math.min(18, resizeStartCols + colDelta));
+      newRows = colOnly ? resizeStartRows
+                        : Math.max(1, Math.min(16, resizeStartRows + rowDelta));
     } else {
       // Spacer four-corner drag
       if (resizeCorner === "br") {
-        newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
-        newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
+        newCols = Math.max(1, Math.min(18, resizeStartCols + dCols));
+        newRows = Math.max(1, Math.min(16, resizeStartRows + dRows));
       } else if (resizeCorner === "bl") {
-        newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
-        newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
+        newCols = Math.max(1, Math.min(18, resizeStartCols - dCols));
+        newRows = Math.max(1, Math.min(16, resizeStartRows + dRows));
       } else if (resizeCorner === "tr") {
-        newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
-        newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+        newCols = Math.max(1, Math.min(18, resizeStartCols + dCols));
+        newRows = Math.max(1, Math.min(16, resizeStartRows - dRows));
       } else { // tl
-        newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
-        newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+        newCols = Math.max(1, Math.min(18, resizeStartCols - dCols));
+        newRows = Math.max(1, Math.min(16, resizeStartRows - dRows));
       }
     }
 
@@ -624,14 +712,19 @@
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
         var textEl = item.querySelector(".spacer-text");
-        var spacerText  = textEl ? textEl.textContent.trim() : "";
-        var spacerAlign = textEl ? (textEl.style.textAlign || "") : "";
+        var spacerText   = textEl ? textEl.textContent.trim() : "";
+        var spacerAlign  = textEl ? (textEl.style.textAlign || "") : "";
+        var spacerValign = textEl
+          ? (textEl.classList.contains("valign-middle") ? "middle"
+           : textEl.classList.contains("valign-bottom") ? "bottom" : "")
+          : "";
         return {
-          type:  "spacer",
-          cols:  spans.cols,
-          rows:  spans.rows,
-          text:  spacerText  || null,
-          align: spacerAlign || null
+          type:   "spacer",
+          cols:   spans.cols,
+          rows:   spans.rows,
+          text:   spacerText   || null,
+          align:  spacerAlign  || null,
+          valign: spacerValign || null
         };
       }
       var img = item.querySelector("img");
@@ -674,7 +767,7 @@
         if (entry.type === "spacer") {
           var spacer = createSpacerElement(
             entry.cols || 1, entry.rows || 1,
-            entry.text || null, entry.align || null
+            entry.text || null, entry.align || null, entry.valign || null
           );
           gallery.appendChild(spacer);
           if (editorMode) setupEditorItem(spacer);
@@ -826,10 +919,16 @@
 
   function getColSpan(item) {
     var sizeMap = {
-      "9x6": 9, "9x4": 9, "7x4": 7, "6x4": 6,
-      "4x6": 4, "4x3": 4, "4x2": 4,
-      "3x3": 3, "3x2": 3,
-      "2x4": 2, "2x3": 2, "2x2": 2
+      // Square
+      "2x2": 2,  "4x4": 4,  "6x6": 6,
+      // Horizontal
+      "6x4": 6,  "9x4": 9,  "9x6": 9,
+      "12x4": 12, "12x6": 12,
+      "18x4": 18, "18x6": 18, "18x8": 18,
+      // Vertical
+      "4x6": 4,  "4x8": 4,  "6x8": 6,  "6x9": 6,
+      // Spacer bars
+      "9x1": 9,  "9x2": 9,  "18x1": 18, "18x2": 18
     };
     return sizeMap[getSize(item)] || 1;
   }
@@ -844,11 +943,11 @@
     var colsUsed = 0;
     items.forEach(function (item) {
       var spans = isSpacer(item) ? getSpacerSpans(item) : { cols: getColSpan(item), rows: 1 };
-      colsUsed = (colsUsed + spans.cols) % 9;
+      colsUsed = (colsUsed + spans.cols) % 18;
     });
 
     // Fill the trailing partial row with interactive slots
-    var remainder = colsUsed === 0 ? 0 : 9 - colsUsed;
+    var remainder = colsUsed === 0 ? 0 : 18 - colsUsed;
     var gallery = getGallery();
     for (var i = 0; i < remainder; i++) {
       var slot = document.createElement("div");
@@ -1177,10 +1276,15 @@
         if (spans.cols > 1) style += "grid-column:span " + spans.cols + ";";
         if (spans.rows > 1) style += "grid-row:span " + spans.rows + ";";
         var textEl = item.querySelector(".spacer-text");
-        var sText  = textEl ? textEl.textContent.trim() : "";
-        var sAlign = textEl ? (textEl.style.textAlign || "") : "";
+        var sText   = textEl ? textEl.textContent.trim() : "";
+        var sAlign  = textEl ? (textEl.style.textAlign || "") : "";
+        var sValign = textEl
+          ? (textEl.classList.contains("valign-middle") ? "valign-middle"
+           : textEl.classList.contains("valign-bottom") ? "valign-bottom" : "")
+          : "";
+        var tClass  = ["spacer-text", "valign-top", sValign].filter(Boolean).join(" ").trim();
         var inner  = sText
-          ? '\n  <div class="spacer-text"' +
+          ? '\n  <div class="' + tClass + '"' +
             (sAlign ? ' style="text-align:' + sAlign + '"' : '') +
             '>' + sText + '</div>\n'
           : "";
@@ -1232,12 +1336,17 @@
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
         var tEl = item.querySelector(".spacer-text");
+        var tValign = tEl
+          ? (tEl.classList.contains("valign-middle") ? "middle"
+           : tEl.classList.contains("valign-bottom") ? "bottom" : null)
+          : null;
         return {
-          type:  "spacer",
-          cols:  spans.cols,
-          rows:  spans.rows,
-          text:  tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
-          align: tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null
+          type:   "spacer",
+          cols:   spans.cols,
+          rows:   spans.rows,
+          text:   tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align:  tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
+          valign: tValign
         };
       }
       var img = item.querySelector("img");
@@ -1293,12 +1402,17 @@
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
         var tEl = item.querySelector(".spacer-text");
+        var tValign = tEl
+          ? (tEl.classList.contains("valign-middle") ? "middle"
+           : tEl.classList.contains("valign-bottom") ? "bottom" : null)
+          : null;
         return {
-          type:  "spacer",
-          cols:  spans.cols,
-          rows:  spans.rows,
-          text:  tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
-          align: tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null
+          type:   "spacer",
+          cols:   spans.cols,
+          rows:   spans.rows,
+          text:   tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align:  tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
+          valign: tValign
         };
       }
       var img = item.querySelector("img");
