@@ -675,33 +675,6 @@ body:not(.edit-mode) .spacer-text:empty::before {
   opacity: 1;
 }
 
-/* ── Vignette overlay on hover ── */
-/* Cream-colored (#ECEAE4 = page bg) radial wash — feels like light falling across
-   the image rather than a darkening. ::after sits above the image (z-index 1) but
-   below edit-mode UI (z-index 15+). pointer-events:none passes clicks through. */
-.g9-item::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 20%,
-    rgba(236, 234, 228, 0.55) 100%
-  );
-  opacity: 0;
-  pointer-events: none;
-  z-index: 1;
-  transition: opacity 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.g9-item:hover::after {
-  opacity: 1;
-}
-
-/* Don't show vignette on spacers — they have no image to darken */
-.g9-item.g9-spacer::after {
-  display: none;
-}
 
 /* ── Stagger animation ── */
 .g9-item:nth-child(1)  { animation-delay: 0.05s; }
