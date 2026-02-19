@@ -1024,7 +1024,10 @@
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
-        entry.size = getSize(item);
+        var sz = getSize(item);
+        // Never save the degenerate "1x1" — use the provisional default "6x4" so
+        // that restoring an unsized item always applies a sensible size.
+        entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       return entry;
     });
@@ -1075,7 +1078,10 @@
           item.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
           item.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
         } else {
-          applySizeClass(item, entry.size);
+          // Fall back to "6x4" if size is missing or the degenerate "1x1"
+          // (which can happen when an item loses all its size classes before save).
+          var restoreSize = (entry.size && entry.size !== "1x1") ? entry.size : "6x4";
+          applySizeClass(item, restoreSize);
           if (entry.colStart && entry.rowStart) {
             // Also restore explicit position for named-size items
             var spans = getItemSpans(item);
@@ -1147,7 +1153,8 @@
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
-        entry.size = getSize(item);
+        var snapSz = getSize(item);
+        entry.size = (snapSz && snapSz !== "1x1") ? snapSz : "6x4";
       }
       return entry;
     });
@@ -1202,7 +1209,9 @@
         item.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
         item.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
       } else {
-        applySizeClass(item, entry.size);
+        // Fall back to "6x4" if size is missing or degenerate "1x1"
+        var undoSize = (entry.size && entry.size !== "1x1") ? entry.size : "6x4";
+        applySizeClass(item, undoSize);
         if (entry.colStart && entry.rowStart) {
           var spans = getItemSpans(item);
           item.style.gridColumn = entry.colStart + " / span " + spans.cols;
