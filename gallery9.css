@@ -492,42 +492,6 @@ body.edit-mode .g9-item:active {
 }
 .g9-item.drag-placeholder img { opacity: 0; }
 
-/* ── Orientation Buttons ── */
-.orient-btns {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  gap: 3px;
-  z-index: 20;
-  pointer-events: all;
-}
-
-.orient-btn {
-  width: 22px;
-  height: 22px;
-  background: rgba(26,26,26,0.75);
-  color: #EDEBE0;
-  border: none;
-  cursor: pointer;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.7;
-  transition: opacity 0.15s, background 0.15s;
-  padding: 0;
-  line-height: 1;
-}
-
-.orient-btn:hover { opacity: 1; }
-
-.orient-btn.active {
-  background: #EDEBE0;
-  color: #1a1a1a;
-  opacity: 1;
-}
-
 /* ── Spacer Corner Handles ── */
 .spacer-handle {
   position: absolute;

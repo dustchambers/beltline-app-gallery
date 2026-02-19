@@ -93,13 +93,6 @@
     "g9-9x1",  "g9-9x2",  "g9-18x1", "g9-18x2"
   ];
 
-  // Orientation groups for the 3-button UI
-  var ORIENT_GROUPS = {
-    square: ["2x2", "4x4", "6x6"],
-    horiz:  ["6x4", "9x4", "9x6", "12x4", "12x6", "18x4", "18x6", "18x8"],
-    vert:   ["4x6", "4x8", "6x8", "6x9"]
-  };
-
   var BADGE_LABELS = {
     "1x1":  "1\u00d71",
     "2x2":  "2\u00d72",  "4x4":  "4\u00d74",  "6x6":  "6\u00d76",
@@ -313,12 +306,6 @@
     if (item.classList.contains("g9-4x4"))  return "4x4";
     if (item.classList.contains("g9-2x2"))  return "2x2";
     return "1x1";
-  }
-
-  function getOrientGroup(size) {
-    if (ORIENT_GROUPS.horiz.indexOf(size) !== -1) return "horiz";
-    if (ORIENT_GROUPS.vert.indexOf(size) !== -1) return "vert";
-    return "square";
   }
 
   function clearSizeClasses(item) {
@@ -982,77 +969,6 @@
 
   // ── Orientation Buttons ──
 
-  function removeOrientBtns(item) {
-    var existing = item.querySelector(".orient-btns");
-    if (existing) existing.remove();
-  }
-
-  function setOrientation(item, group) {
-    var currentSize = getSize(item);
-    var currentGroup = getOrientGroup(currentSize);
-    var cycle = ORIENT_GROUPS[group];
-    var nextSize;
-
-    if (currentGroup === group) {
-      // Same group: advance to next in cycle
-      var idx = cycle.indexOf(currentSize);
-      nextSize = cycle[(idx + 1) % cycle.length];
-    } else {
-      // Different group: jump to first in that group
-      nextSize = cycle[0];
-    }
-
-    applySizeClass(item, nextSize);
-    updateBadge(item);
-    updateOrientBtns(item);
-    autoSave();
-    refreshSlots();
-  }
-
-  function updateOrientBtns(item) {
-    var btns = item.querySelector(".orient-btns");
-    if (!btns) return;
-    var currentGroup = getOrientGroup(getSize(item));
-    btns.querySelectorAll(".orient-btn").forEach(function (btn) {
-      if (btn.dataset.group === currentGroup) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
-    });
-  }
-
-  function showOrientBtns(item) {
-    if (isSpacer(item)) return;
-    removeOrientBtns(item);
-
-    var btns = document.createElement("div");
-    btns.className = "orient-btns";
-
-    [
-      { group: "square", label: "\u25a0", title: "Square" },
-      { group: "horiz",  label: "\u25ac", title: "Horizontal" },
-      { group: "vert",   label: "\u25ae", title: "Vertical" }
-    ].forEach(function (def) {
-      var btn = document.createElement("button");
-      btn.className = "orient-btn";
-      btn.dataset.group = def.group;
-      btn.title = def.title;
-      btn.textContent = def.label;
-      btn.addEventListener("mousedown", function (e) {
-        e.stopPropagation(); // don't trigger drag
-      });
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        setOrientation(item, def.group);
-      });
-      btns.appendChild(btn);
-    });
-
-    item.appendChild(btns);
-    updateOrientBtns(item);
-  }
-
   // ── Reorder Drag (Live Sliding Preview) ──
 
   function flipAnimate(draggedItem) {
@@ -1246,7 +1162,6 @@
     if (!isSpacer(item)) addOrderNumber(item);
     item.style.cursor = "grab";
     if (!isSpacer(item)) {
-      showOrientBtns(item);
       addItemResizeHandles(item);
     } else {
       addSpacerHandles(item);
@@ -1551,9 +1466,8 @@
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          // Plain tap: cycle to next size within current orientation group
-          var tappedGroup = getOrientGroup(getSize(activeItem));
-          setOrientation(activeItem, tappedGroup);
+          // Plain tap: cycle crop position
+          if (!isSpacer(activeItem)) cycleCrop(activeItem);
         }
 
         activeItem = null;
@@ -1573,7 +1487,6 @@
         if (badge) badge.remove();
         var orderNum = item.querySelector(".order-number");
         if (orderNum) orderNum.remove();
-        removeOrientBtns(item);
         removeSpacerHandles(item);
         item.style.cursor = "pointer";
         item.style.opacity = "";
