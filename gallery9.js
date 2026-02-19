@@ -190,7 +190,7 @@
     return item.classList.contains("g9-spacer");
   }
 
-  function createSpacerElement(cols, rows, text, align, valign) {
+  function createSpacerElement(cols, rows, text, align, valign, textStyle, bgColor) {
     var div = document.createElement("div");
     div.className = "g9-item g9-spacer";
     if (cols > 1) div.style.gridColumn = "span " + cols;
@@ -208,11 +208,15 @@
     textEl.contentEditable = "false"; // enabled only in edit mode via addSpacerHandles
     textEl.dataset.placeholder = "Type here\u2026";
     if (text) textEl.textContent = text;
-    if (align) textEl.style.textAlign = align;
-    // Vertical alignment via CSS class
-    textEl.classList.add(valign === "middle" ? "valign-middle"
-                       : valign === "bottom" ? "valign-bottom"
-                       : "valign-top");
+    textEl.style.textAlign = align || "center"; // default: center
+    // Vertical alignment via CSS class — default: middle
+    textEl.classList.add(valign === "bottom" ? "valign-bottom"
+                       : valign === "top"    ? "valign-top"
+                       : "valign-middle");
+    // Text style class (header / title / body)
+    if (textStyle && textStyle !== "body") textEl.classList.add("text-" + textStyle);
+    // Background color fill
+    if (bgColor) div.style.backgroundColor = bgColor;
     // Show the text layer and hide the "spacer" label when there is content
     if (text) {
       label.style.display = "none";
@@ -231,7 +235,8 @@
       if (entry.type === "spacer") {
         var spacer = createSpacerElement(
           entry.cols || 1, entry.rows || 1,
-          entry.text || null, entry.align || null, entry.valign || null
+          entry.text || null, entry.align || null, entry.valign || null,
+          entry.textStyle || null, entry.bgColor || null
         );
         gallery.appendChild(spacer);
         return;
@@ -498,8 +503,8 @@
     var alignBar = document.createElement("div");
     alignBar.className = "spacer-align-bar";
 
-    // Read current h-align: inline style or default "left"
-    var currentAlign = textEl.style.textAlign || "left";
+    // Read current h-align: inline style or default "center"
+    var currentAlign = textEl.style.textAlign || "center";
 
     // NOTE: align button mousedown calls suppressNext (defined below) so that:
     //   a) focus leaving textEl triggers focusout, but suppressDeactivate=true stops collapse
@@ -535,10 +540,10 @@
     var vAlignBar = document.createElement("div");
     vAlignBar.className = "spacer-align-vbar";
 
-    // Read current v-align from class
-    var currentValign = textEl.classList.contains("valign-middle") ? "middle"
-                      : textEl.classList.contains("valign-bottom") ? "bottom"
-                      : "top";
+    // Read current v-align from class — default: middle
+    var currentValign = textEl.classList.contains("valign-bottom") ? "bottom"
+                      : textEl.classList.contains("valign-top")    ? "top"
+                      : "middle";
 
     [
       { val: "top",    label: "\u2191", title: "Align top" },
@@ -629,12 +634,118 @@
     });
     item.appendChild(textBtn);
 
+    // ── Text style cycle button (I / II / III = body / title / header) ──
+    var styleBtn = document.createElement("button");
+    styleBtn.className = "spacer-style-btn";
+    styleBtn.title = "Text style";
+    var STYLE_CYCLE = ["body", "title", "header"];
+    var STYLE_LABELS = { body: "I", title: "II", header: "III" };
+    function getCurrentStyle() {
+      if (textEl.classList.contains("text-header")) return "header";
+      if (textEl.classList.contains("text-title"))  return "title";
+      return "body";
+    }
+    function updateStyleBtn() {
+      styleBtn.textContent = STYLE_LABELS[getCurrentStyle()];
+    }
+    updateStyleBtn();
+    styleBtn.addEventListener("mousedown", function (e) { if (suppressNext) suppressNext(e); });
+    styleBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var cur = getCurrentStyle();
+      var next = STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length];
+      textEl.classList.remove("text-header", "text-title", "text-body");
+      if (next !== "body") textEl.classList.add("text-" + next);
+      updateStyleBtn();
+      autoSave();
+    });
+    item.appendChild(styleBtn);
+
+    // ── Color fill button ──
+    var colorBtn = document.createElement("button");
+    colorBtn.className = "spacer-color-btn";
+    colorBtn.title = "Fill color";
+    colorBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect width="12" height="12" rx="2" fill="currentColor"/></svg>';
+
+    // Color panel (hidden until button click)
+    var colorPanel = document.createElement("div");
+    colorPanel.className = "spacer-color-panel";
+
+    var colorPicker = document.createElement("input");
+    colorPicker.type = "color";
+    colorPicker.className = "spacer-color-picker";
+    // Initialise from current background
+    var initBg = item.style.backgroundColor || "#ECEAE4";
+    colorPicker.value = rgbToHex(initBg) || "#ECEAE4";
+
+    var hexInput = document.createElement("input");
+    hexInput.type = "text";
+    hexInput.className = "spacer-hex-input";
+    hexInput.maxLength = 7;
+    hexInput.value = colorPicker.value;
+    hexInput.placeholder = "#ECEAE4";
+
+    var clearColorBtn = document.createElement("button");
+    clearColorBtn.className = "spacer-color-clear";
+    clearColorBtn.textContent = "×";
+    clearColorBtn.title = "Remove fill color";
+
+    colorPanel.appendChild(colorPicker);
+    colorPanel.appendChild(hexInput);
+    colorPanel.appendChild(clearColorBtn);
+    item.appendChild(colorPanel);
+
+    function applyColor(hex) {
+      item.style.backgroundColor = hex;
+      colorPicker.value = hex;
+      hexInput.value = hex;
+      autoSave();
+    }
+
+    colorPicker.addEventListener("input", function () {
+      hexInput.value = colorPicker.value;
+      item.style.backgroundColor = colorPicker.value;
+    });
+    colorPicker.addEventListener("change", function () { autoSave(); });
+
+    hexInput.addEventListener("input", function () {
+      var val = hexInput.value.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(val)) applyColor(val);
+    });
+    hexInput.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    hexInput.addEventListener("keydown",   function (e) { e.stopPropagation(); });
+
+    clearColorBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    clearColorBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      item.style.backgroundColor = "";
+      colorPicker.value = "#ECEAE4";
+      hexInput.value = "#ECEAE4";
+      autoSave();
+    });
+
+    var colorPanelOpen = false;
+    colorBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    colorBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      colorPanelOpen = !colorPanelOpen;
+      colorPanel.classList.toggle("visible", colorPanelOpen);
+      colorBtn.classList.toggle("active", colorPanelOpen);
+    });
+    item.appendChild(colorBtn);
+
     // textEl area also suppresses deactivation when in edit mode
     // (buttons call suppressNext directly — no need for bar-level listener)
 
-    // Prevent text-area clicks from triggering drag
+    // Clicking the text area activates text mode if not already active,
+    // or simply lets the cursor land when already editing.
     textEl.addEventListener("mousedown", function (e) {
-      if (textActive) e.stopPropagation();
+      if (textActive) {
+        e.stopPropagation(); // already editing — just let click place cursor
+      } else {
+        e.stopPropagation();
+        activateTextMode();
+      }
     });
 
     // Debounced save on text input
@@ -658,7 +769,9 @@
 
   function removeSpacerHandles(item) {
     item.querySelectorAll(
-      ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, .spacer-text-btn, .spacer-align-bar, .spacer-align-vbar"
+      ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, " +
+      ".spacer-text-btn, .spacer-style-btn, .spacer-color-btn, .spacer-color-panel, " +
+      ".spacer-align-bar, .spacer-align-vbar"
     ).forEach(function (h) { h.remove(); });
     // Lock text element back to non-editable
     var textEl = item.querySelector(".spacer-text");
@@ -840,6 +953,18 @@
     resizeMode   = null;
   }
 
+  // Convert any CSS color string to lowercase #rrggbb hex (best-effort).
+  function rgbToHex(color) {
+    if (!color) return null;
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) return color.toLowerCase();
+    // Parse rgb(r,g,b) / rgba(r,g,b,a)
+    var m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) return null;
+    return "#" + [m[1], m[2], m[3]].map(function (n) {
+      return ("0" + parseInt(n, 10).toString(16)).slice(-2);
+    }).join("");
+  }
+
   // Parse grid-column / grid-row style into { start, span } — handles both
   // "span 6" (auto-placed) and "7 / span 6" (explicit start) formats.
   function parseGridStyle(styleStr) {
@@ -865,15 +990,22 @@
           : "";
         var spc = parseGridStyle(item.style.gridColumn);
         var spr = parseGridStyle(item.style.gridRow);
+        var spacerStyle = textEl
+          ? (textEl.classList.contains("text-header") ? "header"
+           : textEl.classList.contains("text-title")  ? "title" : null)
+          : null;
+        var spacerBg = item.style.backgroundColor || null;
         return {
-          type:     "spacer",
-          cols:     spans.cols,
-          rows:     spans.rows,
-          colStart: spc.start || null,
-          rowStart: spr.start || null,
-          text:     spacerText   || null,
-          align:    spacerAlign  || null,
-          valign:   spacerValign || null
+          type:      "spacer",
+          cols:      spans.cols,
+          rows:      spans.rows,
+          colStart:  spc.start || null,
+          rowStart:  spr.start || null,
+          text:      spacerText   || null,
+          align:     spacerAlign  || null,
+          valign:    spacerValign || null,
+          textStyle: spacerStyle  || null,
+          bgColor:   spacerBg     || null
         };
       }
       var img = item.querySelector("img");
@@ -919,7 +1051,8 @@
         if (entry.type === "spacer") {
           var spacer = createSpacerElement(
             entry.cols || 1, entry.rows || 1,
-            entry.text || null, entry.align || null, entry.valign || null
+            entry.text || null, entry.align || null, entry.valign || null,
+            entry.textStyle || null, entry.bgColor || null
           );
           if (entry.colStart && entry.rowStart) {
             spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
@@ -977,18 +1110,25 @@
         var textEl = item.querySelector(".spacer-text");
         var spc = parseGridStyle(item.style.gridColumn);
         var spr = parseGridStyle(item.style.gridRow);
+        var snapStyle = textEl
+            ? (textEl.classList.contains("text-header") ? "header"
+             : textEl.classList.contains("text-title")  ? "title" : null)
+            : null;
+        var snapBg = item.style.backgroundColor || null;
         return {
-          type:     "spacer",
-          cols:     spans.cols,
-          rows:     spans.rows,
-          colStart: spc.start || null,
-          rowStart: spr.start || null,
-          text:     textEl ? textEl.textContent.trim() || null : null,
-          align:    textEl ? textEl.style.textAlign || null : null,
-          valign:   textEl
+          type:      "spacer",
+          cols:      spans.cols,
+          rows:      spans.rows,
+          colStart:  spc.start || null,
+          rowStart:  spr.start || null,
+          text:      textEl ? textEl.textContent.trim() || null : null,
+          align:     textEl ? textEl.style.textAlign || null : null,
+          valign:    textEl
             ? (textEl.classList.contains("valign-middle") ? "middle"
              : textEl.classList.contains("valign-bottom") ? "bottom" : null)
-            : null
+            : null,
+          textStyle: snapStyle || null,
+          bgColor:   snapBg   || null
         };
       }
       var img = item.querySelector("img");
@@ -1038,7 +1178,8 @@
       if (entry.type === "spacer") {
         var spacer = createSpacerElement(
           entry.cols || 1, entry.rows || 1,
-          entry.text || null, entry.align || null, entry.valign || null
+          entry.text || null, entry.align || null, entry.valign || null,
+          entry.textStyle || null, entry.bgColor || null
         );
         if (entry.colStart && entry.rowStart) {
           spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
@@ -1164,7 +1305,7 @@
     var size = getSize(item);
     badge.textContent = BADGE_LABELS[size] || size;
     badge.style.cssText =
-      "position: absolute; bottom: 6px; left: 6px;" +
+      "position: absolute; bottom: 6px; left: 14px;" +
       "background: " + (BADGE_COLORS[size] || "rgba(0,0,0,0.5)") + ";" +
       "color: #EDEBE0; padding: 3px 8px;" +
       "font-family: 'Inconsolata', monospace; font-size: 11px;" +
