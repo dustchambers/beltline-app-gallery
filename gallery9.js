@@ -115,6 +115,14 @@
   var lastDropTarget = null;
   var lastInsertBefore = true;
 
+  // Spacer corner-drag resize state
+  var resizingItem = null;
+  var resizeCorner = null;   // "tl" | "tr" | "bl" | "br"
+  var resizeStartX = 0;
+  var resizeStartY = 0;
+  var resizeStartCols = 1;
+  var resizeStartRows = 1;
+
   // ── DOM Helpers ──
 
   function getGalleryItems() {
@@ -279,6 +287,73 @@
     var cols = parseInt((col.match(/span (\d+)/) || [0, 1])[1]);
     var rows = parseInt((row.match(/span (\d+)/) || [0, 1])[1]);
     return { cols: cols || 1, rows: rows || 1 };
+  }
+
+  function getGridMetrics() {
+    var grid = getGallery();
+    var rect = grid.getBoundingClientRect();
+    var cols = 9;
+    var gap = 8;
+    var colWidth = (rect.width - gap * (cols - 1)) / cols;
+    return { colWidth: colWidth, rowHeight: colWidth, gap: gap, rect: rect };
+  }
+
+  function addSpacerHandles(item) {
+    ["tl", "tr", "bl", "br"].forEach(function (corner) {
+      var h = document.createElement("div");
+      h.className = "spacer-handle " + corner;
+      h.dataset.corner = corner;
+      h.addEventListener("mousedown", function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        resizingItem = item;
+        resizeCorner = corner;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        var spans = getSpacerSpans(item);
+        resizeStartCols = spans.cols;
+        resizeStartRows = spans.rows;
+      });
+      item.appendChild(h);
+    });
+  }
+
+  function removeSpacerHandles(item) {
+    item.querySelectorAll(".spacer-handle").forEach(function (h) { h.remove(); });
+  }
+
+  function moveResize(e) {
+    if (!resizingItem) return;
+    var m = getGridMetrics();
+    var dx = e.clientX - resizeStartX;
+    var dy = e.clientY - resizeStartY;
+    var dCols = Math.round(dx / (m.colWidth + m.gap));
+    var dRows = Math.round(dy / (m.rowHeight + m.gap));
+
+    var newCols, newRows;
+    if (resizeCorner === "br") {
+      newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
+      newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
+    } else if (resizeCorner === "bl") {
+      newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
+      newRows = Math.max(1, Math.min(12, resizeStartRows + dRows));
+    } else if (resizeCorner === "tr") {
+      newCols = Math.max(1, Math.min(9, resizeStartCols + dCols));
+      newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+    } else { // tl
+      newCols = Math.max(1, Math.min(9, resizeStartCols - dCols));
+      newRows = Math.max(1, Math.min(12, resizeStartRows - dRows));
+    }
+
+    resizingItem.style.gridColumn = "span " + newCols;
+    resizingItem.style.gridRow = "span " + newRows;
+  }
+
+  function endResize() {
+    if (!resizingItem) return;
+    autoSave();
+    resizingItem = null;
+    resizeCorner = null;
   }
 
   function saveState() {
@@ -559,12 +634,17 @@
     item.classList.add("drag-placeholder");
     item.style.cursor = "grabbing";
 
-    var img = item.querySelector("img");
     dragGhost = document.createElement("div");
     dragGhost.className = "drag-ghost";
-    dragGhost.innerHTML =
-      '<img src="' + img.src + '" style="width:100%;height:100%;object-fit:cover;object-position:' +
-      (img.style.objectPosition || "50% 50%") + '">';
+
+    if (isSpacer(item)) {
+      dragGhost.innerHTML = '<div style="width:100%;height:100%;background:#ECEAE4;display:flex;align-items:center;justify-content:center;font-family:Inconsolata,monospace;font-size:10px;letter-spacing:0.1em;color:rgba(0,0,0,0.35)">spacer</div>';
+    } else {
+      var img = item.querySelector("img");
+      dragGhost.innerHTML =
+        '<img src="' + img.src + '" style="width:100%;height:100%;object-fit:cover;object-position:' +
+        (img.style.objectPosition || "50% 50%") + '">';
+    }
     dragGhost.style.cssText =
       "position: fixed; z-index: 10000; pointer-events: none;" +
       "width: 140px; height: 105px; opacity: 0.9;" +
@@ -698,7 +778,11 @@
     updateBadge(item);
     addOrderNumber(item);
     item.style.cursor = "grab";
-    if (!isSpacer(item)) showOrientBtns(item);
+    if (!isSpacer(item)) {
+      showOrientBtns(item);
+    } else {
+      addSpacerHandles(item);
+    }
 
     item._onMouseDown = function (e) {
       if (!editorMode || e.button !== 0) return;
@@ -894,6 +978,7 @@
       }
 
       window._editorMouseMove = function (e) {
+        if (resizingItem) { moveResize(e); return; }
         if (!activeItem) return;
 
         var dx = e.clientX - dragStartX;
@@ -921,6 +1006,7 @@
       };
 
       window._editorMouseUp = function () {
+        if (resizingItem) { endResize(); return; }
         if (!activeItem) return;
 
         if (isDragging) {
@@ -949,6 +1035,7 @@
         var orderNum = item.querySelector(".order-number");
         if (orderNum) orderNum.remove();
         removeOrientBtns(item);
+        removeSpacerHandles(item);
         item.style.cursor = "pointer";
         item.style.opacity = "";
         if (item._onMouseDown) {
