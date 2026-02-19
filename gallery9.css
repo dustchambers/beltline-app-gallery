@@ -77,6 +77,17 @@ body.edit-mode .gallery {
   background-position: -1px -1px;
 }
 
+/* ── Suppress all animations/transitions during drag and undo/redo restore ── */
+/* During drag: no hover-zoom on images (flickering as cursor enters/leaves items),
+   no fadeInUp re-fire on items moved in DOM, no item-level transitions. */
+body.dragging .g9-item,
+body.dragging .g9-item img,
+body.no-animate .g9-item,
+body.no-animate .g9-item img {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* During drag: boost grid visibility so user can see where cells are */
 body.dragging .gallery {
   background-image:
@@ -772,7 +783,8 @@ body:not(.edit-mode) .spacer-text:empty::before {
 
 body.edit-mode .g9-item {
   outline: 1px dashed rgba(0,0,0,0.15);
-  transition: transform 0.25s ease, opacity 0.25s ease;
+  /* No transition in edit mode — prevents flash/pop when items are reordered
+     (bring-to-front via appendChild, undo restore, send-to-back, etc.) */
 }
 
 body.edit-mode .g9-item:active {
