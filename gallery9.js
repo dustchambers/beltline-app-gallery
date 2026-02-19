@@ -830,6 +830,7 @@
       picker.type = "color";
       picker.className = "spacer-color-picker";
       picker.value = initHex;
+      picker.addEventListener("mousedown", function (e) { e.stopPropagation(); });
       row.appendChild(picker);
 
       var hex = document.createElement("input");
