@@ -129,9 +129,12 @@ body.dragging .gallery {
   overflow: hidden;
   cursor: pointer;
   /* No aspect-ratio here — rows are sized by grid-auto-rows */
-  opacity: 0;
-  transform: translateY(20px);
-  animation: fadeInUp 0.6s ease forwards;
+  /* Items are visible by default — the animation overrides from opacity:0.
+     This way, cancelling the animation (body.dragging, body.no-animate)
+     leaves items fully visible instead of snapping to invisible. */
+  opacity: 1;
+  transform: none;
+  animation: fadeInUp 0.6s ease both;
 }
 
 /* 18-col size classes — all fill their grid area naturally.
@@ -669,7 +672,8 @@ body:not(.edit-mode) .spacer-text:empty::before {
 .g9-item:nth-child(9)  { animation-delay: 0.45s; }
 
 @keyframes fadeInUp {
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Lightbox ── */
