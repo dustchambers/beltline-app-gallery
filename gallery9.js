@@ -137,6 +137,16 @@
   var lastDropTarget = null;
   var lastInsertBefore = true;
 
+  // Multi-select state
+  var selectedItems = [];           // array of selected item elements
+  var dragGroupOffsets = [];        // [{item, dCol, dRow}] relative to anchor
+  var dragOffsetCol = 0;            // grab point col offset within dragged item
+  var dragOffsetRow = 0;            // grab point row offset within dragged item
+
+  // Undo stack — array of serialized state snapshots (same format as saveState)
+  var undoStack = [];
+  var MAX_UNDO = 30;
+
   // Spacer / image edge-drag resize state
   var resizingItem = null;
   var resizeCorner = null;   // "tl"|"tr"|"bl"|"br" (spacer) | "r"|"b"|"br" (image)
@@ -228,21 +238,20 @@
         img.style.objectPosition = entry.crop;
       }
 
-      // Auto-default size based on orientation if no saved size
+      // Auto-default size: apply 6x4 immediately for all unsized images so
+      // they are never 1×1 placeholders. The onload listener refines to 4x6
+      // for portrait images once naturalWidth/Height are known.
+      if (!entry.size) {
+        applySizeClass(div, "6x4"); // provisional landscape default
+      }
       img.addEventListener("load", function () {
-        if (entry.size) return; // saved size takes priority
-        if (getSize(div) !== "1x1") return; // already resized
-        var defaultSize;
-        if (img.naturalWidth > img.naturalHeight * 1.1) {
-          defaultSize = "6x4"; // landscape — 1/3 width default
-        } else if (img.naturalHeight > img.naturalWidth * 1.1) {
-          defaultSize = "4x6"; // portrait — 2/9 width default
+        if (entry.size) return; // saved size takes priority — don't overwrite
+        // Only correct if it's still the provisional 6x4
+        if (img.naturalHeight > img.naturalWidth * 1.1) {
+          applySizeClass(div, "4x6"); // portrait correction
+          if (editorMode) { updateBadge(div); pinAllItems(); refreshSlots(); }
         }
-        // square photos stay 1x1
-        if (defaultSize) {
-          applySizeClass(div, defaultSize);
-          if (editorMode) updateBadge(div);
-        }
+        // Landscape stays 6x4, square images stay 6x4 (better than 1×1)
       });
 
       div.appendChild(img);
@@ -697,11 +706,33 @@
       }
     }
 
-    // Preserve explicit column/row start if already pinned; only update the span
+    // Update both start and span so edges that move the left/top boundary
+    // actually shift the item in the grid (displacing adjacent spacers).
     var curCol = parseGridStyle(resizingItem.style.gridColumn);
     var curRow = parseGridStyle(resizingItem.style.gridRow);
-    var colStart = curCol.start || 1;
-    var rowStart = curRow.start || 1;
+    var origColStart = curCol.start || 1;
+    var origRowStart = curRow.start || 1;
+
+    var colStart, rowStart;
+    if (resizeMode === "image") {
+      // Left-edge handles: colStart shifts right as span shrinks
+      if (resizeCorner === "l" || resizeCorner === "tl" || resizeCorner === "bl") {
+        colStart = Math.max(1, origColStart + dCols);
+      } else {
+        colStart = origColStart;
+      }
+      // Top-edge handles: rowStart shifts down as span shrinks
+      if (resizeCorner === "t" || resizeCorner === "tl" || resizeCorner === "tr") {
+        rowStart = Math.max(1, origRowStart + dRows);
+      } else {
+        rowStart = origRowStart;
+      }
+    } else {
+      // Spacer: four-corner drag, colStart/rowStart are fixed (bl corner inverts cols)
+      colStart = origColStart;
+      rowStart = origRowStart;
+    }
+
     resizingItem.style.gridColumn = colStart + " / span " + newCols;
     resizingItem.style.gridRow    = rowStart + " / span " + newRows;
     // Update gap slots live so adjacent empty space shrinks/grows as you drag
@@ -848,7 +879,122 @@
     }
   }
 
+  // Capture a snapshot of current gallery state onto the undo stack.
+  // Call this BEFORE making any change you want to be undoable.
+  function pushUndo() {
+    if (!editorMode) return;
+    var items = getGalleryItems();
+    var snapshot = items.map(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        var textEl = item.querySelector(".spacer-text");
+        var spc = parseGridStyle(item.style.gridColumn);
+        var spr = parseGridStyle(item.style.gridRow);
+        return {
+          type:     "spacer",
+          cols:     spans.cols,
+          rows:     spans.rows,
+          colStart: spc.start || null,
+          rowStart: spr.start || null,
+          text:     textEl ? textEl.textContent.trim() || null : null,
+          align:    textEl ? textEl.style.textAlign || null : null,
+          valign:   textEl
+            ? (textEl.classList.contains("valign-middle") ? "middle"
+             : textEl.classList.contains("valign-bottom") ? "bottom" : null)
+            : null
+        };
+      }
+      var img = item.querySelector("img");
+      var crop = img.style.objectPosition || "";
+      var spans = getItemSpans(item);
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
+      var entry = {
+        id:       img.dataset.imageId || "",
+        crop:     (crop && crop !== "50% 50%") ? crop : null,
+        colStart: colP.start || null,
+        rowStart: rowP.start || null
+      };
+      if (spans.custom) {
+        entry.cols = spans.cols;
+        entry.rows = spans.rows;
+      } else {
+        entry.size = getSize(item);
+      }
+      return entry;
+    });
+    undoStack.push(snapshot);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+  }
+
+  // Apply a snapshot (array in saveState format) to the live gallery DOM.
+  // Mirrors restoreState but works from an in-memory array rather than localStorage.
+  function applyUndoSnapshot(snapshot) {
+    var gallery = getGallery();
+
+    // Remove all current non-slot items from gallery (keep them in memory)
+    var existingItems = getGalleryItems();
+    existingItems.forEach(function (el) { el.remove(); });
+    // Remove any spacers that were dynamic (added during session)
+    gallery.querySelectorAll(".g9-spacer").forEach(function (el) { el.remove(); });
+
+    // Build image id → element map from the items we removed
+    var itemMap = {};
+    existingItems.forEach(function (item) {
+      if (!isSpacer(item)) {
+        var img = item.querySelector("img");
+        if (img) itemMap[img.dataset.imageId] = item;
+      }
+    });
+
+    snapshot.forEach(function (entry) {
+      if (entry.type === "spacer") {
+        var spacer = createSpacerElement(
+          entry.cols || 1, entry.rows || 1,
+          entry.text || null, entry.align || null, entry.valign || null
+        );
+        if (entry.colStart && entry.rowStart) {
+          spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
+          spacer.style.gridRow    = entry.rowStart + " / span " + (entry.rows || 1);
+        }
+        gallery.appendChild(spacer);
+        if (editorMode) setupEditorItem(spacer);
+        return;
+      }
+      var item = itemMap[entry.id];
+      if (!item) return;
+      // Re-attach editor handles if in editor mode (they were stripped on remove)
+      if (editorMode) {
+        removeItemResizeHandles(item);
+        addItemResizeHandles(item);
+      }
+      if (entry.cols && entry.rows) {
+        clearSizeClasses(item);
+        item.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
+        item.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
+      } else {
+        applySizeClass(item, entry.size);
+        if (entry.colStart && entry.rowStart) {
+          var spans = getItemSpans(item);
+          item.style.gridColumn = entry.colStart + " / span " + spans.cols;
+          item.style.gridRow    = entry.rowStart + " / span " + spans.rows;
+        }
+      }
+      if (entry.crop) {
+        item.querySelector("img").style.objectPosition = entry.crop;
+      } else {
+        item.querySelector("img").style.objectPosition = "";
+      }
+      gallery.appendChild(item);
+    });
+
+    refreshOrderNumbers();
+    refreshSlots();
+    saveState(); // persist the restored state
+  }
+
   function autoSave() {
+    pushUndo();
     saveState();
     var banner = document.querySelector(".edit-banner");
     if (!banner) return;
@@ -1107,7 +1253,97 @@
     }
   }
 
-  // ── Orientation Buttons ──
+  // ── Spacer Merge ──
+  // After pinAllItems() assigns explicit positions, collapse any run of spacers
+  // that share the same colStart AND colSpan into a single taller spacer block.
+  // "Adjacent" here means consecutive in DOM order *and* occupying adjacent
+  // grid rows (rowStart of next = rowStart + rowSpan of previous).
+  function mergeAdjacentSpacers() {
+    var gallery = getGallery();
+    var items = getGalleryItems();
+    var i = 0;
+
+    while (i < items.length) {
+      var item = items[i];
+      if (!isSpacer(item)) { i++; continue; }
+
+      var cp0 = parseGridStyle(item.style.gridColumn);
+      var rp0 = parseGridStyle(item.style.gridRow);
+      if (cp0.start === null || rp0.start === null) { i++; continue; }
+
+      // Look ahead: collect a run of spacers with matching colStart + colSpan
+      // that are also on consecutive rows (no gap between them).
+      var run = [item];
+      var nextRowStart = rp0.start + rp0.span;
+
+      var j = i + 1;
+      while (j < items.length) {
+        var next = items[j];
+        if (!isSpacer(next)) break;
+        var cpN = parseGridStyle(next.style.gridColumn);
+        var rpN = parseGridStyle(next.style.gridRow);
+        if (cpN.start === null || rpN.start === null) break;
+        // Must match colStart, colSpan, and be immediately adjacent row-wise
+        if (cpN.start !== cp0.start || cpN.span !== cp0.span) break;
+        if (rpN.start !== nextRowStart) break;
+        // Reject if either spacer has text content (don't merge text blocks)
+        var prevLast = run[run.length - 1];
+        var prevTextEl = prevLast.querySelector(".spacer-text");
+        var nextTextEl = next.querySelector(".spacer-text");
+        if ((prevTextEl && prevTextEl.textContent.trim()) ||
+            (nextTextEl && nextTextEl.textContent.trim())) break;
+        run.push(next);
+        nextRowStart = rpN.start + rpN.span;
+        j++;
+      }
+
+      if (run.length > 1) {
+        // Merge: total row span = sum of all spans in the run
+        var totalRows = run.reduce(function (sum, el) {
+          return sum + parseGridStyle(el.style.gridRow).span;
+        }, 0);
+        var firstTextEl = item.querySelector(".spacer-text");
+        var mergedText   = firstTextEl ? firstTextEl.textContent.trim() : "";
+        var mergedAlign  = firstTextEl ? firstTextEl.style.textAlign : "";
+        var mergedValign = firstTextEl
+          ? (firstTextEl.classList.contains("valign-middle") ? "middle"
+           : firstTextEl.classList.contains("valign-bottom") ? "bottom" : "")
+          : "";
+
+        // Remove all but the first spacer in the run
+        for (var k = 1; k < run.length; k++) {
+          run[k].remove();
+        }
+
+        // Resize the first spacer to cover all merged rows
+        item.style.gridColumn = cp0.start + " / span " + cp0.span;
+        item.style.gridRow    = rp0.start + " / span " + totalRows;
+
+        // Update the DOM span attr used by getSpacerSpans
+        if (cp0.span > 1) item.style.gridColumn = cp0.start + " / span " + cp0.span;
+        if (totalRows > 1) item.style.gridRow    = rp0.start + " / span " + totalRows;
+
+        // If in editor mode, re-setup the merged spacer so handles match new size
+        if (editorMode) {
+          removeSpacerHandles(item);
+          addSpacerHandles(item);
+        }
+
+        // Refresh items array for next iteration (items were removed from DOM)
+        items = getGalleryItems();
+        // Don't advance i — re-check from same position in case of longer chain
+      } else {
+        i++;
+      }
+    }
+  }
+
+  // ── Selection ──
+
+  function clearSelection() {
+    selectedItems.forEach(function (el) { el.classList.remove("g9-selected"); });
+    selectedItems = [];
+  }
 
   // ── Reorder Drag ──
   // Strategy: activeItem stays in its original DOM position throughout the drag
@@ -1127,6 +1363,11 @@
   // Simulate CSS Grid auto-placement (row mode) for all items and assign
   // explicit  grid-column: C / span N  and  grid-row: R / span M  to each.
   // Called when entering editor mode and after every drop.
+  //
+  // IMPORTANT: If an item already has an explicit colStart saved (e.g. from
+  // restoreState or a previous drag), we honour it as-is and skip re-simulation
+  // for that item. This prevents the edit-mode layout from diverging from the
+  // view-mode layout that was already saved.
   function pinAllItems() {
     var items = getGalleryItems();
     var colCursor = 1; // 1-based
@@ -1134,6 +1375,18 @@
     var rowMaxH   = 1; // tallest item in the current row band
 
     items.forEach(function (item) {
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
+
+      // If this item already has an explicit start, keep it and just make
+      // sure it's written in "C / span N" form (not just "span N").
+      if (colP.start !== null && rowP.start !== null) {
+        // Already pinned — normalise the style string and leave it alone
+        item.style.gridColumn = colP.start + " / span " + colP.span;
+        item.style.gridRow    = rowP.start + " / span " + rowP.span;
+        return;
+      }
+
       var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
       var w = Math.max(1, spans.cols);
       var h = Math.max(1, spans.rows);
@@ -1220,22 +1473,34 @@
 
   function startDrag(item, e) {
     document.body.classList.add("dragging");
+    var gallery = getGallery();
+    var cell = clientToGridCell(e.clientX, e.clientY);
 
-    // Hide dragged item in-place (keeps its grid space, doesn't cause reflow)
-    item.style.visibility = "hidden";
-    item.style.cursor = "grabbing";
+    // Anchor cell — where the indicator's top-left corner lands
+    var anchorSpans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
+    var anchorCol = Math.max(1, Math.min(18 - anchorSpans.cols + 1, cell.col - dragOffsetCol));
+    var anchorRow = Math.max(1, cell.row - dragOffsetRow);
 
-    // Ghost follows the cursor
+    // Drag group: all selected items if anchor is among them, else just anchor
+    var group = (selectedItems.length > 0 && selectedItems.indexOf(item) !== -1)
+      ? selectedItems.slice() : [item];
+
+    // Hide all group items in-place
+    group.forEach(function (el) {
+      el.style.visibility = "hidden";
+      el.style.cursor = "grabbing";
+    });
+
+    // Ghost (shows anchor item thumbnail)
     dragGhost = document.createElement("div");
     dragGhost.className = "drag-ghost";
-
     if (isSpacer(item)) {
       dragGhost.innerHTML = '<div style="width:100%;height:100%;background:#ECEAE4;display:flex;align-items:center;justify-content:center;font-family:Inconsolata,monospace;font-size:10px;letter-spacing:0.1em;color:rgba(0,0,0,0.35)">spacer</div>';
     } else {
-      var img = item.querySelector("img");
+      var gImg = item.querySelector("img");
       dragGhost.innerHTML =
-        '<img src="' + img.src + '" style="width:100%;height:100%;object-fit:cover;object-position:' +
-        (img.style.objectPosition || "50% 50%") + '">';
+        '<img src="' + gImg.src + '" style="width:100%;height:100%;object-fit:cover;object-position:' +
+        (gImg.style.objectPosition || "50% 50%") + '">';
     }
     dragGhost.style.cssText =
       "position: fixed; z-index: 10000; pointer-events: none;" +
@@ -1253,16 +1518,34 @@
     document.body.appendChild(dragCellCursor);
     updateCellCursor(e.clientX, e.clientY);
 
-    // Drop indicator — same size as dragged item, placed at cursor cell
-    var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
-    dropIndicator = document.createElement("div");
-    dropIndicator.className = "drop-indicator";
-    var cell = clientToGridCell(e.clientX, e.clientY);
-    dropIndicator.style.gridColumn = cell.col + " / span " + spans.cols;
-    dropIndicator.style.gridRow    = cell.row + " / span " + spans.rows;
-    dropIndicator.style.pointerEvents = "none";
-    dropIndicator.style.zIndex = "5";
-    getGallery().appendChild(dropIndicator);
+    // Build per-item indicator table with col/row offsets from anchor
+    var anchorPinnedCol = parseGridStyle(item.style.gridColumn).start || 1;
+    var anchorPinnedRow = parseGridStyle(item.style.gridRow).start || 1;
+    dragGroupOffsets = [];
+
+    group.forEach(function (el) {
+      var spans = isSpacer(el) ? getSpacerSpans(el) : getItemSpans(el);
+      var pinnedCol = parseGridStyle(el.style.gridColumn).start || 1;
+      var pinnedRow = parseGridStyle(el.style.gridRow).start || 1;
+      var dCol = pinnedCol - anchorPinnedCol;
+      var dRow = pinnedRow - anchorPinnedRow;
+
+      var ind = document.createElement("div");
+      ind.className = "drop-indicator";
+      var iCol = Math.max(1, Math.min(18 - spans.cols + 1, anchorCol + dCol));
+      var iRow = Math.max(1, anchorRow + dRow);
+      ind.style.gridColumn = iCol + " / span " + spans.cols;
+      ind.style.gridRow    = iRow + " / span " + spans.rows;
+      ind.style.pointerEvents = "none";
+      ind.style.zIndex = "5";
+      gallery.appendChild(ind);
+
+      dragGroupOffsets.push({ item: el, spans: spans, dCol: dCol, dRow: dRow, indicator: ind });
+    });
+
+    // dropIndicator → anchor item's indicator (for single-item endDrag compatibility)
+    var anchorEntry = dragGroupOffsets.filter(function (ge) { return ge.item === item; })[0];
+    dropIndicator = anchorEntry ? anchorEntry.indicator : dragGroupOffsets[0].indicator;
 
     lastDropTarget = null;
     lastInsertBefore = true;
@@ -1277,16 +1560,25 @@
 
     if (!dropIndicator || !activeItem) return;
 
-    // Move drop indicator to cursor's grid cell
+    // Move drop indicator, keeping grab-point offset consistent
     var spans = isSpacer(activeItem) ? getSpacerSpans(activeItem) : getItemSpans(activeItem);
     var cell = clientToGridCell(e.clientX, e.clientY);
 
-    // Clamp so indicator doesn't overflow 18 cols
-    var startCol = Math.min(cell.col, 18 - spans.cols + 1);
-    startCol = Math.max(1, startCol);
+    var startCol = Math.max(1, Math.min(18 - spans.cols + 1, cell.col - dragOffsetCol));
+    var startRow = Math.max(1, cell.row - dragOffsetRow);
 
-    dropIndicator.style.gridColumn = startCol + " / span " + spans.cols;
-    dropIndicator.style.gridRow    = cell.row + " / span " + spans.rows;
+    // Multi-drag: move all group indicators together
+    if (dragGroupOffsets.length > 0) {
+      dragGroupOffsets.forEach(function (entry) {
+        var ec = Math.max(1, Math.min(18 - entry.spans.cols + 1, startCol + entry.dCol));
+        var er = Math.max(1, startRow + entry.dRow);
+        entry.indicator.style.gridColumn = ec + " / span " + entry.spans.cols;
+        entry.indicator.style.gridRow    = er + " / span " + entry.spans.rows;
+      });
+    } else {
+      dropIndicator.style.gridColumn = startCol + " / span " + spans.cols;
+      dropIndicator.style.gridRow    = startRow + " / span " + spans.rows;
+    }
   }
 
   function endDrag() {
@@ -1300,28 +1592,35 @@
     }
     document.body.classList.remove("dragging");
 
-    if (dropIndicator && activeItem) {
-      // Read the final drop position from the indicator's explicit placement
-      var colStyle = dropIndicator.style.gridColumn; // e.g. "7 / span 6"
+    if (dragGroupOffsets.length > 0 && activeItem) {
+      // Group drag: apply each indicator's position to its item, clean up all indicators
+      dragGroupOffsets.forEach(function (entry) {
+        entry.item.style.gridColumn = entry.indicator.style.gridColumn;
+        entry.item.style.gridRow    = entry.indicator.style.gridRow;
+        entry.item.style.visibility = "";
+        entry.item.style.cursor = "grab";
+        entry.indicator.remove();
+      });
+      dragGroupOffsets = [];
+      dropIndicator = null;
+    } else if (dropIndicator && activeItem) {
+      // Single-item drag
+      var colStyle = dropIndicator.style.gridColumn;
       var rowStyle = dropIndicator.style.gridRow;
-
-      // Apply exact position to the dropped item
       activeItem.style.gridColumn = colStyle;
       activeItem.style.gridRow    = rowStyle;
       activeItem.style.visibility = "";
-      activeItem._pinnedCol = parseInt(colStyle);
-      activeItem._pinnedRow = parseInt(rowStyle);
-
+      activeItem.style.cursor = "grab";
       dropIndicator.remove();
       dropIndicator = null;
     } else if (activeItem) {
       activeItem.style.visibility = "";
+      activeItem.style.cursor = "grab";
     }
-
-    activeItem.style.cursor = "grab";
 
     lastDropTarget = null;
     lastInsertBefore = true;
+    mergeAdjacentSpacers();
     refreshOrderNumbers();
     refreshSlots();
     autoSave();
@@ -1388,11 +1687,41 @@
     item._onMouseDown = function (e) {
       if (!editorMode || e.button !== 0) return;
       e.preventDefault();
+
+      // Shift+click: toggle this item in the selection set
+      if (e.shiftKey) {
+        var idx = selectedItems.indexOf(item);
+        if (idx === -1) {
+          selectedItems.push(item);
+          item.classList.add("g9-selected");
+        } else {
+          selectedItems.splice(idx, 1);
+          item.classList.remove("g9-selected");
+        }
+        // Don't start a potential drag on shift+click
+        activeItem = null;
+        return;
+      }
+
+      // Plain click/drag start — if clicking a non-selected item, clear selection
+      if (selectedItems.indexOf(item) === -1) {
+        clearSelection();
+      }
+
       activeItem = item;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
       isDragging = false;
       isCropping = false;
+
+      // Record which cell within the item was grabbed so the drop indicator
+      // stays anchored to the grab point rather than snapping to top-left.
+      var m = getGridMetrics();
+      var itemRect = item.getBoundingClientRect();
+      var localX = e.clientX - itemRect.left;
+      var localY = e.clientY - itemRect.top;
+      dragOffsetCol = Math.max(0, Math.floor(localX / (m.colWidth + m.gap)));
+      dragOffsetRow = Math.max(0, Math.floor(localY / (m.rowHeight + m.gap)));
     };
 
     item.addEventListener("mousedown", item._onMouseDown);
@@ -1585,6 +1914,7 @@
 
   function toggleEditor() {
     editorMode = !editorMode;
+    undoStack = []; // clear undo history on each editor session
 
     if (editorMode) {
       var canEdit = hasEditParam();
@@ -1593,7 +1923,7 @@
       editorOverlay.id = "edit-overlay";
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
-        "EDITOR \u2014 Click: orient \u00b7 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 " +
+        "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo \u00b7 " +
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
         (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
@@ -1629,6 +1959,7 @@
         setupEditorItem(item);
       });
       pinAllItems();
+      mergeAdjacentSpacers();
       refreshSlots();
 
       // Hide the edit trigger button while in editor mode
@@ -1665,7 +1996,7 @@
         }
       };
 
-      window._editorMouseUp = function () {
+      window._editorMouseUp = function (e) {
         if (resizingItem) { endResize(); return; }
         if (!activeItem) return;
 
@@ -1674,8 +2005,8 @@
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          // Plain tap: cycle crop position
-          if (!isSpacer(activeItem)) cycleCrop(activeItem);
+          // Plain tap: no-op (crop cycle removed)
+          // Shift+click selection is handled in _onMouseDown
         }
 
         activeItem = null;
@@ -1758,6 +2089,31 @@
       // Shift+L toggles editor (only when ?edit is in URL and lightbox is not open)
       if (e.key === "L" && e.shiftKey && hasEditParam() && (!lightbox || !lightbox.classList.contains("active"))) {
         toggleEditor();
+        return;
+      }
+
+      // Cmd+Z (Mac) / Ctrl+Z (Win/Linux): undo in editor mode
+      if (editorMode && e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        if (undoStack.length > 0) {
+          // Pop the most recent snapshot that differs from current state
+          // (autoSave pushes BEFORE saving, so the top entry is the pre-change state)
+          var snapshot = undoStack.pop();
+          applyUndoSnapshot(snapshot);
+          // Flash the save indicator to signal undo
+          var banner = document.querySelector(".edit-banner");
+          if (banner) {
+            var indicator = banner.querySelector(".save-indicator");
+            if (indicator) {
+              indicator.textContent = "\u21a9 undone";
+              indicator.style.opacity = "1";
+              setTimeout(function () {
+                indicator.textContent = "\u2713 saved";
+                indicator.style.opacity = "0.4";
+              }, 1200);
+            }
+          }
+        }
         return;
       }
 
