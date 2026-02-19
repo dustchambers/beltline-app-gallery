@@ -896,6 +896,7 @@
   }
 
   function addOrderNumber(item) {
+    if (isSpacer(item)) return; // spacers don't get numbered
     var num = item.querySelector(".order-number");
     if (!num) {
       num = document.createElement("span");
@@ -1242,7 +1243,7 @@
 
   function setupEditorItem(item) {
     updateBadge(item);
-    addOrderNumber(item);
+    if (!isSpacer(item)) addOrderNumber(item);
     item.style.cursor = "grab";
     if (!isSpacer(item)) {
       showOrientBtns(item);
