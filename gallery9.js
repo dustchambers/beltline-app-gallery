@@ -181,23 +181,22 @@
         img.style.objectPosition = entry.crop;
       }
 
-      // Auto-default size based on orientation (only if no saved size)
-      if (!entry.size) {
-        img.addEventListener("load", function () {
-          if (getSize(div) !== "1x1") return; // already resized
-          var defaultSize;
-          if (img.naturalWidth > img.naturalHeight * 1.1) {
-            defaultSize = "3x2"; // landscape
-          } else if (img.naturalHeight > img.naturalWidth * 1.1) {
-            defaultSize = "2x3"; // portrait
-          }
-          // square: leave as 1x1
-          if (defaultSize) {
-            applySizeClass(div, defaultSize);
-            if (editorMode) updateBadge(div);
-          }
-        });
-      }
+      // Auto-default size based on orientation if no saved size
+      img.addEventListener("load", function () {
+        if (entry.size) return; // saved size takes priority
+        if (getSize(div) !== "1x1") return; // already resized
+        var defaultSize;
+        if (img.naturalWidth > img.naturalHeight * 1.1) {
+          defaultSize = "3x2"; // landscape
+        } else if (img.naturalHeight > img.naturalWidth * 1.1) {
+          defaultSize = "2x3"; // portrait
+        }
+        // square photos stay 1x1
+        if (defaultSize) {
+          applySizeClass(div, defaultSize);
+          if (editorMode) updateBadge(div);
+        }
+      });
 
       div.appendChild(img);
       gallery.appendChild(div);
@@ -266,6 +265,7 @@
   // ── Crop State ──
 
   function getCropState(item) {
+    if (isSpacer(item)) return null;
     if (!item._cropState) {
       var img = item.querySelector("img");
       var computed = getComputedStyle(img);
@@ -1133,13 +1133,13 @@
   function bindKeyboard() {
     document.addEventListener("keydown", function (e) {
       // Shift+L toggles editor (only when ?edit is in URL and lightbox is not open)
-      if (e.key === "L" && e.shiftKey && hasEditParam() && !lightbox.classList.contains("active")) {
+      if (e.key === "L" && e.shiftKey && hasEditParam() && (!lightbox || !lightbox.classList.contains("active"))) {
         toggleEditor();
         return;
       }
 
       // Lightbox navigation
-      if (!lightbox.classList.contains("active")) return;
+      if (!lightbox || !lightbox.classList.contains("active")) return;
       if (e.key === "Escape") closeLightbox();
       if (e.key === "ArrowLeft") navigate(-1);
       if (e.key === "ArrowRight") navigate(1);
