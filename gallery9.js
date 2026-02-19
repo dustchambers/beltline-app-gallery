@@ -254,7 +254,11 @@
       var div = document.createElement("div");
       div.className = "g9-item";
 
+      // Only apply a saved size if it maps to a known CSS class (string key).
+      // Numeric codes like 1/2/3 from the old sync.js format are ignored here
+      // and fall through to the portrait-sensing provisional default below.
       var sizeClass = SIZE_CLASS_MAP[entry.size];
+      var hasSavedSize = !!sizeClass;
       if (sizeClass) div.classList.add(sizeClass);
 
       var img = document.createElement("img");
@@ -267,14 +271,14 @@
         img.style.objectPosition = entry.crop;
       }
 
-      // Auto-default size: apply 6x4 immediately for all unsized images so
-      // they are never 1×1 placeholders. The onload listener refines to 4x6
+      // Auto-default size: apply 6x4 immediately for all unsized (or unrecognised-size)
+      // images so they are never 1×1 placeholders. The onload listener refines to 4x6
       // for portrait images once naturalWidth/Height are known.
-      if (!entry.size) {
+      if (!hasSavedSize) {
         applySizeClass(div, "6x4"); // provisional landscape default
       }
       img.addEventListener("load", function () {
-        if (entry.size) return; // saved size takes priority — don't overwrite
+        if (hasSavedSize) return; // saved size takes priority — don't overwrite
         // Only correct if it's still the provisional 6x4
         if (img.naturalHeight > img.naturalWidth * 1.1) {
           applySizeClass(div, "4x6"); // portrait correction
