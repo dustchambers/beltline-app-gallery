@@ -494,6 +494,12 @@
     // Read current h-align: inline style or default "left"
     var currentAlign = textEl.style.textAlign || "left";
 
+    // NOTE: align button mousedown calls suppressNext (defined below) so that:
+    //   a) focus leaving textEl triggers focusout, but suppressDeactivate=true stops collapse
+    //   b) propagation stops so item._onMouseDown never fires
+    // We forward-declare suppressNext as a var so align buttons can reference it.
+    var suppressNext; // assigned after textBtn section below
+
     [
       { val: "left",   label: "\u2190", title: "Align left" },
       { val: "center", label: "\u2194", title: "Align center" },
@@ -505,7 +511,7 @@
       btn.title = def.title;
       btn.textContent = def.label;
       if (def.val === currentAlign) btn.classList.add("active");
-      btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+      btn.addEventListener("mousedown", function (e) { if (suppressNext) suppressNext(e); });
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         textEl.style.textAlign = def.val;
@@ -538,7 +544,7 @@
       btn.title = def.title;
       btn.textContent = def.label;
       if (def.val === currentValign) btn.classList.add("active");
-      btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+      btn.addEventListener("mousedown", function (e) { if (suppressNext) suppressNext(e); });
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         textEl.classList.remove("valign-top", "valign-middle", "valign-bottom");
@@ -594,13 +600,16 @@
       autoSave();
     }
 
-    // Any mousedown inside the spacer item suppresses the focusout deactivation
-    // for this event cycle (cleared after click fires via setTimeout(0)).
-    function suppressNext(e) {
+    // Any mousedown on an in-spacer control suppresses focusout-driven deactivation.
+    // suppressNext is assigned here so align button closures (declared above) can
+    // reference it via the shared var — JS closures capture by reference, not value.
+    suppressNext = function (e) {
       e.stopPropagation();
       suppressDeactivate = true;
-      setTimeout(function () { suppressDeactivate = false; }, 0);
-    }
+      // Clear AFTER the browser's click event has had a chance to fire.
+      // Use a slightly longer delay (16ms) to outlast any microtask/paint flush.
+      setTimeout(function () { suppressDeactivate = false; }, 16);
+    };
 
     textBtn.addEventListener("mousedown", suppressNext);
     textBtn.addEventListener("click", function (e) {
@@ -613,9 +622,8 @@
     });
     item.appendChild(textBtn);
 
-    // Align buttons also suppress deactivation on mousedown
-    alignBar.addEventListener("mousedown", suppressNext);
-    vAlignBar.addEventListener("mousedown", suppressNext);
+    // textEl area also suppresses deactivation when in edit mode
+    // (buttons call suppressNext directly — no need for bar-level listener)
 
     // Prevent text-area clicks from triggering drag
     textEl.addEventListener("mousedown", function (e) {
@@ -1273,88 +1281,65 @@
   }
 
   // ── Spacer Merge ──
-  // After pinAllItems() assigns explicit positions, collapse any run of spacers
-  // that share the same colStart AND colSpan into a single taller spacer block.
-  // "Adjacent" here means consecutive in DOM order *and* occupying adjacent
-  // grid rows (rowStart of next = rowStart + rowSpan of previous).
+  // Collapse any set of spacers that occupy the same horizontal band
+  // (matching colStart + colSpan) into one taller block.
+  // Works by grid position, NOT by DOM order, so spacers separated by images
+  // in the DOM can still be detected and merged.
+  // Text-bearing spacers are never merged (each may have distinct content).
   function mergeAdjacentSpacers() {
-    var gallery = getGallery();
     var items = getGalleryItems();
-    var i = 0;
 
-    while (i < items.length) {
-      var item = items[i];
-      if (!isSpacer(item)) { i++; continue; }
+    // 1. Collect all spacers with explicit positions, bucketed by "colStart,colSpan"
+    var buckets = {}; // key → [{item, colStart, colSpan, rowStart, rowSpan}]
 
-      var cp0 = parseGridStyle(item.style.gridColumn);
-      var rp0 = parseGridStyle(item.style.gridRow);
-      if (cp0.start === null || rp0.start === null) { i++; continue; }
+    items.forEach(function (el) {
+      if (!isSpacer(el)) return;
+      var cp = parseGridStyle(el.style.gridColumn);
+      var rp = parseGridStyle(el.style.gridRow);
+      if (cp.start === null || rp.start === null) return;
+      var textEl = el.querySelector(".spacer-text");
+      if (textEl && textEl.textContent.trim()) return; // skip text spacers
+      var key = cp.start + "," + cp.span;
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push({ item: el, colStart: cp.start, colSpan: cp.span, rowStart: rp.start, rowSpan: rp.span });
+    });
 
-      // Look ahead: collect a run of spacers with matching colStart + colSpan
-      // that are also on consecutive rows (no gap between them).
-      var run = [item];
-      var nextRowStart = rp0.start + rp0.span;
+    // 2. Within each bucket, sort by rowStart and find adjacent runs to merge
+    Object.keys(buckets).forEach(function (key) {
+      var group = buckets[key];
+      group.sort(function (a, b) { return a.rowStart - b.rowStart; });
 
-      var j = i + 1;
-      while (j < items.length) {
-        var next = items[j];
-        if (!isSpacer(next)) break;
-        var cpN = parseGridStyle(next.style.gridColumn);
-        var rpN = parseGridStyle(next.style.gridRow);
-        if (cpN.start === null || rpN.start === null) break;
-        // Must match colStart, colSpan, and be immediately adjacent row-wise
-        if (cpN.start !== cp0.start || cpN.span !== cp0.span) break;
-        if (rpN.start !== nextRowStart) break;
-        // Reject if either spacer has text content (don't merge text blocks)
-        var prevLast = run[run.length - 1];
-        var prevTextEl = prevLast.querySelector(".spacer-text");
-        var nextTextEl = next.querySelector(".spacer-text");
-        if ((prevTextEl && prevTextEl.textContent.trim()) ||
-            (nextTextEl && nextTextEl.textContent.trim())) break;
-        run.push(next);
-        nextRowStart = rpN.start + rpN.span;
-        j++;
-      }
+      var i = 0;
+      while (i < group.length) {
+        var run = [group[i]];
+        var nextRow = group[i].rowStart + group[i].rowSpan;
 
-      if (run.length > 1) {
-        // Merge: total row span = sum of all spans in the run
-        var totalRows = run.reduce(function (sum, el) {
-          return sum + parseGridStyle(el.style.gridRow).span;
-        }, 0);
-        var firstTextEl = item.querySelector(".spacer-text");
-        var mergedText   = firstTextEl ? firstTextEl.textContent.trim() : "";
-        var mergedAlign  = firstTextEl ? firstTextEl.style.textAlign : "";
-        var mergedValign = firstTextEl
-          ? (firstTextEl.classList.contains("valign-middle") ? "middle"
-           : firstTextEl.classList.contains("valign-bottom") ? "bottom" : "")
-          : "";
-
-        // Remove all but the first spacer in the run
-        for (var k = 1; k < run.length; k++) {
-          run[k].remove();
+        var j = i + 1;
+        while (j < group.length && group[j].rowStart === nextRow) {
+          run.push(group[j]);
+          nextRow = group[j].rowStart + group[j].rowSpan;
+          j++;
         }
 
-        // Resize the first spacer to cover all merged rows
-        item.style.gridColumn = cp0.start + " / span " + cp0.span;
-        item.style.gridRow    = rp0.start + " / span " + totalRows;
+        if (run.length > 1) {
+          // Merge: keep the topmost spacer, expand its rowSpan, remove the rest
+          var keeper = run[0];
+          var totalRows = run.reduce(function (sum, e) { return sum + e.rowSpan; }, 0);
 
-        // Update the DOM span attr used by getSpacerSpans
-        if (cp0.span > 1) item.style.gridColumn = cp0.start + " / span " + cp0.span;
-        if (totalRows > 1) item.style.gridRow    = rp0.start + " / span " + totalRows;
+          run.slice(1).forEach(function (e) { e.item.remove(); });
 
-        // If in editor mode, re-setup the merged spacer so handles match new size
-        if (editorMode) {
-          removeSpacerHandles(item);
-          addSpacerHandles(item);
+          keeper.item.style.gridColumn = keeper.colStart + " / span " + keeper.colSpan;
+          keeper.item.style.gridRow    = keeper.rowStart + " / span " + totalRows;
+
+          if (editorMode) {
+            removeSpacerHandles(keeper.item);
+            addSpacerHandles(keeper.item);
+          }
         }
 
-        // Refresh items array for next iteration (items were removed from DOM)
-        items = getGalleryItems();
-        // Don't advance i — re-check from same position in case of longer chain
-      } else {
-        i++;
+        i = j; // advance past this run
       }
-    }
+    });
   }
 
   // ── Selection ──
@@ -1820,26 +1805,6 @@
       if (!editorMode || e.button !== 0) return;
       e.preventDefault();
 
-      // Shift+click: toggle this item in the selection set
-      if (e.shiftKey) {
-        var idx = selectedItems.indexOf(item);
-        if (idx === -1) {
-          selectedItems.push(item);
-          item.classList.add("g9-selected");
-        } else {
-          selectedItems.splice(idx, 1);
-          item.classList.remove("g9-selected");
-        }
-        // Don't start a potential drag on shift+click
-        activeItem = null;
-        return;
-      }
-
-      // Plain click/drag start — if clicking a non-selected item, clear selection
-      if (selectedItems.indexOf(item) === -1) {
-        clearSelection();
-      }
-
       activeItem = item;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
@@ -1848,12 +1813,19 @@
 
       // Record which cell within the item was grabbed so the drop indicator
       // stays anchored to the grab point rather than snapping to top-left.
-      var m = getGridMetrics();
-      var itemRect = item.getBoundingClientRect();
-      var localX = e.clientX - itemRect.left;
-      var localY = e.clientY - itemRect.top;
-      dragOffsetCol = Math.max(0, Math.floor(localX / (m.colWidth + m.gap)));
-      dragOffsetRow = Math.max(0, Math.floor(localY / (m.rowHeight + m.gap)));
+      // For spacers/text blocks: always anchor to top-left (offset = 0) because
+      // tall spacers would otherwise place the indicator far above the cursor.
+      if (isSpacer(item)) {
+        dragOffsetCol = 0;
+        dragOffsetRow = 0;
+      } else {
+        var m = getGridMetrics();
+        var itemRect = item.getBoundingClientRect();
+        var localX = e.clientX - itemRect.left;
+        var localY = e.clientY - itemRect.top;
+        dragOffsetCol = Math.max(0, Math.floor(localX / (m.colWidth + m.gap)));
+        dragOffsetRow = Math.max(0, Math.floor(localY / (m.rowHeight + m.gap)));
+      }
     };
 
     item.addEventListener("mousedown", item._onMouseDown);
@@ -1911,9 +1883,10 @@
     });
 
     navigator.clipboard.writeText(output).then(function () {
-      var btn = document.getElementById("editor-export");
-      btn.textContent = "Copied HTML!";
-      setTimeout(function () { btn.textContent = "Export HTML"; }, 2000);
+      var btn = document.getElementById("editor-export-html");
+      if (btn) { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Export HTML"; }, 2000); }
+      var tog = document.getElementById("editor-export-toggle");
+      if (tog) { tog.textContent = "Copied! \u25be"; setTimeout(function () { tog.textContent = "Export \u25be"; }, 2000); }
     });
     console.log(output);
   }
@@ -2033,10 +2006,9 @@
     var json = JSON.stringify(result, null, 2);
     navigator.clipboard.writeText(json).then(function () {
       var btn = document.getElementById("editor-export-config");
-      btn.textContent = "Copied JSON!";
-      setTimeout(function () {
-        btn.textContent = "Export Config";
-      }, 2000);
+      if (btn) { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Export Config"; }, 2000); }
+      var tog = document.getElementById("editor-export-toggle");
+      if (tog) { tog.textContent = "Copied! \u25be"; setTimeout(function () { tog.textContent = "Export \u25be"; }, 2000); }
     });
 
     console.log(json);
@@ -2059,8 +2031,18 @@
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
         (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
-        '<button id="editor-export">Export HTML</button>' +
-        '<button id="editor-export-config">Export Config</button>' +
+        '<span class="editor-export-wrap" style="position:relative;display:inline-block">' +
+          '<button id="editor-export-toggle">Export \u25be</button>' +
+          '<div id="editor-export-menu" style="display:none;position:absolute;top:100%;right:0;z-index:500;' +
+            'background:#1a1a1a;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,0.35)">' +
+            '<button id="editor-export-html" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
+              'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
+              'letter-spacing:0.05em;cursor:pointer">Export HTML</button>' +
+            '<button id="editor-export-config" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
+              'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
+              'letter-spacing:0.05em;cursor:pointer">Export Config</button>' +
+          '</div>' +
+        '</span>' +
         '<button id="editor-reset">Reset</button>' +
         "</div>";
       document.body.appendChild(editorOverlay);
@@ -2074,17 +2056,52 @@
           .getElementById("editor-publish")
           .addEventListener("click", publishLayout);
       }
-      document
-        .getElementById("editor-export")
-        .addEventListener("click", exportAll);
-      document
-        .getElementById("editor-export-config")
-        .addEventListener("click", exportConfig);
+      // Export dropdown
+      var exportToggle = document.getElementById("editor-export-toggle");
+      var exportMenu   = document.getElementById("editor-export-menu");
+      exportToggle.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var open = exportMenu.style.display !== "none";
+        exportMenu.style.display = open ? "none" : "block";
+      });
+      document.getElementById("editor-export-html").addEventListener("click", function () {
+        exportMenu.style.display = "none";
+        exportAll();
+      });
+      document.getElementById("editor-export-config").addEventListener("click", function () {
+        exportMenu.style.display = "none";
+        exportConfig();
+      });
+      // Close dropdown when clicking anywhere else
+      document.addEventListener("click", function _closeExport() {
+        exportMenu.style.display = "none";
+      });
+
+      // Reset: lay out all images 3-per-row at 6×4 (landscape) or 4×6 (portrait),
+      // remove all spacers, clear saved state, and re-enter a clean editor session.
       document
         .getElementById("editor-reset")
         .addEventListener("click", function () {
+          if (!confirm("Reset layout? All spacers will be removed and images will be arranged in rows of 3.")) return;
+          // Remove all spacers
+          getGalleryItems().filter(isSpacer).forEach(function (s) { s.remove(); });
+          // Re-assign sizes: portrait → 4x6, everything else → 6x4
+          var imgItems = getGalleryItems();
+          imgItems.forEach(function (item) {
+            var img = item.querySelector("img");
+            var isPortrait = img && img.naturalHeight > img.naturalWidth * 1.1;
+            clearSizeClasses(item);
+            applySizeClass(item, isPortrait ? "4x6" : "6x4");
+            // Clear any inline start positions — let pinAllItems place them
+            item.style.gridColumn = "";
+            item.style.gridRow    = "";
+          });
           localStorage.removeItem(STORAGE_KEY);
-          location.reload();
+          pinAllItems();
+          mergeAdjacentSpacers();
+          refreshOrderNumbers();
+          refreshSlots();
+          autoSave();
         });
 
       getGalleryItems().forEach(function (item) {
@@ -2137,8 +2154,26 @@
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          // Plain tap: no-op (crop cycle removed)
-          // Shift+click selection is handled in _onMouseDown
+          // True click (no drag, no crop) — handle selection
+          if (e.shiftKey) {
+            // Shift+click: toggle this item in the multi-select set.
+            // Only reaches here if the mouse didn't move past DRAG_THRESHOLD,
+            // so crop/reposition is not affected.
+            var tgt = activeItem;
+            var idx = selectedItems.indexOf(tgt);
+            if (idx === -1) {
+              selectedItems.push(tgt);
+              tgt.classList.add("g9-selected");
+            } else {
+              selectedItems.splice(idx, 1);
+              tgt.classList.remove("g9-selected");
+            }
+          } else {
+            // Plain click on unselected item — clear selection
+            if (selectedItems.indexOf(activeItem) === -1) {
+              clearSelection();
+            }
+          }
           // Clean up any push-down state that didn't lead to a drop
           if (isPushDown) restorePushDown();
           isPushDown = false;
@@ -2150,8 +2185,16 @@
         isCropping = false;
       };
 
+      // Clicking gallery whitespace / slots / background deselects all items
+      window._editorBgClick = function (e) {
+        if (!e.target.closest(".g9-item")) {
+          clearSelection();
+        }
+      };
+
       window.addEventListener("mousemove", window._editorMouseMove);
       window.addEventListener("mouseup", window._editorMouseUp);
+      window.addEventListener("mousedown", window._editorBgClick);
     } else {
       // Exit editor
       if (editorOverlay) editorOverlay.remove();
@@ -2179,6 +2222,7 @@
 
       window.removeEventListener("mousemove", window._editorMouseMove);
       window.removeEventListener("mouseup", window._editorMouseUp);
+      window.removeEventListener("mousedown", window._editorBgClick);
 
       // Show the edit trigger button again
       var trigger = document.querySelector(".gallery-edit-trigger");
