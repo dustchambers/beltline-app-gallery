@@ -603,6 +603,12 @@
 
     var textActive = false;
     var controlsVisible = false;
+    // T-button press cycle (3 states):
+    //   0 = off (not typing, no controls)
+    //   1 = controls visible + typing enabled
+    //   2 = controls hidden, still typing (drag still blocked by textActive)
+    // Next T press from state 2 → 0: fully off, can drag again.
+    var tState = 0;
     // Guard flag: set true on mousedown of any in-spacer button so focusout
     // doesn't deactivate before the click event fires (relatedTarget is
     // unreliable across browsers when clicking buttons).
@@ -642,6 +648,7 @@
     }
 
     function activateTextMode() {
+      tState = 1;
       textActive = true;
       textEl.contentEditable = "true";
       textEl.classList.add("editing");
@@ -659,6 +666,7 @@
     }
 
     function deactivateTextMode() {
+      tState = 0;
       textActive = false;
       textEl.contentEditable = "false";
       textEl.classList.remove("editing");
@@ -679,18 +687,24 @@
     };
 
     textBtn.addEventListener("mousedown", suppressNext);
-    // T toggles only the control panels — NOT text mode.
-    // Text editing persists even when the panels are hidden.
+    // T button cycles through 3 states:
+    //   0 → 1: activate text editing + show controls
+    //   1 → 2: hide controls but keep typing enabled
+    //   2 → 0: deactivate text editing entirely (can drag again)
     textBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (controlsVisible) {
+      if (tState === 0) {
+        // Off → on: activate text editing and show controls
+        activateTextMode();
+      } else if (tState === 1) {
+        // Controls visible + typing → hide controls, keep typing
+        tState = 2;
         hideControls();
+        // Keep textEl editable and focused so typing still works
+        setTimeout(function () { textEl.focus(); }, 0);
       } else {
-        showControls();
-        // If we're re-showing controls while already in text mode, re-focus.
-        if (textActive) {
-          setTimeout(function () { textEl.focus(); }, 0);
-        }
+        // Controls hidden + typing → fully off
+        deactivateTextMode();
       }
     });
     item.appendChild(textBtn);
@@ -863,6 +877,9 @@
       if (!textActive || suppressDeactivate) return;
       var dest = e.relatedTarget;
       if (dest && item.contains(dest)) return; // focus moving to our own button
+      // Don't deactivate in state 2 (controls hidden but typing still intentional)
+      // — user clicked elsewhere on the page to get back to dragging via T press 3.
+      // Only fully deactivate on real focus-out (clicking outside the gallery, etc.).
       deactivateTextMode();
     });
   }
@@ -997,18 +1014,22 @@
       if (optionHeld) {
         // Option+resize: anchor on center — shift colStart/rowStart opposite to the drag direction.
         // Right edge dragged right → also shift colStart left by same amount.
-        // Left edge dragged left  → also shift colStart right (left edge already expands toward left,
-        //   center anchor means colStart doesn't move — the right side mirrors automatically via newCols).
-        // Corner: shift both colStart and rowStart to keep center fixed.
+        // Center-anchor logic: keep the visual center fixed by shifting the start position
+        // half the total span increase (but we grow 2× delta total, so shift by 1× delta).
+        // Right/bottom edges: dragging right/down → colStart/rowStart shifts left/up (negative).
+        //   dCols/dRows are positive → shift = -dCols / -dRows
+        // Left/top edges: dragging left/up → colStart/rowStart shifts left/up (same direction).
+        //   dCols/dRows are negative → shift = dCols / dRows  (already negative, moves start left/up)
+        // Corner: both axes apply simultaneously.
         var colShift = (resizeCorner === "r"  || resizeCorner === "tr" || resizeCorner === "br")
-                       ? -Math.abs(dCols)                                // right edge: shift left
+                       ? -dCols                // right edge dragged right: colStart moves left
                        : (resizeCorner === "l" || resizeCorner === "tl" || resizeCorner === "bl")
-                       ? Math.abs(dCols)                                 // left edge: shift right
+                       ? dCols                 // left edge dragged left: colStart also moves left
                        : 0;
         var rowShift = (resizeCorner === "b"  || resizeCorner === "br" || resizeCorner === "bl")
-                       ? -Math.abs(dRows)                                // bottom edge: shift up
+                       ? -dRows                // bottom edge dragged down: rowStart moves up
                        : (resizeCorner === "t" || resizeCorner === "tl" || resizeCorner === "tr")
-                       ? Math.abs(dRows)                                 // top edge: shift down
+                       ? dRows                 // top edge dragged up: rowStart also moves up
                        : 0;
         colStart = Math.max(1, resizeStartCol + colShift);
         rowStart = Math.max(1, resizeStartRow + rowShift);
@@ -2689,16 +2710,7 @@
               clearSelection();
             }
           }
-          // ── Spacer click-without-drag → activate text editing mode ──
-          // If the clicked item was a spacer and no drag occurred, treat the
-          // click as intent to type. This lets users click anywhere on the
-          // spacer body (not just the text area) to start editing.
-          if (isSpacer(activeItem) && !e.shiftKey) {
-            var spacerTextEl = activeItem.querySelector(".spacer-text");
-            if (spacerTextEl && spacerTextEl._activateTextMode) {
-              spacerTextEl._activateTextMode();
-            }
-          }
+          // Spacer body click: no auto-activate — text mode only via T button cycle.
           // Clean up any push-down/push-right state that didn't lead to a drop
           if (isPushDown)  restorePushDown();
           if (isPushRight) restorePushRight();
