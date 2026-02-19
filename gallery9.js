@@ -458,8 +458,28 @@
       e.stopPropagation();
       pushUndo();
       var spans = getSpacerSpans(item);
-      var clone = createSpacerElement(spans.cols, spans.rows);
-      // Insert immediately after the original
+      // Read all live properties from the source spacer
+      var srcText  = item.querySelector(".spacer-text");
+      var dupText  = srcText ? srcText.textContent || "" : "";
+      var dupAlign = srcText ? (srcText.style.textAlign || "center") : "center";
+      var dupValign = srcText
+        ? (srcText.classList.contains("valign-bottom") ? "bottom"
+         : srcText.classList.contains("valign-top")    ? "top"    : "middle")
+        : "middle";
+      var dupTextStyle = srcText
+        ? (srcText.classList.contains("text-header") ? "header"
+         : srcText.classList.contains("text-title")  ? "title"  : null)
+        : null;
+      var dupBg = item.style.backgroundColor || null;
+      var clone = createSpacerElement(
+        spans.cols, spans.rows,
+        dupText || null, dupAlign, dupValign, dupTextStyle, dupBg
+      );
+      // Copy explicit grid position from source, then insert immediately after it
+      var srcCol = parseGridStyle(item.style.gridColumn);
+      var srcRow = parseGridStyle(item.style.gridRow);
+      if (srcCol.start) clone.style.gridColumn = srcCol.start + " / span " + spans.cols;
+      if (srcRow.start) clone.style.gridRow    = srcRow.start + " / span " + spans.rows;
       var next = item.nextSibling;
       if (next) {
         getGallery().insertBefore(clone, next);
@@ -609,6 +629,13 @@
         sb.classList.remove("visible");
       });
       textBtn.classList.remove("active");
+      // Close color panel if open and restore overflow
+      if (colorPanelOpen) {
+        colorPanelOpen = false;
+        colorPanel.classList.remove("visible");
+        colorBtn.classList.remove("active");
+        item.style.overflow = "";
+      }
     }
 
     function activateTextMode() {
@@ -778,6 +805,8 @@
       colorPanelOpen = !colorPanelOpen;
       colorPanel.classList.toggle("visible", colorPanelOpen);
       colorBtn.classList.toggle("active", colorPanelOpen);
+      // Allow color panel (position:absolute) to escape .g9-item's overflow:hidden
+      item.style.overflow = colorPanelOpen ? "visible" : "";
     });
     item.appendChild(colorBtn);
 
