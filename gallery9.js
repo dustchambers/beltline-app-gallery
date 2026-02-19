@@ -140,6 +140,7 @@
   // Multi-select state
   var selectedItems = [];           // array of selected item elements
   var dragGroupOffsets = [];        // [{item, dCol, dRow}] relative to anchor
+  var dragGroupColFootprint = 1;    // max (dCol + span.cols) across group — used to clamp startCol
   var dragOffsetCol = 0;            // grab point col offset within dragged item
   var dragOffsetRow = 0;            // grab point row offset within dragged item
 
@@ -1803,6 +1804,15 @@
       dragGroupOffsets.push({ item: el, spans: spans, dCol: dCol, dRow: dRow, indicator: ind });
     });
 
+    // Compute the group's total column footprint from the anchor's origin.
+    // This is the maximum (dCol + span.cols) across all members — i.e. how
+    // many columns the whole group needs. Used in moveDrag to prevent startCol
+    // from pushing any member past column 18, which would grow the grid.
+    dragGroupColFootprint = 1;
+    dragGroupOffsets.forEach(function (ge) {
+      dragGroupColFootprint = Math.max(dragGroupColFootprint, ge.dCol + ge.spans.cols);
+    });
+
     // dropIndicator → anchor item's indicator (for single-item endDrag compatibility)
     var anchorEntry = dragGroupOffsets.filter(function (ge) { return ge.item === item; })[0];
     dropIndicator = anchorEntry ? anchorEntry.indicator : dragGroupOffsets[0].indicator;
@@ -1887,12 +1897,19 @@
     var spans = isSpacer(activeItem) ? getSpacerSpans(activeItem) : getItemSpans(activeItem);
     var cell = clientToGridCell(e.clientX, e.clientY);
 
-    var startCol = Math.max(1, Math.min(18 - spans.cols + 1, cell.col - dragOffsetCol));
+    // Clamp startCol: for group drags use the whole group's column footprint
+    // so no member can be pushed past column 18 (which would grow the grid).
+    var colLimit = dragGroupOffsets.length > 0
+      ? 18 - dragGroupColFootprint + 1
+      : 18 - spans.cols + 1;
+    var startCol = Math.max(1, Math.min(colLimit, cell.col - dragOffsetCol));
     var startRow = Math.max(1, cell.row - dragOffsetRow);
 
     // Multi-drag: move all group indicators together
     if (dragGroupOffsets.length > 0) {
       dragGroupOffsets.forEach(function (entry) {
+        // Each member is already constrained by startCol clamping above;
+        // the per-entry clamp below handles any remaining rounding edge cases.
         var ec = Math.max(1, Math.min(18 - entry.spans.cols + 1, startCol + entry.dCol));
         var er = Math.max(1, startRow + entry.dRow);
         entry.indicator.style.gridColumn = ec + " / span " + entry.spans.cols;
@@ -1955,6 +1972,7 @@
         gallery.appendChild(entry.item);
       });
       dragGroupOffsets = [];
+      dragGroupColFootprint = 1;
       dropIndicator = null;
     } else if (dropIndicator && activeItem) {
       // Single-item drag
