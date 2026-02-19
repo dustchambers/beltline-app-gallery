@@ -896,18 +896,20 @@
     // can trigger it when a spacer body click (no drag) is detected.
     textEl._activateTextMode = activateTextMode;
 
-    // textEl area: stop propagation so the drag system never sees clicks here.
-    // activateTextMode is called via _activateTextMode from the mouseup path.
+    // textEl area: only stop propagation when text mode is active (tState > 0).
+    // When tState === 0 the text layer is just a transparent overlay — let
+    // the event bubble to item._onMouseDown so the drag system can start.
     textEl.addEventListener("mousedown", function (e) {
-      e.stopPropagation(); // never let the drag system capture a click on the text area
+      if (tState !== 0) e.stopPropagation();
     });
 
-    // Also handle direct clicks on the text area in text mode so cursor placement works.
+    // Handle mouseup on the text area.
+    // Text mode is entered only via the T button (tState cycle), never by clicking.
+    // This handler only needs to stop propagation when text is active (to prevent
+    // the window _editorMouseUp from mishandling cursor clicks inside the text).
     textEl.addEventListener("mouseup", function (e) {
-      e.stopPropagation();
-      if (!textActive) {
-        activateTextMode();
-      }
+      if (tState !== 0) e.stopPropagation();
+      // Do NOT auto-activate text mode on click — T button is the sole entry point.
     });
 
     // Debounced save on text input
