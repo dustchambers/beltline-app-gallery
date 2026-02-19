@@ -561,6 +561,22 @@ body.edit-mode .g9-item:active {
 }
 .g9-item.drag-placeholder img { opacity: 0; }
 
+/* ── Multi-select highlight ── */
+/* Shown when an item is shift+clicked into the selection set */
+body.edit-mode .g9-item.g9-selected {
+  outline: 2px solid rgba(60, 120, 220, 0.85) !important;
+  outline-offset: -2px;
+}
+
+body.edit-mode .g9-item.g9-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(60, 120, 220, 0.12);
+  pointer-events: none;
+  z-index: 6;
+}
+
 /* Drop position indicator — same grid span as dragged item, no pointer events */
 .drop-indicator {
   background: rgba(26,26,26,0.07);

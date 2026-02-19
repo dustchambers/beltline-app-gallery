@@ -155,6 +155,8 @@
   var resizeStartY = 0;
   var resizeStartCols = 1;
   var resizeStartRows = 1;
+  var resizeStartCol  = 1; // grid-column-start at mousedown (for left/top edge shift)
+  var resizeStartRow  = 1; // grid-row-start at mousedown
 
   // ── DOM Helpers ──
 
@@ -411,11 +413,16 @@
         e.preventDefault();
         resizingItem = item;
         resizeCorner = corner;
+        resizeMode   = "spacer";
         resizeStartX = e.clientX;
         resizeStartY = e.clientY;
         var spans = getSpacerSpans(item);
         resizeStartCols = spans.cols;
         resizeStartRows = spans.rows;
+        var colP = parseGridStyle(item.style.gridColumn);
+        var rowP = parseGridStyle(item.style.gridRow);
+        resizeStartCol = colP.start || 1;
+        resizeStartRow = rowP.start || 1;
       });
       item.appendChild(h);
     });
@@ -428,6 +435,7 @@
     dupBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
     dupBtn.addEventListener("click", function (e) {
       e.stopPropagation();
+      pushUndo();
       var spans = getSpacerSpans(item);
       var clone = createSpacerElement(spans.cols, spans.rows);
       // Insert immediately after the original
@@ -452,6 +460,7 @@
     delBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
     delBtn.addEventListener("click", function (e) {
       e.stopPropagation();
+      pushUndo();
       item.remove();
       refreshOrderNumbers();
       refreshSlots();
@@ -655,6 +664,12 @@
         var spans = getItemSpans(item);
         resizeStartCols = spans.cols;
         resizeStartRows = spans.rows;
+        // Capture the item's current grid-start positions so moveResize
+        // can compute shift from a fixed origin (not from a frame that already moved).
+        var colP = parseGridStyle(item.style.gridColumn);
+        var rowP = parseGridStyle(item.style.gridRow);
+        resizeStartCol = colP.start || 1;
+        resizeStartRow = rowP.start || 1;
       });
       item.appendChild(h);
     });
@@ -706,31 +721,26 @@
       }
     }
 
-    // Update both start and span so edges that move the left/top boundary
-    // actually shift the item in the grid (displacing adjacent spacers).
-    var curCol = parseGridStyle(resizingItem.style.gridColumn);
-    var curRow = parseGridStyle(resizingItem.style.gridRow);
-    var origColStart = curCol.start || 1;
-    var origRowStart = curRow.start || 1;
-
+    // Use the fixed start positions captured at mousedown — NOT the live style —
+    // so that repeated mousemove frames don't compound the shift.
     var colStart, rowStart;
     if (resizeMode === "image") {
       // Left-edge handles: colStart shifts right as span shrinks
       if (resizeCorner === "l" || resizeCorner === "tl" || resizeCorner === "bl") {
-        colStart = Math.max(1, origColStart + dCols);
+        colStart = Math.max(1, resizeStartCol + dCols);
       } else {
-        colStart = origColStart;
+        colStart = resizeStartCol;
       }
       // Top-edge handles: rowStart shifts down as span shrinks
       if (resizeCorner === "t" || resizeCorner === "tl" || resizeCorner === "tr") {
-        rowStart = Math.max(1, origRowStart + dRows);
+        rowStart = Math.max(1, resizeStartRow + dRows);
       } else {
-        rowStart = origRowStart;
+        rowStart = resizeStartRow;
       }
     } else {
-      // Spacer: four-corner drag, colStart/rowStart are fixed (bl corner inverts cols)
-      colStart = origColStart;
-      rowStart = origRowStart;
+      // Spacer: four-corner drag, colStart/rowStart are fixed
+      colStart = resizeStartCol;
+      rowStart = resizeStartRow;
     }
 
     resizingItem.style.gridColumn = colStart + " / span " + newCols;
@@ -741,6 +751,7 @@
 
   function endResize() {
     if (!resizingItem) return;
+    pushUndo(); // capture pre-resize state for undo
     if (resizeMode === "image") {
       // Strip named size classes — item now lives entirely by inline spans
       clearSizeClasses(resizingItem);
@@ -994,7 +1005,6 @@
   }
 
   function autoSave() {
-    pushUndo();
     saveState();
     var banner = document.querySelector(".edit-banner");
     if (!banner) return;
@@ -1141,6 +1151,7 @@
     plusBtn.title = "Add spacer (" + cols + "\u00d7" + rows + ")";
     plusBtn.addEventListener("click", function (e) {
       e.stopPropagation();
+      pushUndo();
       // Read this slot's explicit position before removing it
       var slotCol = parseGridStyle(slot.style.gridColumn);
       var slotRow = parseGridStyle(slot.style.gridRow);
@@ -1368,48 +1379,85 @@
   // restoreState or a previous drag), we honour it as-is and skip re-simulation
   // for that item. This prevents the edit-mode layout from diverging from the
   // view-mode layout that was already saved.
+  // Assign explicit grid-column/row to every item so the editor can
+  // place indicators anywhere on the grid.
+  //
+  // Two-pass approach:
+  //   Pass 1 — items that already have explicit starts (from restoreState or
+  //             a prior drag) are written as-is into an occupancy bitmap.
+  //   Pass 2 — items WITHOUT explicit starts are placed into the remaining
+  //             space using the same row-by-row auto-placement algorithm that
+  //             CSS uses in view mode.
+  //
+  // This prevents unpinned items (e.g. freshly-added spacers) from being
+  // placed at col 1 row 1 and overlapping pinned images.
   function pinAllItems() {
     var items = getGalleryItems();
-    var colCursor = 1; // 1-based
-    var rowCursor = 1;
-    var rowMaxH   = 1; // tallest item in the current row band
+
+    // ── Pass 1: honour existing explicit positions ──
+    // Build an occupancy set: set of "col,row" strings for every cell taken.
+    var occupied = {}; // "col,row" → true
+
+    function markOccupied(cs, rs, w, h) {
+      for (var r = rs; r < rs + h; r++) {
+        for (var c = cs; c < cs + w; c++) {
+          occupied[c + "," + r] = true;
+        }
+      }
+    }
+
+    function isCellFree(c, r) {
+      return !occupied[c + "," + r];
+    }
+
+    // Normalise already-pinned items and mark their cells
+    items.forEach(function (item) {
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
+      if (colP.start !== null && rowP.start !== null) {
+        item.style.gridColumn = colP.start + " / span " + colP.span;
+        item.style.gridRow    = rowP.start + " / span " + rowP.span;
+        markOccupied(colP.start, rowP.start, colP.span, rowP.span);
+      }
+    });
+
+    // ── Pass 2: place unpinned items into free cells ──
+    // Scan row by row, column by column, looking for a run of `w` free cells.
+    function findFreeCell(w, h, startRow) {
+      for (var r = startRow; r < startRow + 200; r++) {
+        for (var c = 1; c <= 18 - w + 1; c++) {
+          // Check if w×h block starting at (c, r) is fully free
+          var fits = true;
+          outer: for (var dr = 0; dr < h; dr++) {
+            for (var dc = 0; dc < w; dc++) {
+              if (!isCellFree(c + dc, r + dr)) { fits = false; break outer; }
+            }
+          }
+          if (fits) return { col: c, row: r };
+        }
+      }
+      return null; // fallback (shouldn't happen in practice)
+    }
+
+    var placeCursor = 1; // start search from row 1
 
     items.forEach(function (item) {
       var colP = parseGridStyle(item.style.gridColumn);
       var rowP = parseGridStyle(item.style.gridRow);
-
-      // If this item already has an explicit start, keep it and just make
-      // sure it's written in "C / span N" form (not just "span N").
-      if (colP.start !== null && rowP.start !== null) {
-        // Already pinned — normalise the style string and leave it alone
-        item.style.gridColumn = colP.start + " / span " + colP.span;
-        item.style.gridRow    = rowP.start + " / span " + rowP.span;
-        return;
-      }
+      if (colP.start !== null && rowP.start !== null) return; // already handled
 
       var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
       var w = Math.max(1, spans.cols);
       var h = Math.max(1, spans.rows);
 
-      // Wrap to next row if this item won't fit
-      if (colCursor + w - 1 > 18) {
-        rowCursor += rowMaxH;
-        colCursor  = 1;
-        rowMaxH    = 1;
-      }
+      var cell = findFreeCell(w, h, placeCursor);
+      if (!cell) cell = { col: 1, row: placeCursor }; // safety fallback
 
-      item.style.gridColumn = colCursor + " / span " + w;
-      item.style.gridRow    = rowCursor + " / span " + h;
-
-      colCursor += w;
-      rowMaxH    = Math.max(rowMaxH, h);
-
-      // If we've exactly filled 18 cols, advance the row
-      if (colCursor > 18) {
-        rowCursor += rowMaxH;
-        colCursor  = 1;
-        rowMaxH    = 1;
-      }
+      item.style.gridColumn = cell.col + " / span " + w;
+      item.style.gridRow    = cell.row + " / span " + h;
+      markOccupied(cell.col, cell.row, w, h);
+      // Advance the search cursor to avoid re-scanning already-filled rows
+      placeCursor = cell.row;
     });
   }
 
@@ -1582,6 +1630,7 @@
   }
 
   function endDrag() {
+    pushUndo(); // capture pre-drop state for undo
     if (dragGhost) {
       dragGhost.remove();
       dragGhost = null;
@@ -1668,6 +1717,7 @@
   }
 
   function endCrop(item) {
+    pushUndo(); // capture pre-crop state for undo
     item.style.cursor = "grab";
     autoSave();
   }
