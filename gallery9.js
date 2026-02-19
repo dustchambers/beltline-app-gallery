@@ -464,23 +464,30 @@
     // ── Horizontal alignment bar (L / C / R) ──
     var alignBar = document.createElement("div");
     alignBar.className = "spacer-align-bar";
-    ["left", "center", "right"].forEach(function (align) {
+
+    // Read current h-align: inline style or default "left"
+    var currentAlign = textEl.style.textAlign || "left";
+
+    [
+      { val: "left",   label: "\u2190", title: "Align left" },
+      { val: "center", label: "\u2194", title: "Align center" },
+      { val: "right",  label: "\u2192", title: "Align right" }
+    ].forEach(function (def) {
       var btn = document.createElement("button");
       btn.className = "spacer-align-btn";
-      btn.dataset.align = align;
-      btn.title = align.charAt(0).toUpperCase() + align.slice(1) + " align";
-      btn.textContent = align === "left" ? "\u2190" : align === "center" ? "\u2194" : "\u2192";
+      btn.dataset.align = def.val;
+      btn.title = def.title;
+      btn.textContent = def.label;
+      if (def.val === currentAlign) btn.classList.add("active");
       btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        textEl.style.textAlign = align;
+        textEl.style.textAlign = def.val;
         alignBar.querySelectorAll(".spacer-align-btn").forEach(function (b) {
-          b.classList.toggle("active", b.dataset.align === align);
+          b.classList.toggle("active", b.dataset.align === def.val);
         });
         autoSave();
       });
-      var currentAlign = textEl.style.textAlign || "left";
-      if (align === currentAlign) btn.classList.add("active");
       alignBar.appendChild(btn);
     });
     item.appendChild(alignBar);
@@ -488,6 +495,12 @@
     // ── Vertical alignment bar (T / M / B) ──
     var vAlignBar = document.createElement("div");
     vAlignBar.className = "spacer-align-vbar";
+
+    // Read current v-align from class
+    var currentValign = textEl.classList.contains("valign-middle") ? "middle"
+                      : textEl.classList.contains("valign-bottom") ? "bottom"
+                      : "top";
+
     [
       { val: "top",    label: "\u2191", title: "Align top" },
       { val: "middle", label: "\u2195", title: "Align middle" },
@@ -498,10 +511,10 @@
       btn.dataset.valign = def.val;
       btn.title = def.title;
       btn.textContent = def.label;
+      if (def.val === currentValign) btn.classList.add("active");
       btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        // Remove existing valign classes then apply chosen one
         textEl.classList.remove("valign-top", "valign-middle", "valign-bottom");
         textEl.classList.add("valign-" + def.val);
         vAlignBar.querySelectorAll(".spacer-align-btn").forEach(function (b) {
@@ -509,11 +522,6 @@
         });
         autoSave();
       });
-      // Mark active based on current class
-      var currentValign = textEl.classList.contains("valign-middle") ? "middle"
-                        : textEl.classList.contains("valign-bottom") ? "bottom"
-                        : "top";
-      if (def.val === currentValign) btn.classList.add("active");
       vAlignBar.appendChild(btn);
     });
     item.appendChild(vAlignBar);

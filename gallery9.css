@@ -165,17 +165,17 @@ body.edit-mode .g9-item.g9-spacer {
 }
 
 /* ── Spacer Text Overlay ── */
-/* Uses flex so align-items controls vertical position (top/center/bottom).
-   The inner [data-text-inner] span carries horizontal text-align. */
+/* Flex column: justify-content positions the text block vertically,
+   align-items:stretch ensures the editable div is full-width so
+   text-align (left/center/right) has room to work. */
 .spacer-text {
   position: absolute;
   inset: 0;
   padding: 16px;
   z-index: 5;
-  /* Flex layout enables vertical alignment via align-items */
   display: none;
   flex-direction: column;
-  align-items: flex-start; /* vertical: top by default */
+  align-items: stretch; /* full-width child so text-align works */
   overflow: hidden;
   box-sizing: border-box;
   outline: none;
@@ -188,7 +188,7 @@ body.edit-mode .g9-item.g9-spacer {
   white-space: pre-wrap;
 }
 
-/* Vertical alignment variants */
+/* Vertical alignment variants — justify-content on column flex = vertical */
 .spacer-text.valign-top    { justify-content: flex-start; }
 .spacer-text.valign-middle { justify-content: center; }
 .spacer-text.valign-bottom { justify-content: flex-end; }
@@ -255,7 +255,8 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 /* ── Spacer Alignment Bars (horizontal L/C/R  and  vertical T/M/B) ── */
-/* Both bars stack vertically below the T button, with a gap between groups */
+/* Both bars sit below the T button (top:42px), stacked in a column.
+   A small separator div visually splits the two groups of 3. */
 .spacer-align-bar,
 .spacer-align-vbar {
   position: absolute;
@@ -266,14 +267,14 @@ body:not(.edit-mode) .spacer-text:empty::before {
   z-index: 25;
 }
 
-/* Horizontal bar: right below the T button (14px top + 22px btn + 6px) */
+/* H-align group sits immediately below T button: 14px top + 22px btn + 6px gap */
 .spacer-align-bar {
   top: 42px;
 }
 
-/* Vertical bar: below horizontal bar (42px + 3×22px + 3×3px + 8px gap) */
+/* V-align group sits below H-align group: 42 + 3×22 + 3×3 + 8 separator gap */
 .spacer-align-vbar {
-  top: 123px; /* 42 + 3×25(btn+gap) + 6 */
+  top: 123px;
 }
 
 .spacer-align-bar.visible,
@@ -291,16 +292,20 @@ body:not(.edit-mode) .spacer-text:empty::before {
   color: #EDEBE0;
   border: none;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
   padding: 0;
   transition: background 0.15s;
 }
 
-.spacer-align-btn:hover,
+.spacer-align-btn:hover {
+  background: rgba(26,26,26,0.7);
+}
+
 .spacer-align-btn.active {
-  background: rgba(26,26,26,0.85);
+  background: rgba(26,26,26,0.9);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
 }
 
 /* ── Empty Slot (edit mode only) ── */
