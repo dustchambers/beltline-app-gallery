@@ -942,37 +942,39 @@
       colsUsed = (colsUsed + spans.cols) % 18;
     });
 
-    // Fill the trailing partial row with interactive slots
+    // One unified slot spanning all remaining columns — looks like a single empty block
     var remainder = colsUsed === 0 ? 0 : 18 - colsUsed;
+    if (remainder === 0) return;
+
     var gallery = getGallery();
-    for (var i = 0; i < remainder; i++) {
-      var slot = document.createElement("div");
-      slot.className = "g9-slot";
+    var slot = document.createElement("div");
+    slot.className = "g9-slot";
+    slot.style.gridColumn = "span " + remainder;
+    slot.style.gridRow = "span 1";
 
-      // "Fill with spacer" button centered in the slot
-      var fillBtn = document.createElement("button");
-      fillBtn.className = "slot-fill-btn";
-      fillBtn.textContent = "+ spacer";
-      fillBtn.title = "Fill this slot with a spacer";
-      fillBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        // Insert 1×1 spacer before the first slot (takes this visual position)
-        var firstSlot = getGallery().querySelector(".g9-slot");
-        var spacer = createSpacerElement(1, 1);
-        if (firstSlot) {
-          getGallery().insertBefore(spacer, firstSlot);
-        } else {
-          getGallery().appendChild(spacer);
-        }
-        setupEditorItem(spacer);
-        refreshOrderNumbers();
-        refreshSlots();
-        autoSave();
-      });
-      slot.appendChild(fillBtn);
+    // Small + button centered in the unified block
+    var plusBtn = document.createElement("button");
+    plusBtn.className = "slot-plus-btn";
+    plusBtn.textContent = "+";
+    plusBtn.title = "Add spacer (" + remainder + "\u00d71)";
+    plusBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      // Create a spacer exactly the same size as the empty space
+      var spacer = createSpacerElement(remainder, 1);
+      var existingSlot = getGallery().querySelector(".g9-slot");
+      if (existingSlot) {
+        getGallery().insertBefore(spacer, existingSlot);
+      } else {
+        getGallery().appendChild(spacer);
+      }
+      setupEditorItem(spacer);
+      refreshOrderNumbers();
+      refreshSlots();
+      autoSave();
+    });
+    slot.appendChild(plusBtn);
 
-      gallery.appendChild(slot);
-    }
+    gallery.appendChild(slot);
   }
 
   // ── Orientation Buttons ──
@@ -1393,7 +1395,6 @@
         '<button id="editor-export">Export HTML</button>' +
         '<button id="editor-export-config">Export Config</button>' +
         '<button id="editor-reset">Reset</button>' +
-        '<button id="editor-add-spacer">+ Spacer</button>' +
         "</div>";
       document.body.appendChild(editorOverlay);
       document.body.classList.add("edit-mode");
@@ -1418,16 +1419,6 @@
           localStorage.removeItem(STORAGE_KEY);
           location.reload();
         });
-
-      document.getElementById("editor-add-spacer").addEventListener("click", function () {
-        var gallery = getGallery();
-        var spacer = createSpacerElement(1, 1);
-        gallery.appendChild(spacer);
-        setupEditorItem(spacer);
-        refreshOrderNumbers();
-        refreshSlots();
-        autoSave();
-      });
 
       getGalleryItems().forEach(function (item) {
         setupEditorItem(item);
