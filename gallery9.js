@@ -1528,6 +1528,10 @@
       if (editorOverlay) editorOverlay.remove();
       document.body.classList.remove("edit-mode");
 
+      // Remove slots and any lingering drag artifacts before cleanup
+      getGallery().querySelectorAll(".g9-slot").forEach(function (s) { s.remove(); });
+      if (dropIndicator) { dropIndicator.remove(); dropIndicator = null; }
+
       getGalleryItems().forEach(function (item) {
         var badge = item.querySelector(".layout-badge");
         if (badge) badge.remove();
