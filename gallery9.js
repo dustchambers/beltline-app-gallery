@@ -656,6 +656,9 @@
         sb.classList.add("visible");
       });
       textBtn.classList.add("active");
+      // Hide the color fill button while T controls are fanned out
+      colorBtn.style.opacity = "0";
+      colorBtn.style.pointerEvents = "none";
       registerCleanup(); // this spacer now owns the global cleanup slot
     }
 
@@ -670,6 +673,9 @@
         sb.classList.remove("visible");
       });
       textBtn.classList.remove("active");
+      // Restore color fill button visibility
+      colorBtn.style.opacity = "";
+      colorBtn.style.pointerEvents = "";
       // Close color panel if open and restore overflow
       if (colorPanelOpen) {
         colorPanelOpen = false;

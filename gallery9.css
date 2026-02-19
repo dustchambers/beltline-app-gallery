@@ -458,7 +458,7 @@ body:not(.edit-mode) .spacer-text:empty::before {
   cursor: pointer;
   z-index: 25;
   padding: 0;
-  transition: background 0.15s;
+  transition: background 0.15s, opacity 0.15s;
 }
 
 .spacer-color-btn:hover,
