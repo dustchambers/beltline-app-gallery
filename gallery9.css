@@ -464,24 +464,42 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 /* ── Color Panel ── */
-/* Floats to the right of the color button, hidden by default */
+/* Floats to the right of the color button, hidden by default.
+   Contains two rows: one for background fill, one for text color. */
 .spacer-color-panel {
   position: absolute;
   top: 60px;
   left: 30px;
   display: none;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 5px;
   background: rgba(26,26,26,0.88);
   border-radius: 5px;
-  padding: 6px 8px;
+  padding: 7px 8px;
   z-index: 30;
   box-shadow: 0 4px 14px rgba(0,0,0,0.35);
 }
 
 .spacer-color-panel.visible {
   display: flex;
+}
+
+/* Each row: label + swatch + hex input + clear button */
+.spacer-color-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.spacer-color-label {
+  font-family: 'Inconsolata', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(237,235,224,0.5);
+  width: 32px;
+  flex-shrink: 0;
 }
 
 /* Native color wheel input — styled to a compact swatch */

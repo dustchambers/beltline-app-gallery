@@ -191,7 +191,7 @@
     return item.classList.contains("g9-spacer");
   }
 
-  function createSpacerElement(cols, rows, text, align, valign, textStyle, bgColor) {
+  function createSpacerElement(cols, rows, text, align, valign, textStyle, bgColor, textColor) {
     var div = document.createElement("div");
     div.className = "g9-item g9-spacer";
     if (cols > 1) div.style.gridColumn = "span " + cols;
@@ -218,6 +218,8 @@
     if (textStyle && textStyle !== "body") textEl.classList.add("text-" + textStyle);
     // Background color fill
     if (bgColor) div.style.backgroundColor = bgColor;
+    // Text color (inline — overrides class-based colors)
+    if (textColor) textEl.style.color = textColor;
     // Show the text layer and hide the "spacer" label when there is content
     if (text) {
       label.style.display = "none";
@@ -237,7 +239,7 @@
         var spacer = createSpacerElement(
           entry.cols || 1, entry.rows || 1,
           entry.text || null, entry.align || null, entry.valign || null,
-          entry.textStyle || null, entry.bgColor || null
+          entry.textStyle || null, entry.bgColor || null, entry.textColor || null
         );
         gallery.appendChild(spacer);
         return;
@@ -470,10 +472,11 @@
         ? (srcText.classList.contains("text-header") ? "header"
          : srcText.classList.contains("text-title")  ? "title"  : null)
         : null;
-      var dupBg = item.style.backgroundColor || null;
+      var dupBg        = item.style.backgroundColor || null;
+      var dupTextColor = rgbToHex(srcText ? srcText.style.color : "") || null;
       var clone = createSpacerElement(
         spans.cols, spans.rows,
-        dupText || null, dupAlign, dupValign, dupTextStyle, dupBg
+        dupText || null, dupAlign, dupValign, dupTextStyle, dupBg, dupTextColor
       );
       // Copy explicit grid position from source, then insert immediately after it
       var srcCol = parseGridStyle(item.style.gridColumn);
@@ -741,62 +744,79 @@
     colorBtn.title = "Fill color";
     colorBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect width="12" height="12" rx="2" fill="currentColor"/></svg>';
 
-    // Color panel (hidden until button click)
+    // Color panel (hidden until button click) — two rows: BG and TEXT
     var colorPanel = document.createElement("div");
     colorPanel.className = "spacer-color-panel";
 
-    var colorPicker = document.createElement("input");
-    colorPicker.type = "color";
-    colorPicker.className = "spacer-color-picker";
-    // Initialise from current background
-    var initBg = item.style.backgroundColor || "#ECEAE4";
-    colorPicker.value = rgbToHex(initBg) || "#ECEAE4";
+    function makeColorRow(labelText, initHex, applyFn, clearFn) {
+      var row = document.createElement("div");
+      row.className = "spacer-color-row";
 
-    var hexInput = document.createElement("input");
-    hexInput.type = "text";
-    hexInput.className = "spacer-hex-input";
-    hexInput.maxLength = 7;
-    hexInput.value = colorPicker.value;
-    hexInput.placeholder = "#ECEAE4";
+      var lbl = document.createElement("span");
+      lbl.className = "spacer-color-label";
+      lbl.textContent = labelText;
+      row.appendChild(lbl);
 
-    var clearColorBtn = document.createElement("button");
-    clearColorBtn.className = "spacer-color-clear";
-    clearColorBtn.textContent = "×";
-    clearColorBtn.title = "Remove fill color";
+      var picker = document.createElement("input");
+      picker.type = "color";
+      picker.className = "spacer-color-picker";
+      picker.value = initHex;
+      row.appendChild(picker);
 
-    colorPanel.appendChild(colorPicker);
-    colorPanel.appendChild(hexInput);
-    colorPanel.appendChild(clearColorBtn);
-    item.appendChild(colorPanel);
+      var hex = document.createElement("input");
+      hex.type = "text";
+      hex.className = "spacer-hex-input";
+      hex.maxLength = 7;
+      hex.value = initHex;
+      hex.placeholder = initHex;
+      hex.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+      hex.addEventListener("keydown",   function (e) { e.stopPropagation(); });
+      row.appendChild(hex);
 
-    function applyColor(hex) {
-      item.style.backgroundColor = hex;
-      colorPicker.value = hex;
-      hexInput.value = hex;
-      autoSave();
+      var clr = document.createElement("button");
+      clr.className = "spacer-color-clear";
+      clr.textContent = "×";
+      clr.title = "Remove " + labelText.toLowerCase() + " color";
+      row.appendChild(clr);
+
+      picker.addEventListener("input", function () {
+        hex.value = picker.value;
+        applyFn(picker.value);
+      });
+      picker.addEventListener("change", function () { autoSave(); });
+      hex.addEventListener("input", function () {
+        var val = hex.value.trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+          picker.value = val;
+          applyFn(val);
+          autoSave();
+        }
+      });
+      clr.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+      clr.addEventListener("click", function (e) {
+        e.stopPropagation();
+        clearFn(picker, hex);
+        autoSave();
+      });
+
+      return row;
     }
 
-    colorPicker.addEventListener("input", function () {
-      hexInput.value = colorPicker.value;
-      item.style.backgroundColor = colorPicker.value;
-    });
-    colorPicker.addEventListener("change", function () { autoSave(); });
+    var initBg   = rgbToHex(item.style.backgroundColor) || "#ECEAE4";
+    var initText = rgbToHex(textEl.style.color) || "#333333";
 
-    hexInput.addEventListener("input", function () {
-      var val = hexInput.value.trim();
-      if (/^#[0-9a-fA-F]{6}$/.test(val)) applyColor(val);
-    });
-    hexInput.addEventListener("mousedown", function (e) { e.stopPropagation(); });
-    hexInput.addEventListener("keydown",   function (e) { e.stopPropagation(); });
+    var bgRow = makeColorRow("BG", initBg,
+      function (hex) { item.style.backgroundColor = hex; },
+      function (picker, hex) { item.style.backgroundColor = ""; picker.value = "#ECEAE4"; hex.value = "#ECEAE4"; }
+    );
+    var textColorRow = makeColorRow("TEXT", initText,
+      function (hex) { textEl.style.color = hex; },
+      function (picker, hex) { textEl.style.color = ""; picker.value = "#333333"; hex.value = "#333333"; }
+    );
 
-    clearColorBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
-    clearColorBtn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      item.style.backgroundColor = "";
-      colorPicker.value = "#ECEAE4";
-      hexInput.value = "#ECEAE4";
-      autoSave();
-    });
+    colorPanel.appendChild(bgRow);
+    colorPanel.appendChild(textColorRow);
+    item.appendChild(colorPanel);
 
     var colorPanelOpen = false;
     colorBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
@@ -1119,7 +1139,8 @@
           ? (textEl.classList.contains("text-header") ? "header"
            : textEl.classList.contains("text-title")  ? "title" : null)
           : null;
-        var spacerBg = item.style.backgroundColor || null;
+        var spacerBg        = item.style.backgroundColor || null;
+        var spacerTextColor = textEl ? (rgbToHex(textEl.style.color) || null) : null;
         return {
           type:      "spacer",
           cols:      spans.cols,
@@ -1130,7 +1151,8 @@
           align:     spacerAlign  || null,
           valign:    spacerValign || null,
           textStyle: spacerStyle  || null,
-          bgColor:   spacerBg     || null
+          bgColor:   spacerBg     || null,
+          textColor: spacerTextColor || null
         };
       }
       var img = item.querySelector("img");
@@ -1180,7 +1202,7 @@
           var spacer = createSpacerElement(
             entry.cols || 1, entry.rows || 1,
             entry.text || null, entry.align || null, entry.valign || null,
-            entry.textStyle || null, entry.bgColor || null
+            entry.textStyle || null, entry.bgColor || null, entry.textColor || null
           );
           if (entry.colStart && entry.rowStart) {
             spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
@@ -1245,7 +1267,8 @@
             ? (textEl.classList.contains("text-header") ? "header"
              : textEl.classList.contains("text-title")  ? "title" : null)
             : null;
-        var snapBg = item.style.backgroundColor || null;
+        var snapBg        = item.style.backgroundColor || null;
+        var snapTextColor = textEl ? (rgbToHex(textEl.style.color) || null) : null;
         return {
           type:      "spacer",
           cols:      spans.cols,
@@ -1258,8 +1281,9 @@
             ? (textEl.classList.contains("valign-middle") ? "middle"
              : textEl.classList.contains("valign-bottom") ? "bottom" : null)
             : null,
-          textStyle: snapStyle || null,
-          bgColor:   snapBg   || null
+          textStyle: snapStyle    || null,
+          bgColor:   snapBg       || null,
+          textColor: snapTextColor || null
         };
       }
       var img = item.querySelector("img");
@@ -1311,7 +1335,7 @@
         var spacer = createSpacerElement(
           entry.cols || 1, entry.rows || 1,
           entry.text || null, entry.align || null, entry.valign || null,
-          entry.textStyle || null, entry.bgColor || null
+          entry.textStyle || null, entry.bgColor || null, entry.textColor || null
         );
         if (entry.colStart && entry.rowStart) {
           spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
@@ -2383,7 +2407,8 @@
           align:     tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
           valign:    tValign,
           textStyle: tStyle    || null,
-          bgColor:   item.style.backgroundColor || null
+          bgColor:   item.style.backgroundColor || null,
+          textColor: (tEl && rgbToHex(tEl.style.color)) || null
         };
       }
       var img = item.querySelector("img");
@@ -2464,7 +2489,8 @@
           align:     tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
           valign:    tValign,
           textStyle: tStyle    || null,
-          bgColor:   item.style.backgroundColor || null
+          bgColor:   item.style.backgroundColor || null,
+          textColor: (tEl && rgbToHex(tEl.style.color)) || null
         };
       }
       var img = item.querySelector("img");
