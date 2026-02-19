@@ -1705,6 +1705,7 @@
     }
     document.body.classList.remove("dragging");
 
+    var gallery = getGallery();
     if (dragGroupOffsets.length > 0 && activeItem) {
       // Group drag: apply each indicator's position to its item, clean up all indicators
       dragGroupOffsets.forEach(function (entry) {
@@ -1713,6 +1714,11 @@
         entry.item.style.visibility = "";
         entry.item.style.cursor = "grab";
         entry.indicator.remove();
+      });
+      // Move all group items to end of DOM so they paint on top of overlapping items.
+      // Preserve their relative order among themselves.
+      dragGroupOffsets.forEach(function (entry) {
+        gallery.appendChild(entry.item);
       });
       dragGroupOffsets = [];
       dropIndicator = null;
@@ -1726,6 +1732,8 @@
       activeItem.style.cursor = "grab";
       dropIndicator.remove();
       dropIndicator = null;
+      // Move to end of DOM so it paints on top of any overlapping items.
+      gallery.appendChild(activeItem);
     } else if (activeItem) {
       activeItem.style.visibility = "";
       activeItem.style.cursor = "grab";
