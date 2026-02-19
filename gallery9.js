@@ -1466,20 +1466,23 @@
     });
   }
 
-  // Strip explicit placement from all items (back to auto-flow for view mode)
+  // Strip explicit placement from all items (back to auto-flow for view mode).
+  // Items with an explicit colStart/rowStart keep their full "C / span N" form so
+  // intentional overlaps (e.g. a text spacer laid over an image) survive in view mode.
   function unpinAllItems() {
     getGalleryItems().forEach(function (item) {
-      // Restore to just "span N" form (no start) so auto-flow takes over
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
       var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
-      if (spans.cols > 1) {
-        item.style.gridColumn = "span " + spans.cols;
+
+      if (colP.start !== null && rowP.start !== null) {
+        // Keep full explicit placement — auto-flow would lose intentional overlaps
+        item.style.gridColumn = colP.start + " / span " + spans.cols;
+        item.style.gridRow    = rowP.start + " / span " + spans.rows;
       } else {
-        item.style.gridColumn = "";
-      }
-      if (spans.rows > 1) {
-        item.style.gridRow = "span " + spans.rows;
-      } else {
-        item.style.gridRow = "";
+        // No pinned position — let auto-flow handle it
+        item.style.gridColumn = spans.cols > 1 ? "span " + spans.cols : "";
+        item.style.gridRow    = spans.rows > 1 ? "span " + spans.rows : "";
       }
     });
   }
