@@ -588,16 +588,16 @@
       saveTimer = setTimeout(autoSave, 600);
     });
 
-    // Deactivate text mode when clicking outside the spacer
-    textEl.addEventListener("blur", function () {
-      if (textActive) {
-        // Small delay so click on align buttons registers first
-        setTimeout(function () {
-          if (textActive && document.activeElement !== textEl) {
-            deactivateTextMode();
-          }
-        }, 150);
-      }
+    // Deactivate text mode when focus leaves the spacer entirely.
+    // focusout (unlike blur) provides relatedTarget — where focus is going.
+    // If focus moves to any element inside this spacer item (an align button,
+    // the T button, etc.) we keep text mode active. Only deactivate when
+    // focus genuinely leaves to somewhere outside.
+    textEl.addEventListener("focusout", function (e) {
+      if (!textActive) return;
+      var dest = e.relatedTarget;
+      if (dest && item.contains(dest)) return; // focus staying inside spacer
+      deactivateTextMode();
     });
   }
 
@@ -685,6 +685,8 @@
 
     resizingItem.style.gridColumn = "span " + newCols;
     resizingItem.style.gridRow = "span " + newRows;
+    // Update gap slots live so adjacent empty space shrinks/grows as you drag
+    refreshSlots();
   }
 
   function endResize() {

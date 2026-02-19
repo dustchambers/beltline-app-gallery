@@ -56,8 +56,8 @@ body.embedded .gallery {
   grid-template-columns: repeat(18, 1fr);
   /* Each cell is square: full width minus 19 gaps, divided by 18 columns */
   grid-auto-rows: calc((min(100vw, 1400px) - 19 * var(--s)) / 18);
-  /* dense: auto-placed items backfill gaps left by explicitly-placed items */
-  grid-auto-flow: dense;
+  /* No dense packing — items stay in source order, gaps remain as gaps */
+  grid-auto-flow: row;
   gap: var(--s);
   padding: 0 var(--s) calc(var(--s) * 2);
   max-width: 1400px;
@@ -68,8 +68,8 @@ body.embedded .gallery {
 /* ── Edit-mode background grid ── */
 body.edit-mode .gallery {
   background-image:
-    linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
   /* Tile size = one cell + one gap, matching the 18-col formula */
   background-size:
     calc((min(100vw, 1400px) - 19 * var(--s)) / 18 + var(--s))
@@ -255,32 +255,73 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 /* ── Spacer Alignment Bars (horizontal L/C/R  and  vertical T/M/B) ── */
-/* Both bars sit below the T button (top:42px), stacked in a column.
-   A small separator div visually splits the two groups of 3. */
+/* H-align bar fans out to the RIGHT of the T button (same top, row direction).
+   V-align bar stacks DOWN below the T button (column direction).
+   Both use CSS transitions for animated open/close. */
 .spacer-align-bar,
 .spacer-align-vbar {
   position: absolute;
   left: 4px;
-  display: none; /* shown only when text mode is active */
-  flex-direction: column;
+  display: flex; /* always flex — visibility controlled via opacity+pointer-events */
   gap: 3px;
   z-index: 25;
 }
 
-/* H-align group sits immediately below T button: 14px top + 22px btn + 6px gap */
+/* H-align: same row as T button, fanning right */
 .spacer-align-bar {
-  top: 42px;
+  top: 14px;           /* same top as T button */
+  left: 30px;          /* start just to the right of T button (4px + 22px + 4px gap) */
+  flex-direction: row;
 }
 
-/* V-align group sits below H-align group: 42 + 3×22 + 3×3 + 8 separator gap */
+/* V-align: column below T button */
 .spacer-align-vbar {
-  top: 123px;
+  top: 42px;           /* 14px top + 22px T button + 6px gap */
+  left: 4px;
+  flex-direction: column;
 }
 
-.spacer-align-bar.visible,
-.spacer-align-vbar.visible {
-  display: flex;
+/* ── Individual button animation ── */
+/* Buttons start hidden (off to the side / upward, transparent) */
+.spacer-align-bar .spacer-align-btn {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s;
 }
+
+.spacer-align-vbar .spacer-align-btn {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s;
+}
+
+/* Stagger delays — fan out sequentially */
+.spacer-align-bar .spacer-align-btn:nth-child(1) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-bar .spacer-align-btn:nth-child(2) { transition-delay: 55ms,  55ms,  0ms; }
+.spacer-align-bar .spacer-align-btn:nth-child(3) { transition-delay: 110ms, 110ms, 0ms; }
+
+.spacer-align-vbar .spacer-align-btn:nth-child(1) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-vbar .spacer-align-btn:nth-child(2) { transition-delay: 55ms,  55ms,  0ms; }
+.spacer-align-vbar .spacer-align-btn:nth-child(3) { transition-delay: 110ms, 110ms, 0ms; }
+
+/* Visible state — buttons animate in */
+.spacer-align-bar.visible .spacer-align-btn,
+.spacer-align-vbar.visible .spacer-align-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+/* Reverse stagger on close (fastest first) */
+.spacer-align-bar:not(.visible) .spacer-align-btn:nth-child(3) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-bar:not(.visible) .spacer-align-btn:nth-child(2) { transition-delay: 40ms,  40ms,  0ms; }
+.spacer-align-bar:not(.visible) .spacer-align-btn:nth-child(1) { transition-delay: 80ms,  80ms,  0ms; }
+
+.spacer-align-vbar:not(.visible) .spacer-align-btn:nth-child(3) { transition-delay: 0ms,   0ms,   0ms; }
+.spacer-align-vbar:not(.visible) .spacer-align-btn:nth-child(2) { transition-delay: 40ms,  40ms,  0ms; }
+.spacer-align-vbar:not(.visible) .spacer-align-btn:nth-child(1) { transition-delay: 80ms,  80ms,  0ms; }
 
 .spacer-align-btn {
   width: 22px;
@@ -296,7 +337,6 @@ body:not(.edit-mode) .spacer-text:empty::before {
   line-height: 1;
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s;
 }
 
 .spacer-align-btn:hover {
