@@ -1470,6 +1470,31 @@
         slot.style.gridColumn = colStart + " / span " + colSpan;
         slot.style.gridRow    = runStart + " / span " + runHeight;
 
+        // Full-width uninterrupted horizontal gap: add a "close gap" button
+        // that shifts all items below the gap upward to fill it.
+        if (colSpan === 18 && colStart === 1) {
+          (function (gapRowStart, gapRowEnd, gapHeight) {
+            var closeBtn = document.createElement("button");
+            closeBtn.className = "slot-close-gap-btn";
+            closeBtn.textContent = "\u2191\u2191"; // ↑↑
+            closeBtn.title = "Close gap (" + gapHeight + " row" + (gapHeight > 1 ? "s" : "") + ")";
+            closeBtn.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              pushUndo();
+              // Shift all items whose rowStart >= gapRowEnd up by gapHeight
+              getGalleryItems().forEach(function (it) {
+                var rp = parseGridStyle(it.style.gridRow);
+                if (rp.start !== null && rp.start >= gapRowEnd) {
+                  it.style.gridRow = (rp.start - gapHeight) + " / span " + rp.span;
+                }
+              });
+              autoSave();
+              refreshSlots();
+            });
+            slot.appendChild(closeBtn);
+          })(runStart, runEnd + 1, runHeight);
+        }
+
         i++;
       }
     });
@@ -2038,19 +2063,14 @@
 
       // Record which cell within the item was grabbed so the drop indicator
       // stays anchored to the grab point rather than snapping to top-left.
-      // For spacers/text blocks: always anchor to top-left (offset = 0) because
-      // tall spacers would otherwise place the indicator far above the cursor.
-      if (isSpacer(item)) {
-        dragOffsetCol = 0;
-        dragOffsetRow = 0;
-      } else {
-        var m = getGridMetrics();
-        var itemRect = item.getBoundingClientRect();
-        var localX = e.clientX - itemRect.left;
-        var localY = e.clientY - itemRect.top;
-        dragOffsetCol = Math.max(0, Math.floor(localX / (m.colWidth + m.gap)));
-        dragOffsetRow = Math.max(0, Math.floor(localY / (m.rowHeight + m.gap)));
-      }
+      // Applies to both images and spacers so group drags anchored on a
+      // spacer block track the grab point correctly.
+      var m = getGridMetrics();
+      var itemRect = item.getBoundingClientRect();
+      var localX = e.clientX - itemRect.left;
+      var localY = e.clientY - itemRect.top;
+      dragOffsetCol = Math.max(0, Math.floor(localX / (m.colWidth + m.gap)));
+      dragOffsetRow = Math.max(0, Math.floor(localY / (m.rowHeight + m.gap)));
     };
 
     item.addEventListener("mousedown", item._onMouseDown);
