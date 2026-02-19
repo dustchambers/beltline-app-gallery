@@ -1121,7 +1121,7 @@
         });
 
         visibleItems = [].slice.call(
-          document.querySelectorAll(".gallery-item:not(.hidden)")
+          getGalleryItems().filter(function(i){return !i.classList.contains("hidden");})
         );
         bindClicks();
       });
