@@ -1329,12 +1329,10 @@
           var restoreSize = (entry.size && entry.size !== "1x1") ? entry.size : "6x4";
           applySizeClass(item, restoreSize);
           if (entry.colStart && entry.rowStart) {
-            // Pin only the grid start position — leave span to the CSS size class
-            // so media queries can override the span at each breakpoint.
-            item.style.gridColumnStart = entry.colStart;
-            item.style.gridRowStart    = entry.rowStart;
-            item.style.gridColumnEnd   = "";
-            item.style.gridRowEnd      = "";
+            // Also restore explicit position for named-size items
+            var spans = getItemSpans(item);
+            item.style.gridColumn = entry.colStart + " / span " + spans.cols;
+            item.style.gridRow    = entry.rowStart + " / span " + spans.rows;
           }
         }
 
@@ -1472,11 +1470,9 @@
         var undoSize = (entry.size && entry.size !== "1x1") ? entry.size : "6x4";
         applySizeClass(item, undoSize);
         if (entry.colStart && entry.rowStart) {
-          // Pin only start position — leave span to CSS class for responsive scaling
-          item.style.gridColumnStart = entry.colStart;
-          item.style.gridRowStart    = entry.rowStart;
-          item.style.gridColumnEnd   = "";
-          item.style.gridRowEnd      = "";
+          var spans = getItemSpans(item);
+          item.style.gridColumn = entry.colStart + " / span " + spans.cols;
+          item.style.gridRow    = entry.rowStart + " / span " + spans.rows;
         }
       }
       if (entry.crop) {
@@ -1945,30 +1941,16 @@
     getGalleryItems().forEach(function (item) {
       var colP = parseGridStyle(item.style.gridColumn);
       var rowP = parseGridStyle(item.style.gridRow);
+      var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
 
       if (colP.start !== null && rowP.start !== null) {
-        // Has an explicit grid start position.
-        // For custom-drag-resized items (no named size class), keep the full
-        // "start / span N" so the custom size is preserved.
-        // For named-size items (CSS class controls the span), only pin the
-        // start column/row — let the CSS class (and media queries) own the span.
-        var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
-        if (spans.custom || isSpacer(item)) {
-          // Custom drag-resized item or spacer: bake in full "start / span N"
-          // so the custom size survives across breakpoints.
-          item.style.gridColumn = colP.start + " / span " + spans.cols;
-          item.style.gridRow    = rowP.start + " / span " + spans.rows;
-        } else {
-          // Named-size item: pin start only, let CSS class + media queries own the span
-          item.style.gridColumnStart = colP.start;
-          item.style.gridRowStart    = rowP.start;
-          item.style.gridColumnEnd   = "";
-          item.style.gridRowEnd      = "";
-        }
+        // Keep full explicit placement — auto-flow would lose intentional overlaps
+        item.style.gridColumn = colP.start + " / span " + spans.cols;
+        item.style.gridRow    = rowP.start + " / span " + spans.rows;
       } else {
-        // No pinned position — let auto-flow handle it; clear any residual inline spans
-        item.style.gridColumn = "";
-        item.style.gridRow    = "";
+        // No pinned position — let auto-flow handle it
+        item.style.gridColumn = spans.cols > 1 ? "span " + spans.cols : "";
+        item.style.gridRow    = spans.rows > 1 ? "span " + spans.rows : "";
       }
     });
   }
