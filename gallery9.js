@@ -984,6 +984,9 @@
         var dx = entry.rect.left - last.left;
         var dy = entry.rect.top - last.top;
         if (dx === 0 && dy === 0) return;
+        // Only animate items pushed downward — items moving up or left snap
+        // instantly to avoid the flickery "crowding" effect during reorder.
+        if (dy < 0 || (dy === 0 && dx < 0)) return;
         entry.el.style.transition = "none";
         entry.el.style.transform = "translate(" + dx + "px," + dy + "px)";
         entry.el.offsetHeight; // force reflow
