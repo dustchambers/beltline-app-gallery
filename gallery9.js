@@ -2703,23 +2703,27 @@
       editorOverlay.id = "edit-overlay";
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
-        "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo \u00b7 " +
-        '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
-        '<button id="editor-done">Done</button>' +
-        (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
-        '<span class="editor-export-wrap" style="position:relative;display:inline-block">' +
-          '<button id="editor-export-toggle">Export \u25be</button>' +
-          '<div id="editor-export-menu" style="display:none;position:absolute;top:100%;right:0;z-index:500;' +
-            'background:#1a1a1a;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,0.35)">' +
-            '<button id="editor-export-html" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
-              'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
-              'letter-spacing:0.05em;cursor:pointer">Export HTML</button>' +
-            '<button id="editor-export-config" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
-              'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
-              'letter-spacing:0.05em;cursor:pointer">Export Config</button>' +
+          '<div class="edit-banner-info">' +
+            "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo" +
+            '<span class="save-indicator">\u2713 saved</span>' +
           '</div>' +
-        '</span>' +
-        '<button id="editor-reset">Reset</button>' +
+          '<div class="edit-banner-actions">' +
+            '<button id="editor-done">Done</button>' +
+            (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
+            '<span class="editor-export-wrap">' +
+              '<button id="editor-export-toggle">Export \u25be</button>' +
+              '<div id="editor-export-menu" style="display:none;position:absolute;top:100%;right:0;z-index:500;' +
+                'background:#1a1a1a;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,0.35)">' +
+                '<button id="editor-export-html" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
+                  'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
+                  'letter-spacing:0.05em;cursor:pointer">Export HTML</button>' +
+                '<button id="editor-export-config" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
+                  'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
+                  'letter-spacing:0.05em;cursor:pointer">Export Config</button>' +
+              '</div>' +
+            '</span>' +
+            '<button id="editor-reset">Reset</button>' +
+          '</div>' +
         "</div>";
       document.body.appendChild(editorOverlay);
       document.body.classList.add("edit-mode");
