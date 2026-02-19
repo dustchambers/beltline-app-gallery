@@ -144,9 +144,15 @@
   var dragOffsetCol = 0;            // grab point col offset within dragged item
   var dragOffsetRow = 0;            // grab point row offset within dragged item
 
-  // Undo stack — array of serialized state snapshots (same format as saveState)
+  // Undo/redo stacks — arrays of serialized state snapshots (same format as saveState)
   var undoStack = [];
+  var redoStack = [];
   var MAX_UNDO = 30;
+
+  // Active spacer controls cleanup — registered by the most recently opened
+  // spacer's addSpacerHandles closure so bg-click / click-elsewhere can
+  // dismiss its text mode and color panel without needing direct DOM access.
+  var activeSpacerCleanup = null;
 
   // Push-down drag state
   // When shift is held during a drag, all items below the drop target are
@@ -496,6 +502,31 @@
     });
     item.appendChild(dupBtn);
 
+    // Send-to-back button — stacked below duplicate button
+    var backBtn = document.createElement("button");
+    backBtn.className = "spacer-back-btn";
+    backBtn.textContent = "\u21d3"; // ⇓ down arrow
+    backBtn.title = "Send to back";
+    backBtn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    backBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      pushUndo();
+      var gal = getGallery();
+      // Pin computed position before moving so auto-placed items don't shift
+      if (!item.style.gridColumn || !item.style.gridRow) {
+        var cs = getComputedStyle(item);
+        item.style.gridColumn = cs.gridColumnStart + " / " + cs.gridColumnEnd;
+        item.style.gridRow    = cs.gridRowStart    + " / " + cs.gridRowEnd;
+      }
+      // Move item to beginning of gallery (before the first .g9-item)
+      var firstItem = gal.querySelector(".g9-item");
+      if (firstItem && firstItem !== item) {
+        gal.insertBefore(item, firstItem);
+      }
+      autoSave();
+    });
+    item.appendChild(backBtn);
+
     // Delete button — top-right of spacer
     var delBtn = document.createElement("button");
     delBtn.className = "spacer-del-btn";
@@ -625,6 +656,7 @@
         sb.classList.add("visible");
       });
       textBtn.classList.add("active");
+      registerCleanup(); // this spacer now owns the global cleanup slot
     }
 
     function hideControls() {
@@ -673,6 +705,21 @@
       hideControls();
       syncTextState();
       autoSave();
+    }
+
+    // Register this spacer as the one that should be cleaned up when clicking off.
+    // Called whenever T button or color panel opens on this spacer.
+    function registerCleanup() {
+      activeSpacerCleanup = function () {
+        if (tState !== 0) deactivateTextMode();
+        if (colorPanelOpen) {
+          colorPanelOpen = false;
+          colorPanel.classList.remove("visible");
+          colorBtn.classList.remove("active");
+          item.style.overflow = "";
+        }
+        activeSpacerCleanup = null;
+      };
     }
 
     // Any mousedown on an in-spacer control suppresses focusout-driven deactivation.
@@ -841,6 +888,7 @@
       colorBtn.classList.toggle("active", colorPanelOpen);
       // Allow color panel (position:absolute) to escape .g9-item's overflow:hidden
       item.style.overflow = colorPanelOpen ? "visible" : "";
+      if (colorPanelOpen) registerCleanup(); // this spacer owns cleanup slot
     });
     item.appendChild(colorBtn);
 
@@ -886,7 +934,7 @@
 
   function removeSpacerHandles(item) {
     item.querySelectorAll(
-      ".spacer-handle, .spacer-dup-btn, .spacer-del-btn, " +
+      ".spacer-handle, .spacer-dup-btn, .spacer-back-btn, .spacer-del-btn, " +
       ".spacer-text-btn, .spacer-style-btn, .spacer-style-diag-btn, " +
       ".spacer-color-btn, .spacer-color-panel, " +
       ".spacer-align-bar, .spacer-align-vbar"
@@ -975,12 +1023,12 @@
       var rowDelta = (resizeCorner === "t"  || resizeCorner === "tl" || resizeCorner === "tr")
                    ? -dRows : dRows;
 
-      // With Option: grow both sides — span grows by 2× delta
+      // With Option: resize symmetrically from center — span changes by 2× signed delta.
+      // Positive delta = grow both sides; negative delta = shrink both sides.
+      // Do NOT use Math.abs — dragging inward (negative delta) must shrink the span.
       if (optionHeld) {
-        colDelta = Math.abs(colDelta) * 2;
-        rowDelta = Math.abs(rowDelta) * 2;
-        // When using corners, preserve the original directional delta for colStart shift
-        // (handled below in the colStart/rowStart section)
+        colDelta = colDelta * 2;
+        rowDelta = rowDelta * 2;
       }
 
       var colOnly = (resizeCorner === "r" || resizeCorner === "l");
@@ -1273,12 +1321,10 @@
     }
   }
 
-  // Capture a snapshot of current gallery state onto the undo stack.
-  // Call this BEFORE making any change you want to be undoable.
-  function pushUndo() {
-    if (!editorMode) return;
+  // Build a snapshot of the current gallery state (used by pushUndo and redo capture)
+  function captureSnapshot() {
     var items = getGalleryItems();
-    var snapshot = items.map(function (item) {
+    return items.map(function (item) {
       if (isSpacer(item)) {
         var spans = getSpacerSpans(item);
         var textEl = item.querySelector(".spacer-text");
@@ -1327,7 +1373,18 @@
       }
       return entry;
     });
+  }
+
+  // Call this BEFORE making any change you want to be undoable.
+  function pushUndo() {
+    if (!editorMode) return;
+    var snapshot = captureSnapshot();
+    // Skip duplicate snapshots — avoids "press undo twice" for no-op interactions
+    if (undoStack.length > 0) {
+      if (JSON.stringify(undoStack[undoStack.length - 1]) === JSON.stringify(snapshot)) return;
+    }
     undoStack.push(snapshot);
+    redoStack = []; // any new action clears the redo history
     if (undoStack.length > MAX_UNDO) undoStack.shift();
   }
 
@@ -1398,6 +1455,21 @@
     refreshOrderNumbers();
     refreshSlots();
     saveState(); // persist the restored state
+  }
+
+  function flashUndoIndicator(msg) {
+    var banner = document.querySelector(".edit-banner");
+    if (!banner) return;
+    var indicator = banner.querySelector(".save-indicator");
+    if (!indicator) return;
+    indicator.textContent = msg;
+    indicator.style.opacity = "1";
+    indicator.style.color = "#8ab4f8"; // blue tint to distinguish from normal save
+    setTimeout(function () {
+      indicator.style.color = "";
+      indicator.textContent = "\u2713 saved";
+      indicator.style.opacity = "0.4";
+    }, 1200);
   }
 
   function autoSave() {
@@ -2314,11 +2386,37 @@
       if (!editorMode || e.button !== 0) return;
       e.preventDefault();
 
+      // Close any previously open spacer text/color menus when switching to a different item
+      if (activeSpacerCleanup && activeItem !== item) activeSpacerCleanup();
+
       activeItem = item;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
       isDragging = false;
       isCropping = false;
+
+      // Bring clicked item to front by moving it to end of DOM within the gallery.
+      // CSS Grid paints in source order, so the last item in DOM is on top.
+      // Skip if it's already last (avoids DOM churn on every click).
+      var gal = getGallery();
+      var lastItem = gal.lastElementChild;
+      // Find last real item (not a slot)
+      while (lastItem && lastItem.classList.contains("g9-slot")) lastItem = lastItem.previousElementSibling;
+      if (lastItem !== item) {
+        // Pin the item's computed grid position as explicit inline styles BEFORE
+        // moving it in the DOM — otherwise auto-placed items shift to a new grid cell.
+        if (!item.style.gridColumn || !item.style.gridRow) {
+          var cs = getComputedStyle(item);
+          var compCol = cs.gridColumnStart + " / " + cs.gridColumnEnd;
+          var compRow = cs.gridRowStart    + " / " + cs.gridRowEnd;
+          item.style.gridColumn = compCol;
+          item.style.gridRow    = compRow;
+        }
+        // Insert before the slot (if any) or at end
+        var slot = gal.querySelector(".g9-slot");
+        if (slot) gal.insertBefore(item, slot);
+        else gal.appendChild(item);
+      }
 
       // Record which cell within the item was grabbed so the drop indicator
       // stays anchored to the grab point rather than snapping to top-left.
@@ -2554,7 +2652,8 @@
 
   function toggleEditor() {
     editorMode = !editorMode;
-    undoStack = []; // clear undo history on each editor session
+    undoStack = []; // clear undo/redo history on each editor session
+    redoStack = [];
 
     if (editorMode) {
       var canEdit = hasEditParam();
@@ -2724,8 +2823,10 @@
       };
 
       // Clicking gallery whitespace / slots / background deselects all items
+      // and closes any open spacer text/color menus.
       window._editorBgClick = function (e) {
         if (!e.target.closest(".g9-item")) {
+          if (activeSpacerCleanup) activeSpacerCleanup();
           clearSelection();
         }
       };
@@ -2814,23 +2915,29 @@
       if (editorMode && e.key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault();
         if (undoStack.length > 0) {
-          // Pop the most recent snapshot that differs from current state
-          // (autoSave pushes BEFORE saving, so the top entry is the pre-change state)
+          // Capture current state into redo stack (so user can redo)
+          var currentSnapshot = captureSnapshot();
+          // Avoid pushing a redo entry that is identical to what we're restoring
+          var undoTarget = undoStack[undoStack.length - 1];
+          if (JSON.stringify(currentSnapshot) !== JSON.stringify(undoTarget)) {
+            redoStack.push(currentSnapshot);
+          }
           var snapshot = undoStack.pop();
           applyUndoSnapshot(snapshot);
-          // Flash the save indicator to signal undo
-          var banner = document.querySelector(".edit-banner");
-          if (banner) {
-            var indicator = banner.querySelector(".save-indicator");
-            if (indicator) {
-              indicator.textContent = "\u21a9 undone";
-              indicator.style.opacity = "1";
-              setTimeout(function () {
-                indicator.textContent = "\u2713 saved";
-                indicator.style.opacity = "0.4";
-              }, 1200);
-            }
-          }
+          flashUndoIndicator("\u21a9 undo");
+        }
+        return;
+      }
+
+      // Cmd+Shift+Z (Mac) / Ctrl+Shift+Z (Win/Linux): redo in editor mode
+      if (editorMode && e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        e.preventDefault();
+        if (redoStack.length > 0) {
+          // Push current state to undo stack before redoing
+          pushUndo();
+          var redoSnapshot = redoStack.pop();
+          applyUndoSnapshot(redoSnapshot);
+          flashUndoIndicator("\u21bb redo");
         }
         return;
       }

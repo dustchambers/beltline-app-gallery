@@ -788,14 +788,7 @@ body.edit-mode .g9-item.g9-selected {
   outline-offset: -2px;
 }
 
-body.edit-mode .g9-item.g9-selected::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(60, 120, 220, 0.12);
-  pointer-events: none;
-  z-index: 6;
-}
+/* No overlay — selection is indicated by outline only */
 
 /* Drop position indicator — same grid span as dragged item, no pointer events */
 .drop-indicator {
@@ -851,7 +844,29 @@ body.edit-mode .g9-item.g9-selected::after {
   right: 4px; /* stacked directly below delete button */
 }
 
+.spacer-back-btn {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26,26,26,0.55);
+  color: #EDEBE0;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 25;
+  transition: background 0.15s;
+  padding: 0;
+  top: 66px;  /* dup-btn top (40) + dup-btn height (22) + 4px gap */
+  right: 4px;
+}
+
 .spacer-dup-btn:hover,
+.spacer-back-btn:hover,
 .spacer-del-btn:hover {
   background: rgba(26,26,26,0.85);
 }
