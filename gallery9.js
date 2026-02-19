@@ -459,28 +459,76 @@
     });
   }
 
-  // ── Size Cycling ──
-  // 1x -> 2w -> 2x2 -> 3w -> tall -> 4x2 -> 1x
+  // ── Orientation Buttons ──
 
-  function cycleSize(item) {
-    var current = getSize(item);
-    clearSizeClasses(item);
+  function removeOrientBtns(item) {
+    var existing = item.querySelector(".orient-btns");
+    if (existing) existing.remove();
+  }
 
-    if (current === 1) {
-      item.classList.add("featured");
-    } else if (current === 2) {
-      item.classList.add("featured-2x2");
-    } else if (current === "2x2") {
-      item.classList.add("featured-wide");
-    } else if (current === 3) {
-      item.classList.add("featured-tall");
-    } else if (current === "tall") {
-      item.classList.add("featured-4x2");
+  function setOrientation(item, group) {
+    var currentSize = getSize(item);
+    var currentGroup = getOrientGroup(currentSize);
+    var cycle = ORIENT_GROUPS[group];
+    var nextSize;
+
+    if (currentGroup === group) {
+      // Same group: advance to next in cycle
+      var idx = cycle.indexOf(currentSize);
+      nextSize = cycle[(idx + 1) % cycle.length];
+    } else {
+      // Different group: jump to first in that group
+      nextSize = cycle[0];
     }
-    // "4x2" -> back to 1 (no class added)
 
+    applySizeClass(item, nextSize);
     updateBadge(item);
+    updateOrientBtns(item);
     autoSave();
+  }
+
+  function updateOrientBtns(item) {
+    var btns = item.querySelector(".orient-btns");
+    if (!btns) return;
+    var currentGroup = getOrientGroup(getSize(item));
+    btns.querySelectorAll(".orient-btn").forEach(function (btn) {
+      if (btn.dataset.group === currentGroup) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+  }
+
+  function showOrientBtns(item) {
+    if (isSpacer(item)) return;
+    removeOrientBtns(item);
+
+    var btns = document.createElement("div");
+    btns.className = "orient-btns";
+
+    [
+      { group: "square", label: "\u25a0", title: "Square" },
+      { group: "horiz",  label: "\u25ac", title: "Horizontal" },
+      { group: "vert",   label: "\u25ae", title: "Vertical" }
+    ].forEach(function (def) {
+      var btn = document.createElement("button");
+      btn.className = "orient-btn";
+      btn.dataset.group = def.group;
+      btn.title = def.title;
+      btn.textContent = def.label;
+      btn.addEventListener("mousedown", function (e) {
+        e.stopPropagation(); // don't trigger drag
+      });
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        setOrientation(item, def.group);
+      });
+      btns.appendChild(btn);
+    });
+
+    item.appendChild(btns);
+    updateOrientBtns(item);
   }
 
   // ── Reorder Drag (Live Sliding Preview) ──
@@ -650,6 +698,7 @@
     updateBadge(item);
     addOrderNumber(item);
     item.style.cursor = "grab";
+    if (!isSpacer(item)) showOrientBtns(item);
 
     item._onMouseDown = function (e) {
       if (!editorMode || e.button !== 0) return;
@@ -879,7 +928,7 @@
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          cycleSize(activeItem);
+          showOrientBtns(activeItem);
         }
 
         activeItem = null;
@@ -899,6 +948,7 @@
         if (badge) badge.remove();
         var orderNum = item.querySelector(".order-number");
         if (orderNum) orderNum.remove();
+        removeOrientBtns(item);
         item.style.cursor = "pointer";
         item.style.opacity = "";
         if (item._onMouseDown) {
