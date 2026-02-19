@@ -152,8 +152,13 @@
   // shifted down to make room. We store original positions so we can
   // restore them if shift is released mid-drag.
   var isPushDown = false;                // true while shift is held during drag
-  var pushDownOriginals = [];            // [{item, origRow}] for non-group items
+  var pushDownOriginals = [];            // [{item, origRow, span}] for non-group items
   var lastPushDownRow = -1;              // last targetRow we applied, to debounce
+
+  // Push-right resize state (Shift+resize right/bottom edge)
+  var isPushRight = false;
+  var pushRightOriginals = [];           // [{item, origCol, span}]
+  var lastPushRightCol = -1;
 
   // Spacer / image edge-drag resize state
   var resizingItem = null;
@@ -688,6 +693,16 @@
         var rowP = parseGridStyle(item.style.gridRow);
         resizeStartCol = colP.start || 1;
         resizeStartRow = rowP.start || 1;
+        // Snapshot all other items' positions for Shift+resize push behaviour
+        isPushDown = false; lastPushDownRow = -1; pushDownOriginals = [];
+        isPushRight = false; lastPushRightCol = -1; pushRightOriginals = [];
+        getGalleryItems().forEach(function (el) {
+          if (el === item) return;
+          var rp = parseGridStyle(el.style.gridRow);
+          var cp2 = parseGridStyle(el.style.gridColumn);
+          if (rp.start !== null)  pushDownOriginals.push({ item: el, origRow: rp.start, span: rp.span });
+          if (cp2.start !== null) pushRightOriginals.push({ item: el, origCol: cp2.start, span: cp2.span });
+        });
       });
       item.appendChild(h);
     });
@@ -773,6 +788,32 @@
 
     resizingItem.style.gridColumn = colStart + " / span " + newCols;
     resizingItem.style.gridRow    = rowStart + " / span " + newRows;
+
+    // ── Shift+resize push ──
+    // Bottom/br/bl edge expanding downward: push bystanders below the new bottom edge.
+    var bottomEdge = (resizeCorner === "b" || resizeCorner === "br" || resizeCorner === "bl");
+    var rightEdge  = (resizeCorner === "r" || resizeCorner === "br" || resizeCorner === "tr");
+
+    if (e.shiftKey && resizeMode === "image") {
+      if (bottomEdge && newRows > resizeStartRows) {
+        // New bottom row of the resizing item
+        var newBottom = rowStart + newRows; // first row below the expanded item
+        applyPushDown(newBottom, newRows - resizeStartRows);
+      } else if (isPushDown) {
+        restorePushDown();
+      }
+      if (rightEdge && newCols > resizeStartCols) {
+        // First col to the right of the expanded item
+        var newRight = colStart + newCols;
+        applyPushRight(newRight, newCols - resizeStartCols);
+      } else if (isPushRight) {
+        restorePushRight();
+      }
+    } else {
+      if (isPushDown)  restorePushDown();
+      if (isPushRight) restorePushRight();
+    }
+
     // Update gap slots live so adjacent empty space shrinks/grows as you drag
     refreshSlots();
   }
@@ -785,6 +826,13 @@
       clearSizeClasses(resizingItem);
       updateBadge(resizingItem);
     }
+    // Push state: if active at release, positions are already applied — just clear state.
+    // If not active, ensure bystanders are restored to originals.
+    if (!isPushDown)  restorePushDown();
+    if (!isPushRight) restorePushRight();
+    isPushDown = false;  pushDownOriginals = [];  lastPushDownRow = -1;
+    isPushRight = false; pushRightOriginals = []; lastPushRightCol = -1;
+
     autoSave();
     refreshSlots();
     resizingItem = null;
@@ -1620,11 +1668,34 @@
   // Restore all bystander items to their original row positions (pre-push-down).
   function restorePushDown() {
     pushDownOriginals.forEach(function (entry) {
-      var cp = parseGridStyle(entry.item.style.gridColumn);
       entry.item.style.gridRow = entry.origRow + " / span " + entry.span;
     });
     isPushDown = false;
     lastPushDownRow = -1;
+  }
+
+  // Restore all bystander items to their original col positions (pre-push-right).
+  function restorePushRight() {
+    pushRightOriginals.forEach(function (entry) {
+      entry.item.style.gridColumn = entry.origCol + " / span " + entry.span;
+    });
+    isPushRight = false;
+    lastPushRightCol = -1;
+  }
+
+  // Shift all bystander items whose original colStart >= targetCol rightward
+  // by `shift` columns. Items to the left of targetCol are restored.
+  function applyPushRight(targetCol, shift) {
+    if (lastPushRightCol === targetCol && isPushRight) return; // debounce
+    lastPushRightCol = targetCol;
+    isPushRight = true;
+    pushRightOriginals.forEach(function (entry) {
+      if (entry.origCol >= targetCol) {
+        entry.item.style.gridColumn = (entry.origCol + shift) + " / span " + entry.span;
+      } else {
+        entry.item.style.gridColumn = entry.origCol + " / span " + entry.span;
+      }
+    });
   }
 
   // Shift all bystander items whose original rowStart >= targetRow downward
@@ -2193,10 +2264,11 @@
               clearSelection();
             }
           }
-          // Clean up any push-down state that didn't lead to a drop
-          if (isPushDown) restorePushDown();
-          isPushDown = false;
-          pushDownOriginals = [];
+          // Clean up any push-down/push-right state that didn't lead to a drop
+          if (isPushDown)  restorePushDown();
+          if (isPushRight) restorePushRight();
+          isPushDown = false;  pushDownOriginals = [];
+          isPushRight = false; pushRightOriginals = [];
         }
 
         activeItem = null;
