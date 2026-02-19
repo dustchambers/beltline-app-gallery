@@ -221,10 +221,21 @@ body.edit-mode .g9-item.g9-spacer {
   display: flex;
 }
 
+/* In view mode: text cursor over spacer text content */
+.g9-item.has-text .spacer-text {
+  cursor: text;
+  user-select: text;
+}
+
 /* Always show in edit mode so user can type into it */
 body.edit-mode .spacer-text {
   display: flex;
   cursor: default; /* overridden to text when editing */
+}
+
+/* In edit mode: spacer body uses grab, text area uses default until actively editing */
+body.edit-mode .g9-item.g9-spacer .spacer-text {
+  cursor: default;
 }
 
 /* Editable state — cursor + subtle focus ring */
