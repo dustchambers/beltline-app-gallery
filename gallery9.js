@@ -697,8 +697,13 @@
       }
     }
 
-    resizingItem.style.gridColumn = "span " + newCols;
-    resizingItem.style.gridRow = "span " + newRows;
+    // Preserve explicit column/row start if already pinned; only update the span
+    var curCol = parseGridStyle(resizingItem.style.gridColumn);
+    var curRow = parseGridStyle(resizingItem.style.gridRow);
+    var colStart = curCol.start || 1;
+    var rowStart = curRow.start || 1;
+    resizingItem.style.gridColumn = colStart + " / span " + newCols;
+    resizingItem.style.gridRow    = rowStart + " / span " + newRows;
     // Update gap slots live so adjacent empty space shrinks/grows as you drag
     refreshSlots();
   }
@@ -717,6 +722,17 @@
     resizeMode   = null;
   }
 
+  // Parse grid-column / grid-row style into { start, span } — handles both
+  // "span 6" (auto-placed) and "7 / span 6" (explicit start) formats.
+  function parseGridStyle(styleStr) {
+    if (!styleStr) return { start: null, span: 1 };
+    var explicitMatch = styleStr.match(/^(\d+)\s*\/\s*span\s+(\d+)/);
+    if (explicitMatch) return { start: parseInt(explicitMatch[1]), span: parseInt(explicitMatch[2]) };
+    var spanMatch = styleStr.match(/span\s+(\d+)/);
+    if (spanMatch) return { start: null, span: parseInt(spanMatch[1]) };
+    return { start: null, span: 1 };
+  }
+
   function saveState() {
     var items = getGalleryItems();
     var state = items.map(function (item) {
@@ -729,24 +745,31 @@
           ? (textEl.classList.contains("valign-middle") ? "middle"
            : textEl.classList.contains("valign-bottom") ? "bottom" : "")
           : "";
+        var spc = parseGridStyle(item.style.gridColumn);
+        var spr = parseGridStyle(item.style.gridRow);
         return {
-          type:   "spacer",
-          cols:   spans.cols,
-          rows:   spans.rows,
-          text:   spacerText   || null,
-          align:  spacerAlign  || null,
-          valign: spacerValign || null
+          type:     "spacer",
+          cols:     spans.cols,
+          rows:     spans.rows,
+          colStart: spc.start || null,
+          rowStart: spr.start || null,
+          text:     spacerText   || null,
+          align:    spacerAlign  || null,
+          valign:   spacerValign || null
         };
       }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
       var spans = getItemSpans(item);
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
       var entry = {
-        id: img.dataset.imageId || "",
-        crop: (crop && crop !== "50% 50%") ? crop : null
+        id:       img.dataset.imageId || "",
+        crop:     (crop && crop !== "50% 50%") ? crop : null,
+        colStart: colP.start || null,
+        rowStart: rowP.start || null
       };
-      if (spans.custom) {
-        // Custom inline-drag size: persist raw col/row counts, no size class
+      if (spans.custom || (colP.span > 1 && !SIZE_CLASS_MAP[colP.span + "x" + rowP.span])) {
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
@@ -780,6 +803,10 @@
             entry.cols || 1, entry.rows || 1,
             entry.text || null, entry.align || null, entry.valign || null
           );
+          if (entry.colStart && entry.rowStart) {
+            spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
+            spacer.style.gridRow    = entry.rowStart + " / span " + (entry.rows || 1);
+          }
           gallery.appendChild(spacer);
           if (editorMode) setupEditorItem(spacer);
           return;
@@ -791,12 +818,18 @@
         restoredIds[entry.id] = true;
 
         if (entry.cols && entry.rows) {
-          // Custom drag-resized item: restore raw inline spans
+          // Custom drag-resized item: restore raw inline spans (with explicit start if saved)
           clearSizeClasses(item);
-          item.style.gridColumn = "span " + entry.cols;
-          item.style.gridRow    = "span " + entry.rows;
+          item.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
+          item.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
         } else {
           applySizeClass(item, entry.size);
+          if (entry.colStart && entry.rowStart) {
+            // Also restore explicit position for named-size items
+            var spans = getItemSpans(item);
+            item.style.gridColumn = entry.colStart + " / span " + spans.cols;
+            item.style.gridRow    = entry.rowStart + " / span " + spans.rows;
+          }
         }
 
         if (entry.crop) {
@@ -962,7 +995,13 @@
     plusBtn.title = "Add spacer (" + cols + "\u00d7" + rows + ")";
     plusBtn.addEventListener("click", function (e) {
       e.stopPropagation();
+      // Read this slot's explicit position before removing it
+      var slotCol = parseGridStyle(slot.style.gridColumn);
+      var slotRow = parseGridStyle(slot.style.gridRow);
       var spacer = createSpacerElement(cols, rows);
+      // Give the new spacer the exact position the slot occupied
+      spacer.style.gridColumn = (slotCol.start || 1) + " / span " + cols;
+      spacer.style.gridRow    = (slotRow.start || 1) + " / span " + rows;
       gallery.insertBefore(spacer, slot);
       slot.remove();
       setupEditorItem(spacer);
@@ -981,70 +1020,91 @@
   }
 
   function refreshSlots() {
-    // Remove existing slots
     getGallery().querySelectorAll(".g9-slot").forEach(function (s) { s.remove(); });
     if (!editorMode) return;
-
-    // Walk items in DOM order, tracking column position within each logical row.
-    // A "logical row" is a band of 18 columns; items with row-span > 1 occupy
-    // multiple bands but only "consume" columns on the rows they overlap.
-    //
-    // Strategy: build a simple per-row column-usage map. For each band (row
-    // index), sum up items whose grid rows include that band. Where a band has
-    // unused columns and there IS a following item in a later row (or same row
-    // on the right), emit a slot.
-    //
-    // Simpler linear pass: track colsUsed across a single conceptual row.
-    // When an item would overflow 18 cols, the gap before it is a real gap →
-    // emit a slot. We skip trailing gaps (no item after them in the DOM) because
-    // those just extend the page and don't need a + button.
 
     var items = getGalleryItems();
     if (items.length === 0) return;
 
-    var colsUsed = 0;
+    // Build a per-row-band occupancy map from explicit grid placements.
+    // Each item occupies cells [colStart .. colStart+w-1] on rows [rowStart .. rowStart+h-1].
+    // We find gaps (columns not occupied in a given row band) and emit slots for them.
+    //
+    // "Row band" = a contiguous group of grid rows that share the same set of items.
+    // For simplicity, we work row-by-row (each band is 1 row tall).
 
-    // Each entry: { gap: N, insertBefore: item, rowHeight: N }
-    // We collect all gaps first, then insert slots (avoids mid-forEach DOM mutation issues)
-    var gaps = [];
-
-    // Pass 1: find where gaps are and how tall the surrounding row is
-    // We track the max row-span seen in the current logical row to size the slot correctly
-    var currentRowMaxSpan = 1;
+    // Collect { colStart, colEnd, rowStart, rowEnd } for each item
+    var rects = [];
+    var maxRow = 0;
 
     items.forEach(function (item) {
-      var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
-      var cols = spans.cols;
-      var rows = spans.rows;
+      var colStyle = item.style.gridColumn || "";
+      var rowStyle = item.style.gridRow    || "";
+      var cp = parseGridStyle(colStyle);
+      var rp = parseGridStyle(rowStyle);
+      var cStart = cp.start || 1;
+      var rStart = rp.start || 1;
+      rects.push({
+        cStart: cStart,
+        cEnd:   cStart + cp.span - 1, // inclusive
+        rStart: rStart,
+        rEnd:   rStart + rp.span - 1  // inclusive
+      });
+      maxRow = Math.max(maxRow, rStart + rp.span - 1);
+    });
 
-      var newTotal = colsUsed + cols;
+    if (maxRow === 0) return;
 
-      if (newTotal > 18) {
-        // Item wraps — gap is on the left in the current row (before wrap)
-        var gap = 18 - colsUsed;
-        if (gap > 0) {
-          // Slot height matches the tallest item already in this row
-          gaps.push({ gap: gap, insertBefore: item, rowHeight: currentRowMaxSpan });
+    // For each grid row band 1..maxRow, find which columns are unoccupied
+    // but have occupied cells in the same row band on at least one side
+    // (meaning it's a genuine gap, not trailing space).
+    var gallery = getGallery();
+    var slotsAdded = 0;
+
+    for (var r = 1; r <= maxRow; r++) {
+      // Which columns are occupied in this row?
+      var occupied = {}; // col → true
+      rects.forEach(function (rc) {
+        if (rc.rStart <= r && rc.rEnd >= r) {
+          for (var c = rc.cStart; c <= rc.cEnd; c++) {
+            occupied[c] = true;
+          }
         }
-        // Start fresh row with this item
-        colsUsed = cols % 18;
-        currentRowMaxSpan = rows;
-      } else if (newTotal === 18) {
-        colsUsed = 0;
-        currentRowMaxSpan = 1; // reset for next row
-      } else {
-        colsUsed = newTotal;
-        currentRowMaxSpan = Math.max(currentRowMaxSpan, rows);
+      });
+
+      // Find contiguous runs of unoccupied columns
+      var c = 1;
+      while (c <= 18) {
+        if (!occupied[c]) {
+          // Start of a gap
+          var gapStart = c;
+          while (c <= 18 && !occupied[c]) c++;
+          var gapEnd = c - 1; // inclusive
+          var gapWidth = gapEnd - gapStart + 1;
+
+          // Only emit a slot if this row actually has something occupied
+          // (i.e. it's not an entirely empty row band — avoid spurious trailing rows)
+          var rowHasContent = false;
+          for (var cc = 1; cc <= 18; cc++) {
+            if (occupied[cc]) { rowHasContent = true; break; }
+          }
+          if (rowHasContent) {
+            // How tall is this gap? Find the max height of items adjacent to it
+            // For simplicity: use 1 row tall — the slot will just fill its visual band
+            makeSlot(gapWidth, 1, null);
+            // Manually set explicit position so it lands in the right cell
+            var lastSlot = gallery.lastChild;
+            if (lastSlot && lastSlot.classList.contains("g9-slot")) {
+              lastSlot.style.gridColumn = gapStart + " / span " + gapWidth;
+              lastSlot.style.gridRow    = r + " / span 1";
+              slotsAdded++;
+            }
+          }
+        } else {
+          c++;
+        }
       }
-    });
-
-    // No trailing slot — if colsUsed > 0 after the last item, that's just the
-    // natural end of the gallery. Don't add a spurious expanding row.
-
-    // Pass 2: insert slots at found gap positions
-    gaps.forEach(function (g) {
-      makeSlot(g.gap, g.rowHeight, g.insertBefore);
-    });
+    }
   }
 
   // ── Orientation Buttons ──
@@ -1056,45 +1116,114 @@
   // mouseup the actual DOM move happens once — one reflow, no upward snap.
 
   var dropIndicator = null;  // in-grid insertion preview element
-  var dropBeforeNode = null; // which node to insertBefore on commit (null = append)
   var dragCellCursor = null; // 1×1 cell highlight that follows the cursor
 
-  // Compute which grid column (0-based) the cursor X falls in.
-  // Returns -1 if outside the grid.
-  function cursorToGridCol(clientX) {
+  // ── Explicit Grid Placement ──
+  // In editor mode, every item is pinned with grid-column-start / grid-row-start
+  // computed from a linear layout simulation. This lets us place the drop
+  // indicator at any arbitrary cell — not just next to existing items —
+  // and items stay exactly where placed instead of auto-packing leftward.
+
+  // Simulate CSS Grid auto-placement (row mode) for all items and assign
+  // explicit  grid-column: C / span N  and  grid-row: R / span M  to each.
+  // Called when entering editor mode and after every drop.
+  function pinAllItems() {
+    var items = getGalleryItems();
+    var colCursor = 1; // 1-based
+    var rowCursor = 1;
+    var rowMaxH   = 1; // tallest item in the current row band
+
+    items.forEach(function (item) {
+      var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
+      var w = Math.max(1, spans.cols);
+      var h = Math.max(1, spans.rows);
+
+      // Wrap to next row if this item won't fit
+      if (colCursor + w - 1 > 18) {
+        rowCursor += rowMaxH;
+        colCursor  = 1;
+        rowMaxH    = 1;
+      }
+
+      item.style.gridColumn = colCursor + " / span " + w;
+      item.style.gridRow    = rowCursor + " / span " + h;
+
+      colCursor += w;
+      rowMaxH    = Math.max(rowMaxH, h);
+
+      // If we've exactly filled 18 cols, advance the row
+      if (colCursor > 18) {
+        rowCursor += rowMaxH;
+        colCursor  = 1;
+        rowMaxH    = 1;
+      }
+    });
+  }
+
+  // Strip explicit placement from all items (back to auto-flow for view mode)
+  function unpinAllItems() {
+    getGalleryItems().forEach(function (item) {
+      // Restore to just "span N" form (no start) so auto-flow takes over
+      var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
+      if (spans.cols > 1) {
+        item.style.gridColumn = "span " + spans.cols;
+      } else {
+        item.style.gridColumn = "";
+      }
+      if (spans.rows > 1) {
+        item.style.gridRow = "span " + spans.rows;
+      } else {
+        item.style.gridRow = "";
+      }
+    });
+  }
+
+  // Convert clientX/Y to 1-based grid col/row. Returns null if outside grid.
+  function clientToGridCell(clientX, clientY) {
     var m = getGridMetrics();
     var x = clientX - m.rect.left;
-    if (x < 0 || x > m.rect.width) return -1;
+    var y = clientY - m.rect.top + window.scrollY; // account for scroll
+
+    // Also account for scroll in rect
+    var scrolledY = clientY - (m.rect.top - (window.pageYOffset || document.documentElement.scrollTop));
+
+    // Recompute without scroll confusion: use the actual viewport rect
+    x = clientX - m.rect.left;
+    y = clientY - m.rect.top;
+
     var cellStep = m.colWidth + m.gap;
-    var col = Math.floor(x / cellStep);
-    return Math.min(col, 17); // clamp to 0–17
+    var col = Math.floor(x / cellStep) + 1; // 1-based
+    var row = Math.max(1, Math.floor(y / (m.rowHeight + m.gap)) + 1); // 1-based
+
+    col = Math.max(1, Math.min(18, col));
+    return { col: col, row: row };
   }
 
   // Update the 1×1 cell highlight to follow the cursor snapped to grid cells.
   function updateCellCursor(clientX, clientY) {
     if (!dragCellCursor) return;
     var m = getGridMetrics();
-    var col = cursorToGridCol(clientX);
-    if (col < 0) {
-      dragCellCursor.style.display = "none";
+    var x = clientX - m.rect.left;
+    if (x < 0 || x > m.rect.width) {
+      dragCellCursor.style.opacity = "0";
       return;
     }
-    // Row: derive from clientY relative to grid top
-    var y = clientY - m.rect.top;
-    var row = Math.max(0, Math.floor(y / (m.rowHeight + m.gap)));
-    var cellX = m.rect.left + col * (m.colWidth + m.gap);
-    var cellY = m.rect.top + row * (m.rowHeight + m.gap);
-    dragCellCursor.style.display = "block";
-    dragCellCursor.style.left  = cellX + "px";
-    dragCellCursor.style.top   = cellY + "px";
+    var cell = clientToGridCell(clientX, clientY);
+    var cellX = m.rect.left + (cell.col - 1) * (m.colWidth + m.gap);
+    var cellY = m.rect.top  + (cell.row - 1) * (m.rowHeight + m.gap);
+    dragCellCursor.style.opacity = "1";
+    dragCellCursor.style.left   = cellX + "px";
+    dragCellCursor.style.top    = cellY + "px";
     dragCellCursor.style.width  = m.colWidth + "px";
     dragCellCursor.style.height = m.rowHeight + "px";
   }
 
   function startDrag(item, e) {
-    item.classList.add("drag-placeholder");
-    item.style.cursor = "grabbing";
     document.body.classList.add("dragging");
+
+    // Hide dragged item in-place (keeps its grid space, doesn't cause reflow)
+    item.style.visibility = "hidden";
+    item.style.cursor = "grabbing";
 
     // Ghost follows the cursor
     dragGhost = document.createElement("div");
@@ -1124,21 +1253,16 @@
     document.body.appendChild(dragCellCursor);
     updateCellCursor(e.clientX, e.clientY);
 
-    // Drop indicator — same grid span as the dragged item, shown at drop position
+    // Drop indicator — same size as dragged item, placed at cursor cell
     var spans = isSpacer(item) ? getSpacerSpans(item) : getItemSpans(item);
     dropIndicator = document.createElement("div");
     dropIndicator.className = "drop-indicator";
-    dropIndicator.style.cssText =
-      "grid-column: span " + spans.cols + "; grid-row: span " + spans.rows + ";" +
-      "pointer-events: none; z-index: 5;";
-    // Start indicator at item's current position (insert after it)
-    var nextSib = item.nextSibling;
-    if (nextSib) {
-      getGallery().insertBefore(dropIndicator, nextSib);
-    } else {
-      getGallery().appendChild(dropIndicator);
-    }
-    dropBeforeNode = nextSib;
+    var cell = clientToGridCell(e.clientX, e.clientY);
+    dropIndicator.style.gridColumn = cell.col + " / span " + spans.cols;
+    dropIndicator.style.gridRow    = cell.row + " / span " + spans.rows;
+    dropIndicator.style.pointerEvents = "none";
+    dropIndicator.style.zIndex = "5";
+    getGallery().appendChild(dropIndicator);
 
     lastDropTarget = null;
     lastInsertBefore = true;
@@ -1151,69 +1275,18 @@
     }
     updateCellCursor(e.clientX, e.clientY);
 
-    // ── Grid-position-based drop targeting ──
-    // Find the column the cursor is in, then pick the candidate whose
-    // left edge is closest to that column boundary. This gives cell-granular
-    // control instead of "nearest item center" which is coarse for wide items.
-    var cursorCol = cursorToGridCol(e.clientX);
-    var m = getGridMetrics();
+    if (!dropIndicator || !activeItem) return;
 
-    var items = getGalleryItems();
-    var slots = [].slice.call(getGallery().querySelectorAll(".g9-slot"));
-    var candidates = items.concat(slots);
+    // Move drop indicator to cursor's grid cell
+    var spans = isSpacer(activeItem) ? getSpacerSpans(activeItem) : getItemSpans(activeItem);
+    var cell = clientToGridCell(e.clientX, e.clientY);
 
-    // Find the candidate whose rect most closely straddles the cursor X
-    var closestItem = null;
-    var insertBefore = true;
-    var minDist = Infinity;
+    // Clamp so indicator doesn't overflow 18 cols
+    var startCol = Math.min(cell.col, 18 - spans.cols + 1);
+    startCol = Math.max(1, startCol);
 
-    candidates.forEach(function (cand) {
-      if (cand === activeItem || cand === dropIndicator) return;
-      var rect = cand.getBoundingClientRect();
-      // Distance from cursor to nearest horizontal edge of this item
-      var distLeft  = Math.abs(e.clientX - rect.left);
-      var distRight = Math.abs(e.clientX - rect.right);
-      var distCenter = Math.abs(e.clientX - (rect.left + rect.width / 2));
-      // Prefer vertical proximity: items on different rows should score worse
-      var vertDist = 0;
-      if (e.clientY < rect.top)    vertDist = rect.top - e.clientY;
-      if (e.clientY > rect.bottom) vertDist = e.clientY - rect.bottom;
-      var score = Math.min(distLeft, distRight, distCenter) + vertDist * 0.5;
-      if (score < minDist) {
-        minDist = score;
-        closestItem = cand;
-        // Insert before or after based on which half the cursor is in
-        insertBefore = (e.clientX < rect.left + rect.width / 2);
-      }
-    });
-
-    if (!closestItem) return;
-
-    // Slots: always insert before (the slot IS the gap)
-    if (closestItem.classList.contains("g9-slot")) {
-      insertBefore = true;
-    }
-
-    if (closestItem !== lastDropTarget || insertBefore !== lastInsertBefore) {
-      var gallery = getGallery();
-
-      if (insertBefore) {
-        gallery.insertBefore(dropIndicator, closestItem);
-        dropBeforeNode = closestItem;
-      } else {
-        var next = closestItem.nextSibling;
-        if (next && next !== dropIndicator) {
-          gallery.insertBefore(dropIndicator, next);
-          dropBeforeNode = next;
-        } else if (!next) {
-          gallery.appendChild(dropIndicator);
-          dropBeforeNode = null;
-        }
-      }
-
-      lastDropTarget = closestItem;
-      lastInsertBefore = insertBefore;
-    }
+    dropIndicator.style.gridColumn = startCol + " / span " + spans.cols;
+    dropIndicator.style.gridRow    = cell.row + " / span " + spans.rows;
   }
 
   function endDrag() {
@@ -1227,20 +1300,24 @@
     }
     document.body.classList.remove("dragging");
 
-    // Commit: move activeItem to where the indicator is, then remove indicator
-    if (dropIndicator) {
-      var gallery = getGallery();
-      if (dropBeforeNode && dropBeforeNode.parentNode === gallery) {
-        gallery.insertBefore(activeItem, dropBeforeNode);
-      } else {
-        gallery.appendChild(activeItem);
-      }
+    if (dropIndicator && activeItem) {
+      // Read the final drop position from the indicator's explicit placement
+      var colStyle = dropIndicator.style.gridColumn; // e.g. "7 / span 6"
+      var rowStyle = dropIndicator.style.gridRow;
+
+      // Apply exact position to the dropped item
+      activeItem.style.gridColumn = colStyle;
+      activeItem.style.gridRow    = rowStyle;
+      activeItem.style.visibility = "";
+      activeItem._pinnedCol = parseInt(colStyle);
+      activeItem._pinnedRow = parseInt(rowStyle);
+
       dropIndicator.remove();
       dropIndicator = null;
-      dropBeforeNode = null;
+    } else if (activeItem) {
+      activeItem.style.visibility = "";
     }
 
-    activeItem.classList.remove("drag-placeholder");
     activeItem.style.cursor = "grab";
 
     lastDropTarget = null;
@@ -1551,6 +1628,7 @@
       getGalleryItems().forEach(function (item) {
         setupEditorItem(item);
       });
+      pinAllItems();
       refreshSlots();
 
       // Hide the edit trigger button while in editor mode
@@ -1617,6 +1695,7 @@
       if (dropIndicator)   { dropIndicator.remove();   dropIndicator = null; }
       if (dragCellCursor)  { dragCellCursor.remove();  dragCellCursor = null; }
       document.body.classList.remove("dragging");
+      unpinAllItems();
 
       getGalleryItems().forEach(function (item) {
         var badge = item.querySelector(".layout-badge");
