@@ -56,17 +56,44 @@
   var STORAGE_KEY = config ? "galleryLayout_" + config.id : "";
 
   var SIZE_CLASS_MAP = {
-    2: "featured",
-    3: "featured-wide",
-    "2x2": "featured-2x2",
-    "tall": "featured-tall",
-    "4x2": "featured-4x2"
+    "2x2": "g9-2x2",
+    "3x3": "g9-3x3",
+    "3x2": "g9-3x2",
+    "4x2": "g9-4x2",
+    "6x4": "g9-6x4",
+    "9x6": "g9-9x6",
+    "2x3": "g9-2x3",
+    "2x4": "g9-2x4",
+    "4x6": "g9-4x6"
   };
 
-  var ALL_SIZE_CLASSES = ["featured", "featured-wide", "featured-2x2", "featured-tall", "featured-4x2"];
+  var ALL_SIZE_CLASSES = [
+    "g9-2x2", "g9-3x3", "g9-3x2", "g9-4x2",
+    "g9-6x4", "g9-9x6", "g9-2x3", "g9-2x4", "g9-4x6"
+  ];
 
-  var BADGE_LABELS = { 1: "1\u00d7", 2: "2w", "2x2": "2\u00d72", 3: "3w", "tall": "tall", "4x2": "4\u00d72" };
-  var BADGE_COLORS = { 1: "rgba(0,0,0,0.5)", 2: "#1a1a1a", "2x2": "#36c", 3: "#c44", "tall": "#2a7", "4x2": "#a4c" };
+  // Orientation groups for the 3-button UI
+  var ORIENT_GROUPS = {
+    square: ["1x1", "2x2", "3x3"],
+    horiz:  ["3x2", "4x2", "6x4", "9x6"],
+    vert:   ["2x3", "2x4", "4x6"]
+  };
+
+  var BADGE_LABELS = {
+    "1x1": "1\u00d71",
+    "2x2": "2\u00d72", "3x3": "3\u00d73",
+    "3x2": "3\u00d72", "4x2": "4\u00d72",
+    "6x4": "6\u00d74", "9x6": "9\u00d76",
+    "2x3": "2\u00d73", "2x4": "2\u00d74", "4x6": "4\u00d76"
+  };
+
+  var BADGE_COLORS = {
+    "1x1": "rgba(0,0,0,0.5)",
+    "2x2": "#1a1a1a", "3x3": "#555",
+    "3x2": "#c44",    "4x2": "#a44",
+    "6x4": "#36c",    "9x6": "#24a",
+    "2x3": "#2a7",    "2x4": "#1a6", "4x6": "#084"
+  };
 
   var DRAG_THRESHOLD = 8;
 
@@ -91,8 +118,9 @@
   // ── DOM Helpers ──
 
   function getGalleryItems() {
+    // Returns real items only — excludes slot placeholders (.g9-slot)
     return [].slice.call(
-      document.querySelectorAll(".gallery-item")
+      document.querySelectorAll(".g9-item:not(.g9-slot)")
     );
   }
 
