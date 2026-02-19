@@ -3036,20 +3036,6 @@
     restoreState();
     bindClicks();
 
-    // Gap pulse — fires once after first paint to "breathe" the grid open and
-    // back. rAF defers until the browser has committed the initial layout so
-    // the animation is always visible (not swallowed by paint).
-    var gallery = getGallery();
-    if (gallery) {
-      requestAnimationFrame(function () {
-        gallery.classList.add("g9-gap-pulse");
-        gallery.addEventListener("animationend", function onPulseEnd() {
-          gallery.classList.remove("g9-gap-pulse");
-          gallery.removeEventListener("animationend", onPulseEnd);
-        });
-      });
-    }
-
     // Lightbox controls
     document
       .getElementById("lightbox-close")
