@@ -660,8 +660,8 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 .lightbox img {
-  max-width: 75vw;
-  max-height: 70vh;
+  max-width: 90vw;
+  max-height: 88vh;
   object-fit: contain;
   transition: opacity 0.3s ease;
 }

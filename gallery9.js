@@ -895,12 +895,26 @@
     var newCols, newRows;
 
     if (resizeMode === "image") {
-      // Resolve col delta: right/tr/br edges add; left/tl/bl edges invert
+      // ── Option+resize: symmetric / center-anchored ──
+      // Dragging any edge grows BOTH sides simultaneously.
+      // Right/bottom edges: add delta; left/top edges: add abs(delta).
+      // For col: absolute delta is abs(dCols), for row: abs(dRows).
+      var optionHeld = e.altKey; // Option on Mac
+
+      // Resolve col delta: right/tr/br edges use dCols; left/tl/bl use -dCols
       var colDelta = (resizeCorner === "l"  || resizeCorner === "tl" || resizeCorner === "bl")
                    ? -dCols : dCols;
-      // Resolve row delta: bottom/bl/br edges add; top/tl/tr edges invert
+      // Resolve row delta: bottom/bl/br edges use dRows; top/tl/tr use -dRows
       var rowDelta = (resizeCorner === "t"  || resizeCorner === "tl" || resizeCorner === "tr")
                    ? -dRows : dRows;
+
+      // With Option: grow both sides — span grows by 2× delta
+      if (optionHeld) {
+        colDelta = Math.abs(colDelta) * 2;
+        rowDelta = Math.abs(rowDelta) * 2;
+        // When using corners, preserve the original directional delta for colStart shift
+        // (handled below in the colStart/rowStart section)
+      }
 
       var colOnly = (resizeCorner === "r" || resizeCorner === "l");
       var rowOnly = (resizeCorner === "b" || resizeCorner === "t");
@@ -930,17 +944,36 @@
     // so that repeated mousemove frames don't compound the shift.
     var colStart, rowStart;
     if (resizeMode === "image") {
-      // Left-edge handles: colStart shifts right as span shrinks
-      if (resizeCorner === "l" || resizeCorner === "tl" || resizeCorner === "bl") {
-        colStart = Math.max(1, resizeStartCol + dCols);
+      if (optionHeld) {
+        // Option+resize: anchor on center — shift colStart/rowStart opposite to the drag direction.
+        // Right edge dragged right → also shift colStart left by same amount.
+        // Left edge dragged left  → also shift colStart right (left edge already expands toward left,
+        //   center anchor means colStart doesn't move — the right side mirrors automatically via newCols).
+        // Corner: shift both colStart and rowStart to keep center fixed.
+        var colShift = (resizeCorner === "r"  || resizeCorner === "tr" || resizeCorner === "br")
+                       ? -Math.abs(dCols)                                // right edge: shift left
+                       : (resizeCorner === "l" || resizeCorner === "tl" || resizeCorner === "bl")
+                       ? Math.abs(dCols)                                 // left edge: shift right
+                       : 0;
+        var rowShift = (resizeCorner === "b"  || resizeCorner === "br" || resizeCorner === "bl")
+                       ? -Math.abs(dRows)                                // bottom edge: shift up
+                       : (resizeCorner === "t" || resizeCorner === "tl" || resizeCorner === "tr")
+                       ? Math.abs(dRows)                                 // top edge: shift down
+                       : 0;
+        colStart = Math.max(1, resizeStartCol + colShift);
+        rowStart = Math.max(1, resizeStartRow + rowShift);
       } else {
-        colStart = resizeStartCol;
-      }
-      // Top-edge handles: rowStart shifts down as span shrinks
-      if (resizeCorner === "t" || resizeCorner === "tl" || resizeCorner === "tr") {
-        rowStart = Math.max(1, resizeStartRow + dRows);
-      } else {
-        rowStart = resizeStartRow;
+        // Normal resize: left-edge handles shift colStart right, top-edge handles shift rowStart down
+        if (resizeCorner === "l" || resizeCorner === "tl" || resizeCorner === "bl") {
+          colStart = Math.max(1, resizeStartCol + dCols);
+        } else {
+          colStart = resizeStartCol;
+        }
+        if (resizeCorner === "t" || resizeCorner === "tl" || resizeCorner === "tr") {
+          rowStart = Math.max(1, resizeStartRow + dRows);
+        } else {
+          rowStart = resizeStartRow;
+        }
       }
     } else {
       // Spacer corner drag: left corners (tl/bl) shift colStart; top corners (tl/tr) shift rowStart.
@@ -1004,7 +1037,7 @@
     // If not active, ensure bystanders are restored to originals.
     if (!isPushDown)  restorePushDown();
     if (!isPushRight) restorePushRight();
-    isPushDown = false;  pushDownOriginals = [];  lastPushDownRow = -1;
+    isPushDown = false;  pushDownOriginals = [];  lastPushDownRow = -1;  lastPushDownShift = -1;
     isPushRight = false; pushRightOriginals = []; lastPushRightCol = -1;
 
     collapseFullWidthGaps();
@@ -1890,6 +1923,7 @@
     });
     isPushDown = false;
     lastPushDownRow = -1;
+    lastPushDownShift = -1;
   }
 
   // Restore all bystander items to their original col positions (pre-push-right).
@@ -1925,9 +1959,14 @@
 
   // Shift all bystander items whose original rowStart >= targetRow downward
   // by `shift` rows. Items above targetRow are restored to their originals.
+  // NOTE: debounce tracks BOTH targetRow and shift — for resize, targetRow is
+  // constant (original bottom) but shift grows every frame, so we must not
+  // skip calls when only shift changes.
+  var lastPushDownShift = -1;
   function applyPushDown(targetRow, shift) {
-    if (lastPushDownRow === targetRow && isPushDown) return; // debounce
+    if (lastPushDownRow === targetRow && lastPushDownShift === shift && isPushDown) return;
     lastPushDownRow = targetRow;
+    lastPushDownShift = shift;
     isPushDown = true;
     pushDownOriginals.forEach(function (entry) {
       if (entry.origRow >= targetRow) {
@@ -2124,6 +2163,7 @@
     isPushDown = false;
     pushDownOriginals = [];
     lastPushDownRow = -1;
+    lastPushDownShift = -1;
 
     // Automatically close any full-width horizontal gaps that remain after
     // the drop (e.g. gaps left behind by Shift+drag push-down).
@@ -2605,7 +2645,7 @@
           // Clean up any push-down/push-right state that didn't lead to a drop
           if (isPushDown)  restorePushDown();
           if (isPushRight) restorePushRight();
-          isPushDown = false;  pushDownOriginals = [];
+          isPushDown = false;  pushDownOriginals = [];  lastPushDownShift = -1;
           isPushRight = false; pushRightOriginals = [];
         }
 
