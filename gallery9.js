@@ -837,28 +837,21 @@
     var items = getGalleryItems();
     var output = "<!-- Gallery Layout -->\n";
     items.forEach(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        var style = "";
+        if (spans.cols > 1) style += "grid-column:span " + spans.cols + ";";
+        if (spans.rows > 1) style += "grid-row:span " + spans.rows + ";";
+        output += '<div class="g9-item g9-spacer"' + (style ? ' style="' + style + '"' : '') + '></div>\n';
+        return;
+      }
+
       var img = item.querySelector("img");
       var size = getSize(item);
       var objPos = img.style.objectPosition;
-      var posAttr =
-        objPos && objPos !== "50% 50%"
-          ? ' style="object-position: ' + objPos + '"'
-          : "";
-
-      var cls;
-      if (size === "4x2") {
-        cls = ' class="gallery-item featured-4x2"';
-      } else if (size === "tall") {
-        cls = ' class="gallery-item featured-tall"';
-      } else if (size === 3) {
-        cls = ' class="gallery-item featured-wide"';
-      } else if (size === "2x2") {
-        cls = ' class="gallery-item featured-2x2"';
-      } else if (size === 2) {
-        cls = ' class="gallery-item featured"';
-      } else {
-        cls = ' class="gallery-item"';
-      }
+      var posAttr = objPos && objPos !== "50% 50%" ? ' style="object-position: ' + objPos + '"' : "";
+      var sizeCls = SIZE_CLASS_MAP[size];
+      var cls = sizeCls ? ' class="g9-item ' + sizeCls + '"' : ' class="g9-item"';
 
       output +=
         "<div" + cls + ">\n" +
@@ -869,11 +862,8 @@
     navigator.clipboard.writeText(output).then(function () {
       var btn = document.getElementById("editor-export");
       btn.textContent = "Copied HTML!";
-      setTimeout(function () {
-        btn.textContent = "Export HTML";
-      }, 2000);
+      setTimeout(function () { btn.textContent = "Export HTML"; }, 2000);
     });
-
     console.log(output);
   }
 
@@ -887,6 +877,10 @@
   function publishLayout() {
     var items = getGalleryItems();
     var layout = items.map(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        return { type: "spacer", cols: spans.cols, rows: spans.rows };
+      }
       var img = item.querySelector("img");
       var crop = img.style.objectPosition || "";
       return {
@@ -930,6 +924,10 @@
   function exportConfig() {
     var items = getGalleryItems();
     var result = items.map(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        return { type: "spacer", cols: spans.cols, rows: spans.rows };
+      }
       var img = item.querySelector("img");
       var size = getSize(item);
       var objPos = img.style.objectPosition || "";
@@ -969,7 +967,7 @@
       editorOverlay.id = "edit-overlay";
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
-        "EDITOR \u2014 Click: size \u00b7 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 " +
+        "EDITOR \u2014 Click: orient \u00b7 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 " +
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
         (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
