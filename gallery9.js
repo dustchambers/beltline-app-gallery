@@ -1171,28 +1171,8 @@
       "letter-spacing: 0.08em; z-index: 10; pointer-events: none;";
   }
 
-  function addOrderNumber(item) {
-    if (isSpacer(item)) return; // spacers don't get numbered
-    var num = item.querySelector(".order-number");
-    if (!num) {
-      num = document.createElement("span");
-      num.className = "order-number";
-      item.appendChild(num);
-    }
-    num.textContent = "#" + (getGalleryItems().indexOf(item) + 1);
-    num.style.cssText =
-      "position: absolute; bottom: 8px; right: 8px;" +
-      "background: rgba(0,0,0,0.6); color: #EDEBE0;" +
-      "padding: 3px 8px; font-family: 'Inconsolata', monospace;" +
-      "font-size: 12px; letter-spacing: 0.05em;" +
-      "z-index: 10; pointer-events: none;";
-  }
-
-  function refreshOrderNumbers() {
-    getGalleryItems().forEach(function (item) {
-      addOrderNumber(item);
-    });
-  }
+  function addOrderNumber()     { /* order numbers removed */ }
+  function refreshOrderNumbers() { /* order numbers removed */ }
 
   function getColSpan(item) {
     var sizeMap = {
