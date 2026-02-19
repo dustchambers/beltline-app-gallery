@@ -352,6 +352,7 @@
   function endResize() {
     if (!resizingItem) return;
     autoSave();
+    refreshSlots();
     resizingItem = null;
     resizeCorner = null;
   }
@@ -534,6 +535,38 @@
     });
   }
 
+  function getColSpan(item) {
+    var sizeMap = {
+      "9x6": 9, "6x4": 6, "4x6": 4, "4x2": 4,
+      "3x3": 3, "3x2": 3,
+      "2x4": 2, "2x3": 2, "2x2": 2
+    };
+    return sizeMap[getSize(item)] || 1;
+  }
+
+  function refreshSlots() {
+    // Remove existing slots
+    getGallery().querySelectorAll(".g9-slot").forEach(function (s) { s.remove(); });
+    if (!editorMode) return;
+
+    // Count columns used in the last partial row
+    var items = getGalleryItems();
+    var colsUsed = 0;
+    items.forEach(function (item) {
+      var spans = isSpacer(item) ? getSpacerSpans(item) : { cols: getColSpan(item), rows: 1 };
+      colsUsed = (colsUsed + spans.cols) % 9;
+    });
+
+    // Fill the trailing partial row
+    var remainder = colsUsed === 0 ? 0 : 9 - colsUsed;
+    var gallery = getGallery();
+    for (var i = 0; i < remainder; i++) {
+      var slot = document.createElement("div");
+      slot.className = "g9-slot";
+      gallery.appendChild(slot);
+    }
+  }
+
   // ── Orientation Buttons ──
 
   function removeOrientBtns(item) {
@@ -560,6 +593,7 @@
     updateBadge(item);
     updateOrientBtns(item);
     autoSave();
+    refreshSlots();
   }
 
   function updateOrientBtns(item) {
@@ -942,6 +976,7 @@
         '<button id="editor-export">Export HTML</button>' +
         '<button id="editor-export-config">Export Config</button>' +
         '<button id="editor-reset">Reset</button>' +
+        '<button id="editor-add-spacer">+ Spacer</button>' +
         "</div>";
       document.body.appendChild(editorOverlay);
       document.body.classList.add("edit-mode");
@@ -967,9 +1002,20 @@
           location.reload();
         });
 
+      document.getElementById("editor-add-spacer").addEventListener("click", function () {
+        var gallery = getGallery();
+        var spacer = createSpacerElement(1, 1);
+        gallery.appendChild(spacer);
+        setupEditorItem(spacer);
+        refreshOrderNumbers();
+        refreshSlots();
+        autoSave();
+      });
+
       getGalleryItems().forEach(function (item) {
         setupEditorItem(item);
       });
+      refreshSlots();
 
       // Hide the edit trigger button while in editor mode
       var trigger = document.querySelector(".gallery-edit-trigger");
