@@ -130,18 +130,38 @@
 
   // ── Render Gallery from Config ──
 
+  function isSpacer(item) {
+    return item.classList.contains("g9-spacer");
+  }
+
+  function createSpacerElement(cols, rows) {
+    var div = document.createElement("div");
+    div.className = "g9-item g9-spacer";
+    if (cols > 1) div.style.gridColumn = "span " + cols;
+    if (rows > 1) div.style.gridRow = "span " + rows;
+    var label = document.createElement("span");
+    label.className = "g9-spacer-label";
+    label.textContent = "spacer";
+    div.appendChild(label);
+    return div;
+  }
+
   function renderGallery() {
     var gallery = getGallery();
     if (!gallery) return;
 
     config.images.forEach(function (entry) {
+      if (entry.type === "spacer") {
+        var spacer = createSpacerElement(entry.cols || 1, entry.rows || 1);
+        gallery.appendChild(spacer);
+        return;
+      }
+
       var div = document.createElement("div");
-      div.className = "gallery-item";
+      div.className = "g9-item";
 
       var sizeClass = SIZE_CLASS_MAP[entry.size];
-      if (sizeClass) {
-        div.classList.add(sizeClass);
-      }
+      if (sizeClass) div.classList.add(sizeClass);
 
       var img = document.createElement("img");
       img.src = entry.src;
@@ -151,6 +171,24 @@
 
       if (entry.crop && entry.crop !== "50% 50%") {
         img.style.objectPosition = entry.crop;
+      }
+
+      // Auto-default size based on orientation (only if no saved size)
+      if (!entry.size) {
+        img.addEventListener("load", function () {
+          if (getSize(div) !== "1x1") return; // already resized
+          var defaultSize;
+          if (img.naturalWidth > img.naturalHeight * 1.1) {
+            defaultSize = "3x2"; // landscape
+          } else if (img.naturalHeight > img.naturalWidth * 1.1) {
+            defaultSize = "2x3"; // portrait
+          }
+          // square: leave as 1x1
+          if (defaultSize) {
+            applySizeClass(div, defaultSize);
+            if (editorMode) updateBadge(div);
+          }
+        });
       }
 
       div.appendChild(img);
@@ -185,12 +223,22 @@
   // ── Size Helpers ──
 
   function getSize(item) {
-    if (item.classList.contains("featured-4x2")) return "4x2";
-    if (item.classList.contains("featured-tall")) return "tall";
-    if (item.classList.contains("featured-wide")) return 3;
-    if (item.classList.contains("featured-2x2")) return "2x2";
-    if (item.classList.contains("featured")) return 2;
-    return 1;
+    if (item.classList.contains("g9-9x6")) return "9x6";
+    if (item.classList.contains("g9-6x4")) return "6x4";
+    if (item.classList.contains("g9-4x6")) return "4x6";
+    if (item.classList.contains("g9-4x2")) return "4x2";
+    if (item.classList.contains("g9-3x3")) return "3x3";
+    if (item.classList.contains("g9-3x2")) return "3x2";
+    if (item.classList.contains("g9-2x4")) return "2x4";
+    if (item.classList.contains("g9-2x3")) return "2x3";
+    if (item.classList.contains("g9-2x2")) return "2x2";
+    return "1x1";
+  }
+
+  function getOrientGroup(size) {
+    if (ORIENT_GROUPS.horiz.indexOf(size) !== -1) return "horiz";
+    if (ORIENT_GROUPS.vert.indexOf(size) !== -1) return "vert";
+    return "square";
   }
 
   function clearSizeClasses(item) {
