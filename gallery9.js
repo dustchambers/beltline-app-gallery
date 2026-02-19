@@ -684,6 +684,7 @@
       textActive = true;
       textEl.contentEditable = "true";
       textEl.classList.add("editing");
+      item.classList.add("text-editing");
       showControls();
       textEl.focus();
       // Place cursor at end
@@ -702,6 +703,7 @@
       textActive = false;
       textEl.contentEditable = "false";
       textEl.classList.remove("editing");
+      item.classList.remove("text-editing");
       hideControls();
       syncTextState();
       autoSave();
@@ -941,7 +943,8 @@
       ".spacer-color-btn, .spacer-color-panel, " +
       ".spacer-align-bar, .spacer-align-vbar"
     ).forEach(function (h) { h.remove(); });
-    // Lock text element back to non-editable
+    // Lock text element back to non-editable and clear any editing outline
+    item.classList.remove("text-editing");
     var textEl = item.querySelector(".spacer-text");
     if (textEl) {
       textEl.contentEditable = "false";

@@ -238,12 +238,15 @@ body.edit-mode .g9-item.g9-spacer .spacer-text {
   cursor: default;
 }
 
-/* Editable state — cursor + subtle focus ring */
+/* Editable state — cursor only; the item outline signals editing, not interior color */
 .spacer-text.editing {
   cursor: text;
-  background: rgba(255,255,255,0.35);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
-  border-radius: 2px;
+}
+
+/* Outline the block while text editing is active */
+body.edit-mode .g9-item.text-editing {
+  outline: 2px solid rgba(60, 120, 220, 0.85) !important;
+  outline-offset: -2px;
 }
 
 /* Placeholder shown when text element is empty */
