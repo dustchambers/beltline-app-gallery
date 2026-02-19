@@ -845,6 +845,7 @@
       h.addEventListener("mousedown", function (e) {
         e.stopPropagation();
         e.preventDefault();
+        pushUndo(); // capture full pre-resize state before any push-down modifications
         resizingItem = item;
         resizeCorner = edge;
         resizeMode   = "image";
@@ -1027,7 +1028,7 @@
 
   function endResize() {
     if (!resizingItem) return;
-    pushUndo(); // capture pre-resize state for undo
+    // pushUndo() was already called in the resize handle mousedown before any push-down modifications
     if (resizeMode === "image") {
       // Strip named size classes — item now lives entirely by inline spans
       clearSizeClasses(resizingItem);
@@ -1814,6 +1815,7 @@
   }
 
   function startDrag(item, e) {
+    pushUndo(); // capture full pre-drag state (dragged item + bystanders) before any push-down
     document.body.classList.add("dragging");
     var gallery = getGallery();
     var cell = clientToGridCell(e.clientX, e.clientY);
@@ -2105,7 +2107,7 @@
   }
 
   function endDrag() {
-    pushUndo(); // capture pre-drop state for undo
+    // pushUndo() was already called in startDrag() before any push-down modifications
     if (dragGhost) {
       dragGhost.remove();
       dragGhost = null;
