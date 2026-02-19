@@ -780,7 +780,27 @@
     autoSave();
   }
 
-  // ── Crop Reposition (Shift+Drag) ──
+  // ── Crop ──
+
+  // Cycle object-position presets on plain click: center → top-left → top-right → bottom-right → bottom-left → center
+  var CROP_PRESETS = ["50% 50%", "25% 25%", "75% 25%", "75% 75%", "25% 75%"];
+
+  function cycleCrop(item) {
+    if (isSpacer(item)) return;
+    var img = item.querySelector("img");
+    if (!img) return;
+    var current = img.style.objectPosition || "50% 50%";
+    // Find current preset index (fuzzy match by trimming spaces)
+    var idx = CROP_PRESETS.indexOf(current.trim());
+    var next = CROP_PRESETS[(idx + 1) % CROP_PRESETS.length];
+    img.style.objectPosition = next;
+    if (item._cropState) {
+      var parts = next.split(" ");
+      item._cropState.objX = parseFloat(parts[0]);
+      item._cropState.objY = parseFloat(parts[1]);
+    }
+    autoSave();
+  }
 
   function moveCrop(item, e) {
     var img = item.querySelector("img");
@@ -1058,7 +1078,12 @@
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          showOrientBtns(activeItem);
+          // Plain tap: cycle crop position (unless item is square, which has no meaningful crop offset)
+          var tappedSize = getSize(activeItem);
+          var tappedGroup = getOrientGroup(tappedSize);
+          if (tappedGroup !== "square") {
+            cycleCrop(activeItem);
+          }
         }
 
         activeItem = null;
