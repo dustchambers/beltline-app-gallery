@@ -181,13 +181,13 @@ function mergeLayout(cmsImages, layout) {
       src:         cmsImg.src,
       alt:         cmsImg.alt,
       size:        entry.size        !== undefined ? entry.size        : cmsImg.size,
-      crop:        entry.crop        || undefined,
-      cropRect:    entry.cropRect    || undefined,
-      colStart:    entry.colStart    || undefined,
-      rowStart:    entry.rowStart    || undefined,
-      cols:        entry.cols        || undefined,
-      rows:        entry.rows        || undefined,
-      adjustments: entry.adjustments || undefined,
+      crop:        entry.crop        != null ? entry.crop        : undefined,
+      cropRect:    entry.cropRect    != null ? entry.cropRect    : undefined,
+      colStart:    entry.colStart    != null ? entry.colStart    : undefined,
+      rowStart:    entry.rowStart    != null ? entry.rowStart    : undefined,
+      cols:        entry.cols        != null ? entry.cols        : undefined,
+      rows:        entry.rows        != null ? entry.rows        : undefined,
+      adjustments: entry.adjustments != null ? entry.adjustments : undefined,
     });
 
     usedIds[entry.id] = true;
