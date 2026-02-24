@@ -749,10 +749,13 @@
       var img = item.querySelector("img");
       var size = getSize(item);
       var objPos = img.style.objectPosition;
-      var posAttr =
-        objPos && objPos !== "50% 50%"
-          ? ' style="object-position: ' + objPos + '"'
-          : "";
+      var adj = item._adjustments;
+      var styleParts = [];
+      if (objPos && objPos !== "50% 50%") styleParts.push("object-position: " + objPos);
+      if (adj && (adj.contrast !== 100 || adj.brightness !== 100 || adj.saturation !== 100)) {
+        styleParts.push("filter: contrast(" + adj.contrast + "%) brightness(" + adj.brightness + "%) saturate(" + adj.saturation + "%)");
+      }
+      var posAttr = styleParts.length ? ' style="' + styleParts.join("; ") + '"' : "";
 
       var cls;
       if (size === "4x2") {
@@ -801,7 +804,8 @@
       return {
         id: img.dataset.imageId || "",
         size: getSize(item),
-        crop: (crop && crop !== "50% 50%") ? crop : null
+        crop: (crop && crop !== "50% 50%") ? crop : null,
+        adjustments: item._adjustments || null
       };
     });
 
@@ -850,6 +854,9 @@
       };
       if (objPos && objPos !== "50% 50%") {
         entry.crop = objPos;
+      }
+      if (item._adjustments) {
+        entry.adjustments = item._adjustments;
       }
       return entry;
     });
