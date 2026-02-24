@@ -326,6 +326,10 @@
       });
 
       div.appendChild(img);
+      if (entry.cropRect) {
+        div._cropRect = entry.cropRect;
+        applyThumbnailCrop(div, entry.cropRect);
+      }
       lockAnimation(div);
       gallery.appendChild(div);
     });
@@ -1518,6 +1522,24 @@
         item.querySelector("img").style.objectPosition = entry.crop;
       } else {
         item.querySelector("img").style.objectPosition = "";
+      }
+      // Restore cropRect
+      if (entry.cropRect) {
+        item._cropRect = entry.cropRect;
+        applyThumbnailCrop(item, entry.cropRect);
+      } else {
+        delete item._cropRect;
+        applyThumbnailCrop(item, null);
+      }
+      // Restore adjustments
+      if (entry.adjustments) {
+        item._adjustments = entry.adjustments;
+        var fa = entry.adjustments;
+        item.querySelector("img").style.filter =
+          "contrast(" + fa.contrast + "%) brightness(" + fa.brightness + "%) saturate(" + fa.saturation + "%)";
+      } else {
+        delete item._adjustments;
+        item.querySelector("img").style.filter = "";
       }
       gallery.appendChild(item);
     });
@@ -2916,6 +2938,8 @@
   }
 
   function closeAdjustPanel(revert) {
+    _cropDragCorner = null;
+    _cropDragging   = false;
     if (revert && adjustTarget) {
       var saved = adjustTarget._adjustments;
       var img = adjustTarget.querySelector("img");
@@ -2927,6 +2951,7 @@
       } else {
         img.style.filter = "";
       }
+      applyThumbnailCrop(adjustTarget, adjustTarget._cropRect || null);
     }
     if (adjustPanel) adjustPanel.classList.remove("active");
     adjustTarget = null;
