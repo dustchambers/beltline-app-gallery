@@ -191,21 +191,6 @@
     }
   }
 
-  // ── Crop State ──
-
-  function getCropState(item) {
-    if (!item._cropState) {
-      var img = item.querySelector("img");
-      var computed = getComputedStyle(img);
-      var pos = computed.objectPosition.split(" ");
-      item._cropState = {
-        objX: parseFloat(pos[0]) || 50,
-        objY: parseFloat(pos[1]) || 50
-      };
-    }
-    return item._cropState;
-  }
-
   // ── Save & Restore State ──
 
   function saveState() {
@@ -518,32 +503,6 @@
     lastDropTarget = null;
     lastInsertBefore = true;
     refreshOrderNumbers();
-    autoSave();
-  }
-
-  // ── Crop Reposition (Shift+Drag) ──
-
-  function moveCrop(item, e) {
-    var img = item.querySelector("img");
-    var crop = getCropState(item);
-    var dx = e.clientX - dragStartX;
-    var dy = e.clientY - dragStartY;
-
-    crop.objX = Math.max(
-      0,
-      Math.min(100, item._cropStartX - (dx / item.offsetWidth) * 100)
-    );
-    crop.objY = Math.max(
-      0,
-      Math.min(100, item._cropStartY - (dy / item.offsetHeight) * 100)
-    );
-
-    img.style.objectPosition =
-      crop.objX.toFixed(1) + "% " + crop.objY.toFixed(1) + "%";
-  }
-
-  function endCrop(item) {
-    item.style.cursor = "grab";
     autoSave();
   }
 
