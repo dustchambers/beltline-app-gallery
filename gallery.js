@@ -545,6 +545,44 @@
     item.addEventListener("mousedown", item._onMouseDown);
   }
 
+  // ── Selection ──
+
+  function toggleSelect(item, e) {
+    var isShift = e && e.shiftKey;
+    if (!isShift) {
+      selectedItems.forEach(function (el) {
+        el.classList.remove("selected");
+      });
+      selectedItems.clear();
+    }
+    if (selectedItems.has(item)) {
+      selectedItems.delete(item);
+      item.classList.remove("selected");
+    } else {
+      selectedItems.add(item);
+      item.classList.add("selected");
+    }
+    updateEditButton();
+  }
+
+  function clearSelection() {
+    selectedItems.forEach(function (el) {
+      el.classList.remove("selected");
+    });
+    selectedItems.clear();
+    updateEditButton();
+  }
+
+  function updateEditButton() {
+    var btn = document.getElementById("editor-edit-image");
+    if (!btn) return;
+    var count = selectedItems.size;
+    btn.disabled = count !== 1;
+    btn.title = count === 0 ? "Select one image to edit"
+      : count > 1 ? "Select only one image to edit"
+      : "";
+  }
+
   // ── Export HTML ──
 
   function exportAll() {
@@ -694,6 +732,12 @@
       document.body.appendChild(editorOverlay);
       document.body.classList.add("edit-mode");
 
+      var galleryEl = getGallery();
+      galleryEl._onGalleryClick = function (e) {
+        if (e.target === galleryEl) clearSelection();
+      };
+      galleryEl.addEventListener("click", galleryEl._onGalleryClick);
+
       document
         .getElementById("editor-done")
         .addEventListener("click", toggleEditor);
@@ -770,6 +814,12 @@
 
       window.removeEventListener("mousemove", window._editorMouseMove);
       window.removeEventListener("mouseup", window._editorMouseUp);
+
+      var galleryEl = getGallery();
+      if (galleryEl._onGalleryClick) {
+        galleryEl.removeEventListener("click", galleryEl._onGalleryClick);
+      }
+      clearSelection();
 
       // Show the edit trigger button again
       var trigger = document.querySelector(".gallery-edit-trigger");

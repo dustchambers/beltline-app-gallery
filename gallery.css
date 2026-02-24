@@ -313,3 +313,25 @@ body.edit-mode .gallery-item:active {
     grid-row: span 1;
   }
 }
+
+/* ── Editor Selection ── */
+.edit-mode .gallery-item.selected {
+  outline: 3px solid #4A90D9;
+  outline-offset: -3px;
+}
+
+.edit-mode .gallery-item.selected::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  background: #4A90D9;
+  color: #fff;
+  font-size: 13px;
+  line-height: 22px;
+  text-align: center;
+  z-index: 11;
+  pointer-events: none;
+}
