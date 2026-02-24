@@ -721,9 +721,10 @@
       editorOverlay.id = "edit-overlay";
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
-        "EDITOR \u2014 Click: size \u00b7 Drag: reorder \u00b7 Shift+Drag: crop \u00b7 " +
+        "EDITOR \u2014 Click: select \u00b7 Shift+Click: multi-select \u00b7 Drag: reorder \u00b7 " +
         '<span class="save-indicator" style="opacity:0.4;font-size:11px;margin-left:4px">\u2713 saved</span>' +
         '<button id="editor-done">Done</button>' +
+        '<button id="editor-edit-image" disabled>\u270f Edit Image</button>' +
         (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
         '<button id="editor-export">Export HTML</button>' +
         '<button id="editor-export-config">Export Config</button>' +
@@ -757,6 +758,12 @@
         .addEventListener("click", function () {
           localStorage.removeItem(STORAGE_KEY);
           location.reload();
+        });
+      document
+        .getElementById("editor-edit-image")
+        .addEventListener("click", function () {
+          var items = Array.from(selectedItems);
+          if (items.length === 1) openAdjustPanel(items[0]);
         });
 
       getGalleryItems().forEach(function (item) {
