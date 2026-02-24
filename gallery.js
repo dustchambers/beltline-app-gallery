@@ -128,6 +128,14 @@
       if (entry.crop && entry.crop !== "50% 50%") {
         img.style.objectPosition = entry.crop;
       }
+      if (entry.adjustments) {
+        var f = entry.adjustments;
+        img.style.filter =
+          "contrast(" + f.contrast + "%) " +
+          "brightness(" + f.brightness + "%) " +
+          "saturate(" + f.saturation + "%)";
+        div._adjustments = f;
+      }
 
       div.appendChild(img);
       gallery.appendChild(div);
@@ -208,7 +216,8 @@
       return {
         id: img.dataset.imageId || "",
         size: getSize(item),
-        crop: (crop && crop !== "50% 50%") ? crop : null
+        crop: (crop && crop !== "50% 50%") ? crop : null,
+        adjustments: item._adjustments || null
       };
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -244,6 +253,14 @@
 
         if (entry.crop) {
           item.querySelector("img").style.objectPosition = entry.crop;
+        }
+        if (entry.adjustments) {
+          var f = entry.adjustments;
+          item._adjustments = f;
+          item.querySelector("img").style.filter =
+            "contrast(" + f.contrast + "%) " +
+            "brightness(" + f.brightness + "%) " +
+            "saturate(" + f.saturation + "%)";
         }
       });
 
