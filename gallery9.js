@@ -3055,6 +3055,8 @@
       // Clicking gallery whitespace / slots / background deselects all items
       // and closes any open spacer text/color menus.
       window._editorBgClick = function (e) {
+        // Don't clear selection when clicking the editor banner (buttons, dropdowns, etc.)
+        if (e.target.closest("#edit-overlay")) return;
         if (!e.target.closest(".g9-item")) {
           if (activeSpacerCleanup) activeSpacerCleanup();
           clearSelection();
