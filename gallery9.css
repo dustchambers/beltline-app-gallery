@@ -825,6 +825,10 @@ body:not(.edit-mode) .spacer-text:empty::before {
   transition: opacity 0.2s;
 }
 .edit-banner-actions button:hover { opacity: 0.7; }
+.edit-banner-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
 
 /* Export dropdown anchor */
 .editor-export-wrap {

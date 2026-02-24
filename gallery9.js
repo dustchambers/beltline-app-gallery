@@ -1618,7 +1618,9 @@
       item.appendChild(badge);
     }
     var size = getSize(item);
-    badge.textContent = BADGE_LABELS[size] || size;
+    // Always show cols×rows — for arbitrary drag sizes not in BADGE_LABELS,
+    // format with the × character so it looks consistent during live resize.
+    badge.textContent = BADGE_LABELS[size] || size.replace("x", "\u00d7");
     badge.style.cssText =
       "position: absolute; bottom: 6px; left: 14px;" +
       "background: " + (BADGE_COLORS[size] || "rgba(0,0,0,0.5)") + ";" +
