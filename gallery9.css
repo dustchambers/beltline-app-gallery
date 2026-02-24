@@ -825,6 +825,10 @@ body:not(.edit-mode) .spacer-text:empty::before {
   transition: opacity 0.2s;
 }
 .edit-banner-actions button:hover { opacity: 0.7; }
+.edit-banner-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
 
 /* Export dropdown anchor */
 .editor-export-wrap {
@@ -998,3 +1002,82 @@ body.edit-mode .g9-item:hover .item-resize-tl {
 /* No breakpoint reflow — the 18-column grid scales proportionally with the
    viewport at all widths. The vw-based grid-auto-rows formula keeps cells
    square, and all spans stay exactly as set, preserving the curated layout. */
+
+/* ── Image Adjust Panel ── */
+#adjust-panel {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  width: 300px;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  padding: 14px 16px 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  font-family: 'Inconsolata', monospace;
+}
+#adjust-panel.active { display: block; }
+
+.adjust-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.adjust-row label {
+  color: #aaa;
+  font-size: 12px;
+  width: 74px;
+  flex-shrink: 0;
+}
+.adjust-row input[type="range"] {
+  flex: 1;
+  accent-color: #4A90D9;
+}
+.adjust-row span {
+  color: #EDEBE0;
+  font-size: 12px;
+  width: 32px;
+  text-align: right;
+}
+.adjust-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.adjust-actions button {
+  background: #333;
+  color: #EDEBE0;
+  border: 1px solid #555;
+  padding: 4px 14px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+.adjust-actions button:hover { background: #444; }
+#adj-apply {
+  background: #4A90D9;
+  border-color: #4A90D9;
+  color: #fff;
+}
+#adj-apply:hover { background: #5a9fe8; }
+
+/* Selected image highlight in editor */
+.gallery-item.g9-selected {
+  outline: 2px solid #4A90D9;
+  outline-offset: -2px;
+}
+.gallery-item.g9-selected::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: #4A90D9;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 10;
+}
