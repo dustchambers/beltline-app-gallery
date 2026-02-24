@@ -80,6 +80,10 @@
   var editorOverlay = null;
   var selectedItems = new Set();
 
+  var adjustPanel = null;
+  var adjustTarget = null;
+  var adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
+
   var activeItem = null;
   var dragStartX = 0;
   var dragStartY = 0;
@@ -581,6 +585,142 @@
     btn.title = count === 0 ? "Select one image to edit"
       : count > 1 ? "Select only one image to edit"
       : "";
+  }
+
+  // ── Adjust Panel ──
+
+  function openAdjustPanel(item) {
+    adjustTarget = item;
+    var saved = item._adjustments || { contrast: 100, brightness: 100, saturation: 100 };
+    adjustPending = { contrast: saved.contrast, brightness: saved.brightness, saturation: saved.saturation };
+
+    if (!adjustPanel) {
+      adjustPanel = document.createElement("div");
+      adjustPanel.id = "adjust-panel";
+      adjustPanel.innerHTML =
+        '<div class="adjust-row"><label>Contrast</label>' +
+        '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
+        '<span id="adj-contrast-val"></span></div>' +
+        '<div class="adjust-row"><label>Brightness</label>' +
+        '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
+        '<span id="adj-brightness-val"></span></div>' +
+        '<div class="adjust-row"><label>Saturation</label>' +
+        '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
+        '<span id="adj-saturation-val"></span></div>' +
+        '<div class="adjust-actions">' +
+        '<button id="adj-reset">Reset</button>' +
+        '<button id="adj-apply">Apply</button></div>';
+      document.body.appendChild(adjustPanel);
+
+      ["contrast", "brightness", "saturation"].forEach(function (prop) {
+        var input = document.getElementById("adj-" + prop);
+        input.addEventListener("input", function () {
+          adjustPending[prop] = parseInt(input.value, 10);
+          document.getElementById("adj-" + prop + "-val").textContent = input.value;
+          applyAdjustPreview();
+        });
+      });
+
+      document.getElementById("adj-reset").addEventListener("click", function () {
+        adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
+        syncAdjustSliders();
+        applyAdjustPreview();
+      });
+
+      document.getElementById("adj-apply").addEventListener("click", function () {
+        commitAdjustments();
+        closeAdjustPanel(false);
+      });
+    }
+
+    syncAdjustSliders();
+    applyAdjustPreview();
+    positionAdjustPanel(item);
+    adjustPanel.classList.add("active");
+
+    setTimeout(function () {
+      document.addEventListener("mousedown", onAdjustOutsideClick);
+    }, 0);
+    document.addEventListener("keydown", onAdjustEscape);
+  }
+
+  function syncAdjustSliders() {
+    ["contrast", "brightness", "saturation"].forEach(function (prop) {
+      var input = document.getElementById("adj-" + prop);
+      if (input) {
+        input.value = adjustPending[prop];
+        document.getElementById("adj-" + prop + "-val").textContent = adjustPending[prop];
+      }
+    });
+  }
+
+  function applyAdjustPreview() {
+    if (!adjustTarget) return;
+    var img = adjustTarget.querySelector("img");
+    var f = adjustPending;
+    if (f.contrast === 100 && f.brightness === 100 && f.saturation === 100) {
+      img.style.filter = "";
+    } else {
+      img.style.filter =
+        "contrast(" + f.contrast + "%) " +
+        "brightness(" + f.brightness + "%) " +
+        "saturate(" + f.saturation + "%)";
+    }
+  }
+
+  function commitAdjustments() {
+    if (!adjustTarget) return;
+    var f = adjustPending;
+    if (f.contrast === 100 && f.brightness === 100 && f.saturation === 100) {
+      delete adjustTarget._adjustments;
+    } else {
+      adjustTarget._adjustments = { contrast: f.contrast, brightness: f.brightness, saturation: f.saturation };
+    }
+    autoSave();
+  }
+
+  function closeAdjustPanel(revert) {
+    if (revert && adjustTarget) {
+      var saved = adjustTarget._adjustments;
+      var img = adjustTarget.querySelector("img");
+      if (saved) {
+        img.style.filter =
+          "contrast(" + saved.contrast + "%) " +
+          "brightness(" + saved.brightness + "%) " +
+          "saturate(" + saved.saturation + "%)";
+      } else {
+        img.style.filter = "";
+      }
+    }
+    if (adjustPanel) adjustPanel.classList.remove("active");
+    adjustTarget = null;
+    document.removeEventListener("mousedown", onAdjustOutsideClick);
+    document.removeEventListener("keydown", onAdjustEscape);
+  }
+
+  function onAdjustOutsideClick(e) {
+    if (adjustPanel && !adjustPanel.contains(e.target)) {
+      closeAdjustPanel(true);
+    }
+  }
+
+  function onAdjustEscape(e) {
+    if (e.key === "Escape") closeAdjustPanel(true);
+  }
+
+  function positionAdjustPanel(item) {
+    var rect = item.getBoundingClientRect();
+    var panelH = 160;
+    var top, left;
+    if (rect.top > panelH + 8) {
+      top = rect.top + window.scrollY - panelH - 8;
+    } else {
+      top = rect.bottom + window.scrollY + 8;
+    }
+    left = rect.left + window.scrollX + (rect.width / 2) - 150;
+    left = Math.max(8, Math.min(left, window.innerWidth - 308));
+    adjustPanel.style.top = top + "px";
+    adjustPanel.style.left = left + "px";
   }
 
   // ── Export HTML ──
