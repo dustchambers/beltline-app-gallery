@@ -144,7 +144,7 @@ async function handleGet(env, slug, corsHeaders) {
       headers: {
         ...corsHeaders,
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=300",
+        "Cache-Control": "public, max-age=30",
       },
     });
   } catch (err) {
@@ -155,11 +155,7 @@ async function handleGet(env, slug, corsHeaders) {
   }
 }
 
-// Merge a saved layout over CMS images.
-// Layout defines order + size/crop overrides.
-// CMS images not in layout are appended at the end.
 function mergeLayout(cmsImages, layout) {
-  // Build lookup of CMS images by id
   const cmsMap = {};
   cmsImages.forEach(function (img) {
     cmsMap[img.id] = img;
@@ -168,23 +164,36 @@ function mergeLayout(cmsImages, layout) {
   const merged = [];
   const usedIds = {};
 
-  // Walk layout in order — pull matching CMS image, apply overrides
   layout.forEach(function (entry) {
-    const cmsImg = cmsMap[entry.id];
-    if (!cmsImg) return; // image was removed from CMS — skip
+    // Spacer entries have no CMS equivalent — pass through as-is
+    if (entry.type === "spacer") {
+      merged.push(entry);
+      return;
+    }
 
+    const cmsImg = cmsMap[entry.id];
+    if (!cmsImg) return; // image removed from CMS — skip
+
+    // src and alt always come from CMS (authoritative URLs)
+    // all layout overrides (position, size, adjustments, crop) come from KV
     merged.push({
-      id: cmsImg.id,
-      src: cmsImg.src,
-      alt: cmsImg.alt,
-      size: entry.size !== undefined ? entry.size : cmsImg.size,
-      crop: entry.crop || undefined,
+      id:          cmsImg.id,
+      src:         cmsImg.src,
+      alt:         cmsImg.alt,
+      size:        entry.size        !== undefined ? entry.size        : cmsImg.size,
+      crop:        entry.crop        || undefined,
+      cropRect:    entry.cropRect    || undefined,
+      colStart:    entry.colStart    || undefined,
+      rowStart:    entry.rowStart    || undefined,
+      cols:        entry.cols        || undefined,
+      rows:        entry.rows        || undefined,
+      adjustments: entry.adjustments || undefined,
     });
 
     usedIds[entry.id] = true;
   });
 
-  // Append any CMS images not in the layout (new uploads)
+  // Append new CMS images not present in the saved layout
   cmsImages.forEach(function (img) {
     if (!usedIds[img.id]) {
       merged.push(img);
