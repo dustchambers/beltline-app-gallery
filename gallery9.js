@@ -128,6 +128,11 @@
   var editorMode = false;
   var editorOverlay = null;
 
+  // Image adjustment panel state
+  var adjustPanel = null;
+  var adjustTarget = null;
+  var adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
+
   var activeItem = null;
   var dragStartX = 0;
   var dragStartY = 0;
@@ -283,6 +288,14 @@
 
       if (entry.crop && entry.crop !== "50% 50%") {
         img.style.objectPosition = entry.crop;
+      }
+      if (entry.adjustments) {
+        var fa = entry.adjustments;
+        img.style.filter =
+          "contrast(" + fa.contrast + "%) " +
+          "brightness(" + fa.brightness + "%) " +
+          "saturate(" + fa.saturation + "%)";
+        div._adjustments = fa;
       }
 
       // Blur-up: start blurred, clear once image data arrives.
@@ -1285,6 +1298,7 @@
         // that restoring an unsized item always applies a sensible size.
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
+      if (item._adjustments) entry.adjustments = item._adjustments;
       return entry;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1348,6 +1362,14 @@
 
         if (entry.crop) {
           item.querySelector("img").style.objectPosition = entry.crop;
+        }
+        if (entry.adjustments) {
+          var fa = entry.adjustments;
+          item._adjustments = fa;
+          item.querySelector("img").style.filter =
+            "contrast(" + fa.contrast + "%) " +
+            "brightness(" + fa.brightness + "%) " +
+            "saturate(" + fa.saturation + "%)";
         }
       });
 
@@ -1837,6 +1859,17 @@
   function clearSelection() {
     selectedItems.forEach(function (el) { el.classList.remove("g9-selected"); });
     selectedItems = [];
+    updateEditButton();
+  }
+
+  function updateEditButton() {
+    var btn = document.getElementById("editor-edit-image");
+    if (!btn) return;
+    var count = selectedItems.length;
+    btn.disabled = count !== 1;
+    btn.title = count === 0 ? "Select one image to edit"
+      : count > 1 ? "Select only one image to edit"
+      : "";
   }
 
   // ── Reorder Drag ──
@@ -2505,7 +2538,13 @@
 
       var img = item.querySelector("img");
       var objPos = img.style.objectPosition;
-      var posAttr = objPos && objPos !== "50% 50%" ? ' style="object-position: ' + objPos + '"' : "";
+      var adj = item._adjustments;
+      var imgStyleParts = [];
+      if (objPos && objPos !== "50% 50%") imgStyleParts.push("object-position: " + objPos);
+      if (adj && (adj.contrast !== 100 || adj.brightness !== 100 || adj.saturation !== 100)) {
+        imgStyleParts.push("filter: contrast(" + adj.contrast + "%) brightness(" + adj.brightness + "%) saturate(" + adj.saturation + "%)");
+      }
+      var posAttr = imgStyleParts.length ? ' style="' + imgStyleParts.join("; ") + '"' : "";
       var spans = getItemSpans(item);
       var divStyle = "";
       var cls;
@@ -2589,6 +2628,7 @@
         var sz = getSize(item);
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
+      if (item._adjustments) entry.adjustments = item._adjustments;
       return entry;
     });
 
@@ -2675,6 +2715,7 @@
       if (objPos && objPos !== "50% 50%") {
         entry.crop = objPos;
       }
+      if (item._adjustments) entry.adjustments = item._adjustments;
       return entry;
     });
 
@@ -2687,6 +2728,135 @@
     });
 
     console.log(json);
+  }
+
+  // ── Image Adjust Panel ──
+
+  function openAdjustPanel(item) {
+    adjustTarget = item;
+    var saved = item._adjustments || { contrast: 100, brightness: 100, saturation: 100 };
+    adjustPending = { contrast: saved.contrast, brightness: saved.brightness, saturation: saved.saturation };
+
+    if (!adjustPanel) {
+      adjustPanel = document.createElement("div");
+      adjustPanel.id = "adjust-panel";
+      adjustPanel.innerHTML =
+        '<div class="adjust-row"><label>Contrast</label>' +
+        '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
+        '<span id="adj-contrast-val"></span></div>' +
+        '<div class="adjust-row"><label>Brightness</label>' +
+        '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
+        '<span id="adj-brightness-val"></span></div>' +
+        '<div class="adjust-row"><label>Saturation</label>' +
+        '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
+        '<span id="adj-saturation-val"></span></div>' +
+        '<div class="adjust-actions">' +
+        '<button id="adj-reset">Reset</button>' +
+        '<button id="adj-apply">Apply</button></div>';
+      document.body.appendChild(adjustPanel);
+
+      ["contrast", "brightness", "saturation"].forEach(function (prop) {
+        var input = document.getElementById("adj-" + prop);
+        input.addEventListener("input", function () {
+          adjustPending[prop] = parseInt(input.value, 10);
+          document.getElementById("adj-" + prop + "-val").textContent = input.value;
+          applyAdjustPreview();
+        });
+      });
+      document.getElementById("adj-reset").addEventListener("click", function () {
+        adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
+        syncAdjustSliders();
+        applyAdjustPreview();
+      });
+      document.getElementById("adj-apply").addEventListener("click", function () {
+        commitAdjustments();
+        closeAdjustPanel(false);
+      });
+    }
+
+    syncAdjustSliders();
+    applyAdjustPreview();
+    positionAdjustPanel(item);
+    adjustPanel.classList.add("active");
+
+    setTimeout(function () {
+      document.addEventListener("mousedown", onAdjustOutsideClick);
+    }, 0);
+    document.addEventListener("keydown", onAdjustEscape);
+  }
+
+  function syncAdjustSliders() {
+    ["contrast", "brightness", "saturation"].forEach(function (prop) {
+      var input = document.getElementById("adj-" + prop);
+      if (input) {
+        input.value = adjustPending[prop];
+        document.getElementById("adj-" + prop + "-val").textContent = adjustPending[prop];
+      }
+    });
+  }
+
+  function applyAdjustPreview() {
+    if (!adjustTarget) return;
+    var img = adjustTarget.querySelector("img");
+    var f = adjustPending;
+    if (f.contrast === 100 && f.brightness === 100 && f.saturation === 100) {
+      img.style.filter = "";
+    } else {
+      img.style.filter =
+        "contrast(" + f.contrast + "%) " +
+        "brightness(" + f.brightness + "%) " +
+        "saturate(" + f.saturation + "%)";
+    }
+  }
+
+  function commitAdjustments() {
+    if (!adjustTarget) return;
+    var f = adjustPending;
+    if (f.contrast === 100 && f.brightness === 100 && f.saturation === 100) {
+      delete adjustTarget._adjustments;
+    } else {
+      adjustTarget._adjustments = { contrast: f.contrast, brightness: f.brightness, saturation: f.saturation };
+    }
+    autoSave();
+  }
+
+  function closeAdjustPanel(revert) {
+    if (revert && adjustTarget) {
+      var saved = adjustTarget._adjustments;
+      var img = adjustTarget.querySelector("img");
+      if (saved) {
+        img.style.filter =
+          "contrast(" + saved.contrast + "%) " +
+          "brightness(" + saved.brightness + "%) " +
+          "saturate(" + saved.saturation + "%)";
+      } else {
+        img.style.filter = "";
+      }
+    }
+    if (adjustPanel) adjustPanel.classList.remove("active");
+    adjustTarget = null;
+    document.removeEventListener("mousedown", onAdjustOutsideClick);
+    document.removeEventListener("keydown", onAdjustEscape);
+  }
+
+  function onAdjustOutsideClick(e) {
+    if (adjustPanel && !adjustPanel.contains(e.target)) closeAdjustPanel(true);
+  }
+
+  function onAdjustEscape(e) {
+    if (e.key === "Escape") closeAdjustPanel(true);
+  }
+
+  function positionAdjustPanel(item) {
+    var rect = item.getBoundingClientRect();
+    var panelH = 160;
+    var top = rect.top > panelH + 8
+      ? rect.top + window.scrollY - panelH - 8
+      : rect.bottom + window.scrollY + 8;
+    var left = rect.left + window.scrollX + (rect.width / 2) - 150;
+    left = Math.max(8, Math.min(left, window.innerWidth - 308));
+    adjustPanel.style.top = top + "px";
+    adjustPanel.style.left = left + "px";
   }
 
   // ── Editor Mode Toggle ──
@@ -2709,6 +2879,7 @@
           '</div>' +
           '<div class="edit-banner-actions">' +
             '<button id="editor-done">Done</button>' +
+            '<button id="editor-edit-image" disabled>\u270f Edit Image</button>' +
             (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
             '<span class="editor-export-wrap">' +
               '<button id="editor-export-toggle">Export \u25be</button>' +
@@ -2736,6 +2907,12 @@
           .getElementById("editor-publish")
           .addEventListener("click", publishLayout);
       }
+      document.getElementById("editor-edit-image")
+        .addEventListener("click", function () {
+          var items = selectedItems.slice();
+          if (items.length === 1) openAdjustPanel(items[0]);
+        });
+
       // Export dropdown
       var exportToggle = document.getElementById("editor-export-toggle");
       var exportMenu   = document.getElementById("editor-export-menu");
@@ -2848,11 +3025,13 @@
               selectedItems.splice(idx, 1);
               tgt.classList.remove("g9-selected");
             }
+            updateEditButton();
           } else {
-            // Plain click on unselected item — clear selection
-            if (selectedItems.indexOf(activeItem) === -1) {
-              clearSelection();
-            }
+            // Plain click — select this item (single), deselect all others
+            clearSelection();
+            selectedItems.push(activeItem);
+            activeItem.classList.add("g9-selected");
+            updateEditButton();
           }
           // Spacer body click: no auto-activate — text mode only via T button cycle.
           // Clean up any push-down/push-right state that didn't lead to a drop
