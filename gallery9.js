@@ -2472,6 +2472,28 @@
       isDragging = false;
       isCropping = false;
 
+      // Instant selection feedback on mousedown (before drag threshold confirmed).
+      // If a drag starts, startDrag() will clear this via clearSelection().
+      // Shift+mousedown toggles; plain mousedown singles-selects immediately.
+      if (!isSpacer(item)) {
+        if (e.shiftKey) {
+          var _idx = selectedItems.indexOf(item);
+          if (_idx === -1) {
+            selectedItems.push(item);
+            item.classList.add("g9-selected");
+          } else {
+            selectedItems.splice(_idx, 1);
+            item.classList.remove("g9-selected");
+          }
+          updateEditButton();
+        } else {
+          clearSelection();
+          selectedItems.push(item);
+          item.classList.add("g9-selected");
+          updateEditButton();
+        }
+      }
+
       // Bring clicked item to front by moving it to end of DOM within the gallery.
       // CSS Grid paints in source order, so the last item in DOM is on top.
       // Skip if it's already last (avoids DOM churn on every click).
@@ -3010,32 +3032,13 @@
         if (!activeItem) return;
 
         if (isDragging) {
+          // Drag completed — clear the mousedown pre-selection
+          clearSelection();
           endDrag();
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          // True click (no drag, no crop) — handle selection
-          if (e.shiftKey) {
-            // Shift+click: toggle this item in the multi-select set.
-            // Only reaches here if the mouse didn't move past DRAG_THRESHOLD,
-            // so crop/reposition is not affected.
-            var tgt = activeItem;
-            var idx = selectedItems.indexOf(tgt);
-            if (idx === -1) {
-              selectedItems.push(tgt);
-              tgt.classList.add("g9-selected");
-            } else {
-              selectedItems.splice(idx, 1);
-              tgt.classList.remove("g9-selected");
-            }
-            updateEditButton();
-          } else {
-            // Plain click — select this item (single), deselect all others
-            clearSelection();
-            selectedItems.push(activeItem);
-            activeItem.classList.add("g9-selected");
-            updateEditButton();
-          }
+          // True click (no drag) — selection already applied on mousedown, nothing to do.
           // Spacer body click: no auto-activate — text mode only via T button cycle.
           // Clean up any push-down/push-right state that didn't lead to a drop
           if (isPushDown)  restorePushDown();

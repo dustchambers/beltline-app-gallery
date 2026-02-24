@@ -852,13 +852,17 @@ body.edit-mode .g9-item:active {
 .g9-item.drag-placeholder img { opacity: 0; }
 
 /* ── Multi-select highlight ── */
-/* Shown when an item is shift+clicked into the selection set */
+/* box-shadow inset avoids the overflow:hidden clipping that kills outline */
 body.edit-mode .g9-item.g9-selected {
-  outline: 2px solid rgba(60, 120, 220, 0.85) !important;
-  outline-offset: -2px;
+  box-shadow: inset 0 0 0 3px #4A90D9 !important;
+  outline: none !important;
 }
 
-/* No overlay — selection is indicated by outline only */
+/* Suppress hover-zoom on selected items so the ring stays fully visible */
+body.edit-mode .g9-item.g9-selected img,
+body.edit-mode .g9-item.g9-selected:hover img {
+  transform: none;
+}
 
 /* Drop position indicator — same grid span as dragged item, no pointer events */
 .drop-indicator {
@@ -1062,12 +1066,8 @@ body.edit-mode .g9-item:hover .item-resize-tl {
 }
 #adj-apply:hover { background: #5a9fe8; }
 
-/* Selected image highlight in editor */
-.gallery-item.g9-selected {
-  outline: 2px solid #4A90D9;
-  outline-offset: -2px;
-}
-.gallery-item.g9-selected::after {
+/* ✓ badge on selected items */
+body.edit-mode .g9-item.g9-selected::after {
   content: '✓';
   position: absolute;
   top: 4px;
