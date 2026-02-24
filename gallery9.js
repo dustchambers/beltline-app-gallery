@@ -2913,6 +2913,7 @@
   }
 
   function onAdjustOutsideClick(e) {
+    if (_cropDragging) return;
     if (adjustPanel && !adjustPanel.contains(e.target)) closeAdjustPanel(true);
   }
 
@@ -2932,12 +2933,161 @@
     adjustPanel.style.left = left + "px";
   }
 
-  // ── Crop Functions (implemented in full below) ──
-  // Stubs prevent ReferenceError if crop tab is clicked before full implementation loads.
-  function applyThumbnailCrop(item, cropRect) {}
-  function initCropTab() {}
-  function renderCropOverlay() {}
-  function commitCrop() {}
+  // ── Crop Functions ──
+
+  var _cropDragCorner = null;
+  var _cropDragStart  = null;
+  var _cropRectStart  = null;
+  var _cropDragging   = false;
+
+  // Apply a cropRect { x, y, w, h } (percentages) to the thumbnail image.
+  // Pass null to clear any crop.
+  function applyThumbnailCrop(item, cropRect) {
+    var img = item.querySelector("img");
+    if (!cropRect || (cropRect.x === 0 && cropRect.y === 0 && cropRect.w === 100 && cropRect.h === 100)) {
+      img.style.objectPosition = "";
+      img.style.transform = "";
+      img.style.transformOrigin = "";
+      return;
+    }
+    var cx = cropRect.x + cropRect.w / 2;
+    var cy = cropRect.y + cropRect.h / 2;
+    var scale = Math.min(100 / cropRect.w, 100 / cropRect.h);
+    img.style.objectPosition = cx + "% " + cy + "%";
+    img.style.transform = "scale(" + scale.toFixed(4) + ")";
+    img.style.transformOrigin = cx + "% " + cy + "%";
+  }
+
+  // Called when user clicks the Crop tab — loads image into preview, inits handles.
+  function initCropTab() {
+    if (!adjustTarget) return;
+    var src = adjustTarget.querySelector("img").src;
+    document.getElementById("crop-preview-img").src = src;
+    var saved = adjustTarget._cropRect;
+    cropPending = saved
+      ? { x: saved.x, y: saved.y, w: saved.w, h: saved.h }
+      : { x: 0, y: 0, w: 100, h: 100 };
+    // Use requestAnimationFrame to let the preview image render before drawing overlay
+    requestAnimationFrame(function () {
+      renderCropOverlay();
+      bindCropHandles();
+    });
+  }
+
+  // Render the SVG dark-mask overlay and position the 4 corner handles.
+  function renderCropOverlay() {
+    var wrap = document.getElementById("crop-preview-wrap");
+    var svg  = document.getElementById("crop-overlay-svg");
+    if (!wrap || !svg) return;
+
+    var W = wrap.offsetWidth;
+    var H = wrap.offsetHeight;
+    var r = cropPending;
+
+    var x1 = (r.x / 100) * W;
+    var y1 = (r.y / 100) * H;
+    var x2 = ((r.x + r.w) / 100) * W;
+    var y2 = ((r.y + r.h) / 100) * H;
+
+    // evenodd path: outer rect "punches out" the crop area from the dark mask
+    var path =
+      "M0,0 L" + W + ",0 L" + W + "," + H + " L0," + H + " Z " +
+      "M" + x1 + "," + y1 + " L" + x2 + "," + y1 +
+      " L" + x2 + "," + y2 + " L" + x1 + "," + y2 + " Z";
+
+    svg.innerHTML =
+      '<path d="' + path + '" fill="rgba(0,0,0,0.55)" fill-rule="evenodd"/>' +
+      '<rect x="' + x1 + '" y="' + y1 + '" width="' + (x2 - x1) + '" height="' + (y2 - y1) +
+      '" fill="none" stroke="#4A90D9" stroke-width="1.5"/>';
+
+    setHandlePos("crop-h-tl", x1, y1);
+    setHandlePos("crop-h-tr", x2, y1);
+    setHandlePos("crop-h-bl", x1, y2);
+    setHandlePos("crop-h-br", x2, y2);
+  }
+
+  function setHandlePos(id, x, y) {
+    var el = document.getElementById(id);
+    if (el) { el.style.left = x + "px"; el.style.top = y + "px"; }
+  }
+
+  function bindCropHandles() {
+    var corners = ["tl", "tr", "bl", "br"];
+    corners.forEach(function (c) {
+      var el = document.getElementById("crop-h-" + c);
+      if (!el) return;
+      el.onmousedown = function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        _cropDragCorner = c;
+        _cropDragging   = true;
+        _cropDragStart  = { x: e.clientX, y: e.clientY };
+        _cropRectStart  = { x: cropPending.x, y: cropPending.y, w: cropPending.w, h: cropPending.h };
+      };
+    });
+    document.addEventListener("mousemove", onCropHandleMove);
+    document.addEventListener("mouseup",   onCropHandleUp);
+  }
+
+  function onCropHandleMove(e) {
+    if (!_cropDragCorner) return;
+    var wrap = document.getElementById("crop-preview-wrap");
+    if (!wrap) return;
+    var W = wrap.offsetWidth;
+    var H = wrap.offsetHeight;
+
+    var dx = ((e.clientX - _cropDragStart.x) / W) * 100;
+    var dy = ((e.clientY - _cropDragStart.y) / H) * 100;
+
+    var r = { x: _cropRectStart.x, y: _cropRectStart.y, w: _cropRectStart.w, h: _cropRectStart.h };
+    var MIN_SIZE = 5;
+
+    if (_cropDragCorner === "tl") {
+      r.x = Math.min(_cropRectStart.x + dx, _cropRectStart.x + _cropRectStart.w - MIN_SIZE);
+      r.y = Math.min(_cropRectStart.y + dy, _cropRectStart.y + _cropRectStart.h - MIN_SIZE);
+      r.w = _cropRectStart.w - (r.x - _cropRectStart.x);
+      r.h = _cropRectStart.h - (r.y - _cropRectStart.y);
+    } else if (_cropDragCorner === "tr") {
+      r.y = Math.min(_cropRectStart.y + dy, _cropRectStart.y + _cropRectStart.h - MIN_SIZE);
+      r.w = Math.max(_cropRectStart.w + dx, MIN_SIZE);
+      r.h = _cropRectStart.h - (r.y - _cropRectStart.y);
+    } else if (_cropDragCorner === "bl") {
+      r.x = Math.min(_cropRectStart.x + dx, _cropRectStart.x + _cropRectStart.w - MIN_SIZE);
+      r.w = _cropRectStart.w - (r.x - _cropRectStart.x);
+      r.h = Math.max(_cropRectStart.h + dy, MIN_SIZE);
+    } else { // br
+      r.w = Math.max(_cropRectStart.w + dx, MIN_SIZE);
+      r.h = Math.max(_cropRectStart.h + dy, MIN_SIZE);
+    }
+
+    r.x = Math.max(0, Math.min(r.x, 100 - MIN_SIZE));
+    r.y = Math.max(0, Math.min(r.y, 100 - MIN_SIZE));
+    r.w = Math.min(r.w, 100 - r.x);
+    r.h = Math.min(r.h, 100 - r.y);
+
+    cropPending = r;
+    renderCropOverlay();
+    if (adjustTarget) applyThumbnailCrop(adjustTarget, cropPending);
+  }
+
+  function onCropHandleUp() {
+    _cropDragCorner = null;
+    _cropDragging   = false;
+  }
+
+  function commitCrop() {
+    if (!adjustTarget) return;
+    var r = cropPending;
+    var isFullImage = (r.x === 0 && r.y === 0 && r.w === 100 && r.h === 100);
+    if (isFullImage) {
+      delete adjustTarget._cropRect;
+      applyThumbnailCrop(adjustTarget, null);
+    } else {
+      adjustTarget._cropRect = { x: r.x, y: r.y, w: r.w, h: r.h };
+      applyThumbnailCrop(adjustTarget, adjustTarget._cropRect);
+    }
+    autoSave();
+  }
 
   // ── Editor Mode Toggle ──
 
