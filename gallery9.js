@@ -1570,7 +1570,7 @@
     if (isIframe) {
       var images = visibleItems.map(function(el) {
         var i = el.querySelector("img");
-        return { src: i.src, alt: i.alt || "" };
+        return { src: i.src, alt: i.alt || "", cropRect: el._cropRect || null };
       });
       window.parent.postMessage({
         type: "lightbox",

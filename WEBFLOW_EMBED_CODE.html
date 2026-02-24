@@ -1,4 +1,4 @@
-<!-- Webflow Embed Code for Photo Galleries Template -->
+<!-- Webflow Embed Code for Photo Galleries Template — updated 2026-02-23 -->
 
 <div id="gallery-wrapper" style="width:100%">
   <iframe
@@ -29,7 +29,9 @@
       '<button id="lb-close" style="position:absolute;top:2rem;right:2.5rem;background:none;border:none;color:#EDEBE0;font-size:2.2rem;cursor:pointer;opacity:0.6;z-index:1002">&times;</button>' +
       '<button id="lb-prev" style="position:absolute;left:0;top:0;width:12.5%;height:100%;background:none;border:none;color:#EDEBE0;font-size:3rem;cursor:pointer;opacity:0.3;z-index:1001;display:flex;align-items:center;justify-content:center">&#8249;</button>' +
       '<button id="lb-next" style="position:absolute;right:0;top:0;width:12.5%;height:100%;background:none;border:none;color:#EDEBE0;font-size:3rem;cursor:pointer;opacity:0.3;z-index:1001;display:flex;align-items:center;justify-content:center">&#8250;</button>' +
-      '<img id="lb-img" style="max-width:75vw;max-height:70vh;object-fit:contain">' +
+      '<div id="lb-img-wrap" style="width:75vw;height:70vh;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative">' +
+        '<img id="lb-img" style="width:100%;height:100%;object-fit:contain;transition:object-position 0.15s">' +
+      '</div>' +
       '<p id="lb-caption" style="position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);font-family:Inconsolata,monospace;font-size:0.95rem;color:rgba(232,228,223,0.5);letter-spacing:0.1em;text-transform:uppercase"></p>' +
       '<span id="lb-counter" style="position:absolute;bottom:4.5rem;left:50%;transform:translateX(-50%);font-family:Inconsolata,monospace;font-size:0.85rem;color:rgba(232,228,223,0.4);letter-spacing:0.15em"></span>';
     document.body.appendChild(lbEl);
@@ -45,6 +47,7 @@
     var img = lbImages[lbIndex];
     document.getElementById("lb-img").src = img.src;
     document.getElementById("lb-img").alt = img.alt;
+    applyLightboxCrop(img.cropRect || null);
     document.getElementById("lb-caption").textContent = img.alt;
     document.getElementById("lb-counter").textContent = (lbIndex + 1) + " / " + lbImages.length;
     lbEl.style.opacity = "1";
@@ -59,6 +62,25 @@
     lbEl.style.opacity = "0";
     lbEl.style.pointerEvents = "none";
     document.body.style.overflow = "";
+  }
+
+  function applyLightboxCrop(cropRect) {
+    var img = document.getElementById("lb-img");
+    if (!img) return;
+    if (!cropRect || (cropRect.x === 0 && cropRect.y === 0 && cropRect.w === 100 && cropRect.h === 100)) {
+      img.style.objectFit = "contain";
+      img.style.objectPosition = "";
+      img.style.transform = "";
+      img.style.transformOrigin = "";
+      return;
+    }
+    var cx = cropRect.x + cropRect.w / 2;
+    var cy = cropRect.y + cropRect.h / 2;
+    var scale = Math.min(100 / cropRect.w, 100 / cropRect.h);
+    img.style.objectFit = "cover";
+    img.style.objectPosition = cx + "% " + cy + "%";
+    img.style.transform = "scale(" + scale.toFixed(4) + ")";
+    img.style.transformOrigin = cx + "% " + cy + "%";
   }
 
   document.addEventListener("keydown", function(ev) {
