@@ -2646,7 +2646,7 @@
         colStart: colP.start || null,
         rowStart: rowP.start || null
       };
-      if (spans.custom) {
+      if (spans.custom || (colP.span > 1 && !SIZE_CLASS_MAP[colP.span + "x" + rowP.span])) {
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
