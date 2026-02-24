@@ -1166,6 +1166,7 @@
 
     resizingItem.style.gridColumn = colStart + " / span " + newCols;
     resizingItem.style.gridRow    = rowStart + " / span " + newRows;
+    updateBadge(resizingItem); // live badge update while dragging
 
     // ── Shift+resize push ──
     // Bottom/br/bl edge expanding downward: push bystanders below the new bottom edge.
