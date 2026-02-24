@@ -2910,6 +2910,8 @@
     adjustTarget = null;
     document.removeEventListener("mousedown", onAdjustOutsideClick);
     document.removeEventListener("keydown", onAdjustEscape);
+    document.removeEventListener("mousemove", onCropHandleMove);
+    document.removeEventListener("mouseup",   onCropHandleUp);
   }
 
   function onAdjustOutsideClick(e) {
@@ -2978,18 +2980,23 @@
   function renderCropOverlay() {
     var wrap = document.getElementById("crop-preview-wrap");
     var svg  = document.getElementById("crop-overlay-svg");
-    if (!wrap || !svg) return;
+    var pImg = document.getElementById("crop-preview-img");
+    if (!wrap || !svg || !pImg) return;
 
     var W = wrap.offsetWidth;
     var H = wrap.offsetHeight;
+
+    // Compute the actual rendered image rect within the contain-fitted wrap
+    var imgRect = getContainRect(pImg, W, H);
+
     var r = cropPending;
 
-    var x1 = (r.x / 100) * W;
-    var y1 = (r.y / 100) * H;
-    var x2 = ((r.x + r.w) / 100) * W;
-    var y2 = ((r.y + r.h) / 100) * H;
+    // Map crop percentages to pixels within the image rect (not the full wrap)
+    var x1 = imgRect.x + (r.x / 100) * imgRect.w;
+    var y1 = imgRect.y + (r.y / 100) * imgRect.h;
+    var x2 = imgRect.x + ((r.x + r.w) / 100) * imgRect.w;
+    var y2 = imgRect.y + ((r.y + r.h) / 100) * imgRect.h;
 
-    // evenodd path: outer rect "punches out" the crop area from the dark mask
     var path =
       "M0,0 L" + W + ",0 L" + W + "," + H + " L0," + H + " Z " +
       "M" + x1 + "," + y1 + " L" + x2 + "," + y1 +
@@ -3004,6 +3011,32 @@
     setHandlePos("crop-h-tr", x2, y1);
     setHandlePos("crop-h-bl", x1, y2);
     setHandlePos("crop-h-br", x2, y2);
+  }
+
+  // Returns the pixel rect {x, y, w, h} of an object-fit:contain image within
+  // a container of size (containerW x containerH).
+  // Falls back to the full container if natural dimensions are unavailable.
+  function getContainRect(imgEl, containerW, containerH) {
+    var nw = imgEl.naturalWidth  || containerW;
+    var nh = imgEl.naturalHeight || containerH;
+    var imageAspect     = nw / nh;
+    var containerAspect = containerW / containerH;
+    var renderedW, renderedH;
+    if (imageAspect > containerAspect) {
+      // Image is wider — constrained by width
+      renderedW = containerW;
+      renderedH = containerW / imageAspect;
+    } else {
+      // Image is taller — constrained by height
+      renderedH = containerH;
+      renderedW = containerH * imageAspect;
+    }
+    return {
+      x: (containerW - renderedW) / 2,
+      y: (containerH - renderedH) / 2,
+      w: renderedW,
+      h: renderedH
+    };
   }
 
   function setHandlePos(id, x, y) {
@@ -3025,6 +3058,8 @@
         _cropRectStart  = { x: cropPending.x, y: cropPending.y, w: cropPending.w, h: cropPending.h };
       };
     });
+    document.removeEventListener("mousemove", onCropHandleMove);
+    document.removeEventListener("mouseup",   onCropHandleUp);
     document.addEventListener("mousemove", onCropHandleMove);
     document.addEventListener("mouseup",   onCropHandleUp);
   }
@@ -3035,9 +3070,12 @@
     if (!wrap) return;
     var W = wrap.offsetWidth;
     var H = wrap.offsetHeight;
+    var pImg = document.getElementById("crop-preview-img");
+    var imgRect = getContainRect(pImg, W, H);
 
-    var dx = ((e.clientX - _cropDragStart.x) / W) * 100;
-    var dy = ((e.clientY - _cropDragStart.y) / H) * 100;
+    // Deltas in image-percentage space (not wrap-percentage space)
+    var dx = ((e.clientX - _cropDragStart.x) / imgRect.w) * 100;
+    var dy = ((e.clientY - _cropDragStart.y) / imgRect.h) * 100;
 
     var r = { x: _cropRectStart.x, y: _cropRectStart.y, w: _cropRectStart.w, h: _cropRectStart.h };
     var MIN_SIZE = 5;
