@@ -1132,7 +1132,9 @@ body.edit-mode .g9-item:hover .item-resize-tl {
   border: 2px solid #4A90D9;
   border-radius: 2px;
   transform: translate(-50%, -50%);
-  cursor: pointer;
+  cursor: crosshair;
   pointer-events: all;
   z-index: 10;
 }
+#crop-h-tl, #crop-h-br { cursor: nwse-resize; }
+#crop-h-tr, #crop-h-bl { cursor: nesw-resize; }

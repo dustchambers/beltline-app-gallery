@@ -2932,6 +2932,13 @@
     adjustPanel.style.left = left + "px";
   }
 
+  // ── Crop Functions (implemented in full below) ──
+  // Stubs prevent ReferenceError if crop tab is clicked before full implementation loads.
+  function applyThumbnailCrop(item, cropRect) {}
+  function initCropTab() {}
+  function renderCropOverlay() {}
+  function commitCrop() {}
+
   // ── Editor Mode Toggle ──
 
   function toggleEditor() {
