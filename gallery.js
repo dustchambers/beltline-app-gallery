@@ -78,12 +78,12 @@
 
   var editorMode = false;
   var editorOverlay = null;
+  var selectedItems = new Set();
 
   var activeItem = null;
   var dragStartX = 0;
   var dragStartY = 0;
   var isDragging = false;
-  var isCropping = false;
   var dragGhost = null;
   var lastDropTarget = null;
   var lastInsertBefore = true;
@@ -365,30 +365,6 @@
     });
   }
 
-  // ── Size Cycling ──
-  // 1x -> 2w -> 2x2 -> 3w -> tall -> 4x2 -> 1x
-
-  function cycleSize(item) {
-    var current = getSize(item);
-    clearSizeClasses(item);
-
-    if (current === 1) {
-      item.classList.add("featured");
-    } else if (current === 2) {
-      item.classList.add("featured-2x2");
-    } else if (current === "2x2") {
-      item.classList.add("featured-wide");
-    } else if (current === 3) {
-      item.classList.add("featured-tall");
-    } else if (current === "tall") {
-      item.classList.add("featured-4x2");
-    }
-    // "4x2" -> back to 1 (no class added)
-
-    updateBadge(item);
-    autoSave();
-  }
-
   // ── Reorder Drag (Live Sliding Preview) ──
 
   function flipAnimate(draggedItem) {
@@ -564,7 +540,6 @@
       dragStartX = e.clientX;
       dragStartY = e.clientY;
       isDragging = false;
-      isCropping = false;
     };
 
     item.addEventListener("mousedown", item._onMouseDown);
@@ -751,46 +726,27 @@
       }
 
       window._editorMouseMove = function (e) {
+        window._lastMouseEvent = e;
         if (!activeItem) return;
-
         var dx = e.clientX - dragStartX;
         var dy = e.clientY - dragStartY;
         var dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (!isDragging && !isCropping && dist > DRAG_THRESHOLD) {
-          if (e.shiftKey) {
-            isCropping = true;
-            activeItem.style.cursor = "crosshair";
-            var crop = getCropState(activeItem);
-            activeItem._cropStartX = crop.objX;
-            activeItem._cropStartY = crop.objY;
-          } else {
-            isDragging = true;
-            startDrag(activeItem, e);
-          }
+        if (!isDragging && dist > DRAG_THRESHOLD) {
+          isDragging = true;
+          startDrag(activeItem, e);
         }
-
-        if (isDragging) {
-          moveDrag(e);
-        } else if (isCropping) {
-          moveCrop(activeItem, e);
-        }
+        if (isDragging) moveDrag(e);
       };
 
       window._editorMouseUp = function () {
         if (!activeItem) return;
-
         if (isDragging) {
           endDrag();
-        } else if (isCropping) {
-          endCrop(activeItem);
         } else {
-          cycleSize(activeItem);
+          toggleSelect(activeItem, window._lastMouseEvent);
         }
-
         activeItem = null;
         isDragging = false;
-        isCropping = false;
       };
 
       window.addEventListener("mousemove", window._editorMouseMove);
