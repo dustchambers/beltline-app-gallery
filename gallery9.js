@@ -132,6 +132,7 @@
   var adjustPanel = null;
   var adjustTarget = null;
   var adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
+  var cropPending = { x: 0, y: 0, w: 100, h: 100 };
 
   var activeItem = null;
   var dragStartX = 0;
@@ -2767,18 +2768,38 @@
       adjustPanel = document.createElement("div");
       adjustPanel.id = "adjust-panel";
       adjustPanel.innerHTML =
-        '<div class="adjust-row"><label>Contrast</label>' +
-        '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
-        '<span id="adj-contrast-val"></span></div>' +
-        '<div class="adjust-row"><label>Brightness</label>' +
-        '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
-        '<span id="adj-brightness-val"></span></div>' +
-        '<div class="adjust-row"><label>Saturation</label>' +
-        '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
-        '<span id="adj-saturation-val"></span></div>' +
-        '<div class="adjust-actions">' +
-        '<button id="adj-reset">Reset</button>' +
-        '<button id="adj-apply">Apply</button></div>';
+        '<div class="panel-tabs">' +
+          '<button class="panel-tab active" id="adj-tab-adjust">Adjust</button>' +
+          '<button class="panel-tab" id="adj-tab-crop">Crop</button>' +
+        '</div>' +
+        '<div class="adjust-tab-content" id="adj-adjust-section">' +
+          '<div class="adjust-row"><label>Contrast</label>' +
+          '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
+          '<span id="adj-contrast-val"></span></div>' +
+          '<div class="adjust-row"><label>Brightness</label>' +
+          '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
+          '<span id="adj-brightness-val"></span></div>' +
+          '<div class="adjust-row"><label>Saturation</label>' +
+          '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
+          '<span id="adj-saturation-val"></span></div>' +
+          '<div class="adjust-actions">' +
+          '<button id="adj-reset">Reset</button>' +
+          '<button id="adj-apply">Apply</button></div>' +
+        '</div>' +
+        '<div class="crop-tab-content" id="adj-crop-section">' +
+          '<div class="crop-preview-wrap" id="crop-preview-wrap">' +
+            '<img class="crop-preview-img" id="crop-preview-img" src="" alt="">' +
+            '<svg class="crop-overlay-svg" id="crop-overlay-svg"></svg>' +
+            '<div class="crop-handle" id="crop-h-tl"></div>' +
+            '<div class="crop-handle" id="crop-h-tr"></div>' +
+            '<div class="crop-handle" id="crop-h-bl"></div>' +
+            '<div class="crop-handle" id="crop-h-br"></div>' +
+          '</div>' +
+          '<div class="adjust-actions">' +
+          '<button id="crop-reset">Reset Crop</button>' +
+          '<button id="crop-apply" style="background:#4A90D9;border-color:#4A90D9;color:#fff">Apply</button>' +
+          '</div>' +
+        '</div>';
       document.body.appendChild(adjustPanel);
 
       ["contrast", "brightness", "saturation"].forEach(function (prop) {
@@ -2796,6 +2817,32 @@
       });
       document.getElementById("adj-apply").addEventListener("click", function () {
         commitAdjustments();
+        closeAdjustPanel(false);
+      });
+
+      // Tab switching
+      document.getElementById("adj-tab-adjust").addEventListener("click", function () {
+        document.getElementById("adj-tab-adjust").classList.add("active");
+        document.getElementById("adj-tab-crop").classList.remove("active");
+        document.getElementById("adj-adjust-section").classList.remove("hidden");
+        document.getElementById("adj-crop-section").classList.remove("active");
+      });
+      document.getElementById("adj-tab-crop").addEventListener("click", function () {
+        document.getElementById("adj-tab-crop").classList.add("active");
+        document.getElementById("adj-tab-adjust").classList.remove("active");
+        document.getElementById("adj-adjust-section").classList.add("hidden");
+        document.getElementById("adj-crop-section").classList.add("active");
+        initCropTab();
+      });
+
+      // Crop reset / apply
+      document.getElementById("crop-reset").addEventListener("click", function () {
+        cropPending = { x: 0, y: 0, w: 100, h: 100 };
+        renderCropOverlay();
+        if (adjustTarget) applyThumbnailCrop(adjustTarget, null);
+      });
+      document.getElementById("crop-apply").addEventListener("click", function () {
+        commitCrop();
         closeAdjustPanel(false);
       });
     }
@@ -2875,7 +2922,7 @@
 
   function positionAdjustPanel(item) {
     var rect = item.getBoundingClientRect();
-    var panelH = 160;
+    var panelH = 260;
     var top = rect.top > panelH + 8
       ? rect.top + window.scrollY - panelH - 8
       : rect.bottom + window.scrollY + 8;
