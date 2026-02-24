@@ -1301,6 +1301,7 @@
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       if (item._adjustments) entry.adjustments = item._adjustments;
+      if (item._cropRect) entry.cropRect = item._cropRect;
       return entry;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1364,6 +1365,10 @@
 
         if (entry.crop) {
           item.querySelector("img").style.objectPosition = entry.crop;
+        }
+        if (entry.cropRect) {
+          item._cropRect = entry.cropRect;
+          applyThumbnailCrop(item, entry.cropRect);
         }
         if (entry.adjustments) {
           var fa = entry.adjustments;
@@ -2655,6 +2660,7 @@
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       if (item._adjustments) entry.adjustments = item._adjustments;
+      if (item._cropRect) entry.cropRect = item._cropRect;
       return entry;
     });
 
