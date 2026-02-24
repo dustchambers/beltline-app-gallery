@@ -2672,9 +2672,10 @@
         return res.json();
       })
       .then(function () {
+        localStorage.removeItem(STORAGE_KEY);
         if (btn) {
-          btn.textContent = "Published!";
-          setTimeout(function () { btn.textContent = "Publish"; }, 2000);
+          btn.textContent = "Published — live in ~30s";
+          setTimeout(function () { btn.textContent = "Publish"; }, 3000);
         }
       })
       .catch(function (err) {
