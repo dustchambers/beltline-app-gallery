@@ -1582,6 +1582,22 @@
 
     lightboxImg.src = img.src;
     lightboxImg.alt = img.alt;
+    // Apply crop to non-iframe lightbox
+    var lbCrop = item._cropRect || null;
+    if (lbCrop && !(lbCrop.x === 0 && lbCrop.y === 0 && lbCrop.w === 100 && lbCrop.h === 100)) {
+      var lbCx = lbCrop.x + lbCrop.w / 2;
+      var lbCy = lbCrop.y + lbCrop.h / 2;
+      var lbScale = Math.min(100 / lbCrop.w, 100 / lbCrop.h);
+      lightboxImg.style.objectFit = "cover";
+      lightboxImg.style.objectPosition = lbCx + "% " + lbCy + "%";
+      lightboxImg.style.transform = "scale(" + lbScale.toFixed(4) + ")";
+      lightboxImg.style.transformOrigin = lbCx + "% " + lbCy + "%";
+    } else {
+      lightboxImg.style.objectFit = "";
+      lightboxImg.style.objectPosition = "";
+      lightboxImg.style.transform = "";
+      lightboxImg.style.transformOrigin = "";
+    }
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
