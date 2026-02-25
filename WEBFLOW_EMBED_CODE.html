@@ -11,8 +11,8 @@
   var slug = window.location.pathname.split("/").pop();
   var iframe = document.getElementById("lot43-gallery");
   var iframeSrc = "https://dustchambers.github.io/beltline-app-gallery/gallery9.html?id=" + slug;
-  if (new URLSearchParams(window.location.search).has("edit")) {
-    iframeSrc += "&edit";
+  if (new URLSearchParams(window.location.search).has("gedit")) {
+    iframeSrc += "&gedit";
   }
   iframe.src = iframeSrc;
 
