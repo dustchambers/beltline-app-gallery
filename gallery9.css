@@ -852,10 +852,18 @@ body.edit-mode .g9-item:active {
 .g9-item.drag-placeholder img { opacity: 0; }
 
 /* ── Multi-select highlight ── */
-/* box-shadow inset avoids the overflow:hidden clipping that kills outline */
-body.edit-mode .g9-item.g9-selected {
-  box-shadow: inset 0 0 0 4px #4A90D9 !important;
-  outline: none !important;
+/* Use ::before pseudo-element ring instead of box-shadow inset.
+   box-shadow:inset can fail to repaint after iframe DOM reorder (appendChild).
+   outline is clipped by overflow:hidden on .g9-item.
+   ::before positioned inset draws inside the stacking context and always repaints. */
+body.edit-mode .g9-item.g9-selected::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid #4A90D9;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* Suppress hover-zoom on selected items so the ring stays fully visible */
