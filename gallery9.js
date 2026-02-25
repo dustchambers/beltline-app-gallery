@@ -132,7 +132,6 @@
   var adjustPanel = null;
   var adjustTarget = null;
   var adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
-  var cropPending = { x: 0, y: 0, w: 100, h: 100 };
 
   var activeItem = null;
   var dragStartX = 0;
@@ -326,10 +325,6 @@
       });
 
       div.appendChild(img);
-      if (entry.cropRect) {
-        div._cropRect = entry.cropRect;
-        applyThumbnailCrop(div, entry.cropRect);
-      }
       lockAnimation(div);
       gallery.appendChild(div);
     });
@@ -1305,7 +1300,6 @@
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       if (item._adjustments) entry.adjustments = item._adjustments;
-      if (item._cropRect) entry.cropRect = item._cropRect;
       return entry;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1369,10 +1363,6 @@
 
         if (entry.crop) {
           item.querySelector("img").style.objectPosition = entry.crop;
-        }
-        if (entry.cropRect) {
-          item._cropRect = entry.cropRect;
-          applyThumbnailCrop(item, entry.cropRect);
         }
         if (entry.adjustments) {
           var fa = entry.adjustments;
@@ -1523,14 +1513,6 @@
       } else {
         item.querySelector("img").style.objectPosition = "";
       }
-      // Restore cropRect
-      if (entry.cropRect) {
-        item._cropRect = entry.cropRect;
-        applyThumbnailCrop(item, entry.cropRect);
-      } else {
-        delete item._cropRect;
-        applyThumbnailCrop(item, null);
-      }
       // Restore adjustments
       if (entry.adjustments) {
         item._adjustments = entry.adjustments;
@@ -1592,7 +1574,7 @@
     if (isIframe) {
       var images = visibleItems.map(function(el) {
         var i = el.querySelector("img");
-        return { src: i.src, alt: i.alt || "", cropRect: el._cropRect || null };
+        return { src: i.src, alt: i.alt || "" };
       });
       window.parent.postMessage({
         type: "lightbox",
@@ -1604,22 +1586,6 @@
 
     lightboxImg.src = img.src;
     lightboxImg.alt = img.alt;
-    // Apply crop to non-iframe lightbox
-    var lbCrop = item._cropRect || null;
-    if (lbCrop && !(lbCrop.x === 0 && lbCrop.y === 0 && lbCrop.w === 100 && lbCrop.h === 100)) {
-      var lbCx = lbCrop.x + lbCrop.w / 2;
-      var lbCy = lbCrop.y + lbCrop.h / 2;
-      var lbScale = Math.min(100 / lbCrop.w, 100 / lbCrop.h);
-      lightboxImg.style.objectFit = "cover";
-      lightboxImg.style.objectPosition = lbCx + "% " + lbCy + "%";
-      lightboxImg.style.transform = "scale(" + lbScale.toFixed(4) + ")";
-      lightboxImg.style.transformOrigin = lbCx + "% " + lbCy + "%";
-    } else {
-      lightboxImg.style.objectFit = "";
-      lightboxImg.style.objectPosition = "";
-      lightboxImg.style.transform = "";
-      lightboxImg.style.transformOrigin = "";
-    }
     lightboxCaption.textContent = img.alt || "";
     lightboxCounter.textContent = (index + 1) + " / " + visibleItems.length;
 
@@ -2698,7 +2664,6 @@
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
       if (item._adjustments) entry.adjustments = item._adjustments;
-      if (item._cropRect) entry.cropRect = item._cropRect;
       return entry;
     });
 
@@ -2812,38 +2777,18 @@
       adjustPanel = document.createElement("div");
       adjustPanel.id = "adjust-panel";
       adjustPanel.innerHTML =
-        '<div class="panel-tabs">' +
-          '<button class="panel-tab active" id="adj-tab-adjust">Adjust</button>' +
-          '<button class="panel-tab" id="adj-tab-crop">Crop</button>' +
-        '</div>' +
-        '<div class="adjust-tab-content" id="adj-adjust-section">' +
-          '<div class="adjust-row"><label>Contrast</label>' +
-          '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
-          '<span id="adj-contrast-val"></span></div>' +
-          '<div class="adjust-row"><label>Brightness</label>' +
-          '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
-          '<span id="adj-brightness-val"></span></div>' +
-          '<div class="adjust-row"><label>Saturation</label>' +
-          '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
-          '<span id="adj-saturation-val"></span></div>' +
-          '<div class="adjust-actions">' +
-          '<button id="adj-reset">Reset</button>' +
-          '<button id="adj-apply">Apply</button></div>' +
-        '</div>' +
-        '<div class="crop-tab-content" id="adj-crop-section">' +
-          '<div class="crop-preview-wrap" id="crop-preview-wrap">' +
-            '<img class="crop-preview-img" id="crop-preview-img" src="" alt="">' +
-            '<svg class="crop-overlay-svg" id="crop-overlay-svg"></svg>' +
-            '<div class="crop-handle" id="crop-h-tl"></div>' +
-            '<div class="crop-handle" id="crop-h-tr"></div>' +
-            '<div class="crop-handle" id="crop-h-bl"></div>' +
-            '<div class="crop-handle" id="crop-h-br"></div>' +
-          '</div>' +
-          '<div class="adjust-actions">' +
-          '<button id="crop-reset">Reset Crop</button>' +
-          '<button id="crop-apply" style="background:#4A90D9;border-color:#4A90D9;color:#fff">Apply</button>' +
-          '</div>' +
-        '</div>';
+        '<div class="adjust-row"><label>Contrast</label>' +
+        '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
+        '<span id="adj-contrast-val"></span></div>' +
+        '<div class="adjust-row"><label>Brightness</label>' +
+        '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
+        '<span id="adj-brightness-val"></span></div>' +
+        '<div class="adjust-row"><label>Saturation</label>' +
+        '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
+        '<span id="adj-saturation-val"></span></div>' +
+        '<div class="adjust-actions">' +
+        '<button id="adj-reset">Reset</button>' +
+        '<button id="adj-apply">Apply</button></div>';
       document.body.appendChild(adjustPanel);
 
       ["contrast", "brightness", "saturation"].forEach(function (prop) {
@@ -2861,32 +2806,6 @@
       });
       document.getElementById("adj-apply").addEventListener("click", function () {
         commitAdjustments();
-        closeAdjustPanel(false);
-      });
-
-      // Tab switching
-      document.getElementById("adj-tab-adjust").addEventListener("click", function () {
-        document.getElementById("adj-tab-adjust").classList.add("active");
-        document.getElementById("adj-tab-crop").classList.remove("active");
-        document.getElementById("adj-adjust-section").classList.remove("hidden");
-        document.getElementById("adj-crop-section").classList.remove("active");
-      });
-      document.getElementById("adj-tab-crop").addEventListener("click", function () {
-        document.getElementById("adj-tab-crop").classList.add("active");
-        document.getElementById("adj-tab-adjust").classList.remove("active");
-        document.getElementById("adj-adjust-section").classList.add("hidden");
-        document.getElementById("adj-crop-section").classList.add("active");
-        initCropTab();
-      });
-
-      // Crop reset / apply
-      document.getElementById("crop-reset").addEventListener("click", function () {
-        cropPending = { x: 0, y: 0, w: 100, h: 100 };
-        renderCropOverlay();
-        if (adjustTarget) applyThumbnailCrop(adjustTarget, null);
-      });
-      document.getElementById("crop-apply").addEventListener("click", function () {
-        commitCrop();
         closeAdjustPanel(false);
       });
     }
@@ -2938,8 +2857,6 @@
   }
 
   function closeAdjustPanel(revert) {
-    _cropDragCorner = null;
-    _cropDragging   = false;
     if (revert && adjustTarget) {
       var saved = adjustTarget._adjustments;
       var img = adjustTarget.querySelector("img");
@@ -2951,18 +2868,14 @@
       } else {
         img.style.filter = "";
       }
-      applyThumbnailCrop(adjustTarget, adjustTarget._cropRect || null);
     }
     if (adjustPanel) adjustPanel.classList.remove("active");
     adjustTarget = null;
     document.removeEventListener("mousedown", onAdjustOutsideClick);
     document.removeEventListener("keydown", onAdjustEscape);
-    document.removeEventListener("mousemove", onCropHandleMove);
-    document.removeEventListener("mouseup",   onCropHandleUp);
   }
 
   function onAdjustOutsideClick(e) {
-    if (_cropDragging) return;
     if (adjustPanel && !adjustPanel.contains(e.target)) closeAdjustPanel(true);
   }
 
@@ -2972,7 +2885,7 @@
 
   function positionAdjustPanel(item) {
     var rect = item.getBoundingClientRect();
-    var panelH = 260;
+    var panelH = 160;
     var top = rect.top > panelH + 8
       ? rect.top + window.scrollY - panelH - 8
       : rect.bottom + window.scrollY + 8;
@@ -2980,198 +2893,6 @@
     left = Math.max(8, Math.min(left, window.innerWidth - 308));
     adjustPanel.style.top = top + "px";
     adjustPanel.style.left = left + "px";
-  }
-
-  // ── Crop Functions ──
-
-  var _cropDragCorner = null;
-  var _cropDragStart  = null;
-  var _cropRectStart  = null;
-  var _cropDragging   = false;
-
-  // Apply a cropRect { x, y, w, h } (percentages) to the thumbnail image.
-  // Pass null to clear any crop.
-  function applyThumbnailCrop(item, cropRect) {
-    var img = item.querySelector("img");
-    if (!cropRect || (cropRect.x === 0 && cropRect.y === 0 && cropRect.w === 100 && cropRect.h === 100)) {
-      img.style.objectPosition = "";
-      img.style.transform = "";
-      img.style.transformOrigin = "";
-      return;
-    }
-    var cx = cropRect.x + cropRect.w / 2;
-    var cy = cropRect.y + cropRect.h / 2;
-    var scale = Math.min(100 / cropRect.w, 100 / cropRect.h);
-    img.style.objectPosition = cx + "% " + cy + "%";
-    img.style.transform = "scale(" + scale.toFixed(4) + ")";
-    img.style.transformOrigin = cx + "% " + cy + "%";
-  }
-
-  // Called when user clicks the Crop tab — loads image into preview, inits handles.
-  function initCropTab() {
-    if (!adjustTarget) return;
-    var src = adjustTarget.querySelector("img").src;
-    document.getElementById("crop-preview-img").src = src;
-    var saved = adjustTarget._cropRect;
-    cropPending = saved
-      ? { x: saved.x, y: saved.y, w: saved.w, h: saved.h }
-      : { x: 0, y: 0, w: 100, h: 100 };
-    // Use requestAnimationFrame to let the preview image render before drawing overlay
-    requestAnimationFrame(function () {
-      renderCropOverlay();
-      bindCropHandles();
-    });
-  }
-
-  // Render the SVG dark-mask overlay and position the 4 corner handles.
-  function renderCropOverlay() {
-    var wrap = document.getElementById("crop-preview-wrap");
-    var svg  = document.getElementById("crop-overlay-svg");
-    var pImg = document.getElementById("crop-preview-img");
-    if (!wrap || !svg || !pImg) return;
-
-    var W = wrap.offsetWidth;
-    var H = wrap.offsetHeight;
-
-    // Compute the actual rendered image rect within the contain-fitted wrap
-    var imgRect = getContainRect(pImg, W, H);
-
-    var r = cropPending;
-
-    // Map crop percentages to pixels within the image rect (not the full wrap)
-    var x1 = imgRect.x + (r.x / 100) * imgRect.w;
-    var y1 = imgRect.y + (r.y / 100) * imgRect.h;
-    var x2 = imgRect.x + ((r.x + r.w) / 100) * imgRect.w;
-    var y2 = imgRect.y + ((r.y + r.h) / 100) * imgRect.h;
-
-    var path =
-      "M0,0 L" + W + ",0 L" + W + "," + H + " L0," + H + " Z " +
-      "M" + x1 + "," + y1 + " L" + x2 + "," + y1 +
-      " L" + x2 + "," + y2 + " L" + x1 + "," + y2 + " Z";
-
-    svg.innerHTML =
-      '<path d="' + path + '" fill="rgba(0,0,0,0.55)" fill-rule="evenodd"/>' +
-      '<rect x="' + x1 + '" y="' + y1 + '" width="' + (x2 - x1) + '" height="' + (y2 - y1) +
-      '" fill="none" stroke="#4A90D9" stroke-width="1.5"/>';
-
-    setHandlePos("crop-h-tl", x1, y1);
-    setHandlePos("crop-h-tr", x2, y1);
-    setHandlePos("crop-h-bl", x1, y2);
-    setHandlePos("crop-h-br", x2, y2);
-  }
-
-  // Returns the pixel rect {x, y, w, h} of an object-fit:contain image within
-  // a container of size (containerW x containerH).
-  // Falls back to the full container if natural dimensions are unavailable.
-  function getContainRect(imgEl, containerW, containerH) {
-    var nw = imgEl.naturalWidth  || containerW;
-    var nh = imgEl.naturalHeight || containerH;
-    var imageAspect     = nw / nh;
-    var containerAspect = containerW / containerH;
-    var renderedW, renderedH;
-    if (imageAspect > containerAspect) {
-      // Image is wider — constrained by width
-      renderedW = containerW;
-      renderedH = containerW / imageAspect;
-    } else {
-      // Image is taller — constrained by height
-      renderedH = containerH;
-      renderedW = containerH * imageAspect;
-    }
-    return {
-      x: (containerW - renderedW) / 2,
-      y: (containerH - renderedH) / 2,
-      w: renderedW,
-      h: renderedH
-    };
-  }
-
-  function setHandlePos(id, x, y) {
-    var el = document.getElementById(id);
-    if (el) { el.style.left = x + "px"; el.style.top = y + "px"; }
-  }
-
-  function bindCropHandles() {
-    var corners = ["tl", "tr", "bl", "br"];
-    corners.forEach(function (c) {
-      var el = document.getElementById("crop-h-" + c);
-      if (!el) return;
-      el.onmousedown = function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        _cropDragCorner = c;
-        _cropDragging   = true;
-        _cropDragStart  = { x: e.clientX, y: e.clientY };
-        _cropRectStart  = { x: cropPending.x, y: cropPending.y, w: cropPending.w, h: cropPending.h };
-      };
-    });
-    document.removeEventListener("mousemove", onCropHandleMove);
-    document.removeEventListener("mouseup",   onCropHandleUp);
-    document.addEventListener("mousemove", onCropHandleMove);
-    document.addEventListener("mouseup",   onCropHandleUp);
-  }
-
-  function onCropHandleMove(e) {
-    if (!_cropDragCorner) return;
-    var wrap = document.getElementById("crop-preview-wrap");
-    if (!wrap) return;
-    var W = wrap.offsetWidth;
-    var H = wrap.offsetHeight;
-    var pImg = document.getElementById("crop-preview-img");
-    var imgRect = getContainRect(pImg, W, H);
-
-    // Deltas in image-percentage space (not wrap-percentage space)
-    var dx = ((e.clientX - _cropDragStart.x) / imgRect.w) * 100;
-    var dy = ((e.clientY - _cropDragStart.y) / imgRect.h) * 100;
-
-    var r = { x: _cropRectStart.x, y: _cropRectStart.y, w: _cropRectStart.w, h: _cropRectStart.h };
-    var MIN_SIZE = 5;
-
-    if (_cropDragCorner === "tl") {
-      r.x = Math.min(_cropRectStart.x + dx, _cropRectStart.x + _cropRectStart.w - MIN_SIZE);
-      r.y = Math.min(_cropRectStart.y + dy, _cropRectStart.y + _cropRectStart.h - MIN_SIZE);
-      r.w = _cropRectStart.w - (r.x - _cropRectStart.x);
-      r.h = _cropRectStart.h - (r.y - _cropRectStart.y);
-    } else if (_cropDragCorner === "tr") {
-      r.y = Math.min(_cropRectStart.y + dy, _cropRectStart.y + _cropRectStart.h - MIN_SIZE);
-      r.w = Math.max(_cropRectStart.w + dx, MIN_SIZE);
-      r.h = _cropRectStart.h - (r.y - _cropRectStart.y);
-    } else if (_cropDragCorner === "bl") {
-      r.x = Math.min(_cropRectStart.x + dx, _cropRectStart.x + _cropRectStart.w - MIN_SIZE);
-      r.w = _cropRectStart.w - (r.x - _cropRectStart.x);
-      r.h = Math.max(_cropRectStart.h + dy, MIN_SIZE);
-    } else { // br
-      r.w = Math.max(_cropRectStart.w + dx, MIN_SIZE);
-      r.h = Math.max(_cropRectStart.h + dy, MIN_SIZE);
-    }
-
-    r.x = Math.max(0, Math.min(r.x, 100 - MIN_SIZE));
-    r.y = Math.max(0, Math.min(r.y, 100 - MIN_SIZE));
-    r.w = Math.min(r.w, 100 - r.x);
-    r.h = Math.min(r.h, 100 - r.y);
-
-    cropPending = r;
-    renderCropOverlay();
-    if (adjustTarget) applyThumbnailCrop(adjustTarget, cropPending);
-  }
-
-  function onCropHandleUp() {
-    _cropDragCorner = null;
-    _cropDragging   = false;
-  }
-
-  function commitCrop() {
-    if (!adjustTarget) return;
-    var r = cropPending;
-    var isFullImage = (r.x === 0 && r.y === 0 && r.w === 100 && r.h === 100);
-    if (isFullImage) {
-      delete adjustTarget._cropRect;
-      applyThumbnailCrop(adjustTarget, null);
-    } else {
-      adjustTarget._cropRect = { x: r.x, y: r.y, w: r.w, h: r.h };
-      applyThumbnailCrop(adjustTarget, adjustTarget._cropRect);
-    }
-    autoSave();
   }
 
   // ── Editor Mode Toggle ──
