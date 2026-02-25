@@ -182,7 +182,6 @@ function mergeLayout(cmsImages, layout) {
       alt:         cmsImg.alt,
       size:        entry.size        !== undefined ? entry.size        : cmsImg.size,
       crop:        entry.crop        != null ? entry.crop        : undefined,
-      cropRect:    entry.cropRect    != null ? entry.cropRect    : undefined,
       colStart:    entry.colStart    != null ? entry.colStart    : undefined,
       rowStart:    entry.rowStart    != null ? entry.rowStart    : undefined,
       cols:        entry.cols        != null ? entry.cols        : undefined,
