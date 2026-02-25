@@ -110,12 +110,14 @@ async function handleGet(env, slug, corsHeaders) {
 
     const fields = gallery.fieldData;
 
-    // Extract images from all multi-image fields (supports >25 via images-2, images-3)
-    // IDs are globally sequential across all fields so KV layouts remain stable.
+    // Extract images from all multi-image fields (supports >25 via images-2, images-3).
+    // IDs are index-based (img_0…img_N) across the full concatenated array.
+    // Note: removing images from an earlier field shifts IDs for later fields.
+    // Supports up to ~75 images (3 fields × 25); add images-4 here to extend further.
     const rawImages = [
-      ...(fields["images"]         || fields["gallery-images"] || []),
-      ...(fields["images-2"]       || []),
-      ...(fields["images-3"]       || []),
+      ...(fields["images"] || fields["gallery-images"] || []),
+      ...(fields["images-2"] || []),
+      ...(fields["images-3"] || []),
     ];
 
     let images = rawImages.map((img, i) => ({
