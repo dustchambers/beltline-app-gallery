@@ -268,6 +268,10 @@
           entry.text || null, entry.align || null, entry.valign || null,
           entry.textStyle || null, entry.bgColor || null, entry.textColor || null
         );
+        if (entry.colStart && entry.rowStart) {
+          spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
+          spacer.style.gridRow    = entry.rowStart + " / span " + (entry.rows || 1);
+        }
         gallery.appendChild(spacer);
         return;
       }
@@ -329,6 +333,21 @@
       div.appendChild(img);
       lockAnimation(div);
       gallery.appendChild(div);
+
+      // Apply KV-published grid position if present in config (fresh load / incognito).
+      // This mirrors the position logic in restoreState() so that published layouts
+      // survive page reloads without requiring localStorage.
+      if (entry.cols && entry.rows) {
+        // Custom size (drag-resized): apply raw span with explicit start
+        clearSizeClasses(div);
+        div.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
+        div.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
+      } else if (entry.colStart && entry.rowStart) {
+        // Named size (e.g. "6x4") with an explicit position
+        var spans = getItemSpans(div);
+        div.style.gridColumn = entry.colStart + " / span " + spans.cols;
+        div.style.gridRow    = entry.rowStart + " / span " + spans.rows;
+      }
     });
   }
 
