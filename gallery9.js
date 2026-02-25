@@ -2485,8 +2485,10 @@
       isCropping = false;
 
       // Instant selection feedback on mousedown (before drag threshold confirmed).
-      // If a drag starts, startDrag() will clear this via clearSelection().
       // Shift+mousedown toggles; plain mousedown singles-selects immediately.
+      // Exception: if item is already in a multi-selection, keep the group intact
+      // so startDrag() can move all selected items together. Group is cleared
+      // by endDrag() after the drop, or on the next plain-click on a different item.
       if (!isSpacer(item)) {
         if (e.shiftKey) {
           var _idx = selectedItems.indexOf(item);
@@ -2499,10 +2501,16 @@
           }
           updateEditButton();
         } else {
-          clearSelection();
-          selectedItems.push(item);
-          item.classList.add("g9-selected");
-          updateEditButton();
+          // If this item is already part of a multi-selection, preserve the group
+          // for the upcoming drag. Only clear if selecting a brand-new item.
+          if (selectedItems.length > 1 && selectedItems.indexOf(item) !== -1) {
+            // keep group selection intact — startDrag will use the full group
+          } else {
+            clearSelection();
+            selectedItems.push(item);
+            item.classList.add("g9-selected");
+            updateEditButton();
+          }
         }
       }
 
