@@ -14,6 +14,8 @@
   }
 
   function boot(cfg) {
+    console.log("[gallery] boot — config source:", window.GALLERY_CONFIG ? "static GALLERY_CONFIG" : "fetched from worker ?id=");
+    console.log("[gallery] boot — config.id:", cfg.id, "| images:", cfg.images ? cfg.images.length : 0);
     config = cfg;
     STORAGE_KEY = "galleryLayout_" + config.id;
     init();
@@ -2669,6 +2671,7 @@
 
     var btn = document.getElementById("editor-publish");
 
+    console.log("[gallery] publishLayout — PUT slug:", config.id, "| entries:", layout.length);
     fetch(WORKER_URL + "/" + encodeURIComponent(config.id), {
       method: "PUT",
       headers: {
@@ -2681,7 +2684,8 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
-      .then(function () {
+      .then(function (data) {
+        console.log("[gallery] publishLayout — success:", data);
         localStorage.removeItem(STORAGE_KEY);
         if (btn) {
           btn.textContent = "Published — live in ~30s";
@@ -2689,7 +2693,7 @@
         }
       })
       .catch(function (err) {
-        console.error("Publish failed:", err);
+        console.error("[gallery] publishLayout — FAILED:", err);
         if (btn) {
           btn.textContent = "Failed!";
           setTimeout(function () { btn.textContent = "Publish"; }, 2000);

@@ -122,11 +122,13 @@ async function handleGet(env, slug, corsHeaders) {
 
     // ── Merge KV layout overrides ──
     const savedLayout = await env.GALLERY_KV.get("layout:" + slug);
+    console.log("KV lookup: layout:" + slug, "| found:", !!savedLayout, savedLayout ? "(len=" + savedLayout.length + ")" : "(empty)");
 
     if (savedLayout) {
       try {
         const layout = JSON.parse(savedLayout);
         images = mergeLayout(images, layout);
+        console.log("mergeLayout complete | images:", images.length, "| first id:", images[0] && images[0].id);
       } catch (e) {
         // If layout is corrupt, just use CMS order
         console.error("Failed to parse saved layout:", e);
