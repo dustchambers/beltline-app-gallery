@@ -775,6 +775,12 @@ body:not(.edit-mode) .spacer-text:empty::before {
   z-index: 200;
 }
 
+/* Push gallery content below the fixed banner so it isn't covered.
+   Two banner rows × (0.7+0.75+0.6 rem padding+line) + 1px border ≈ 4.3rem. */
+body.edit-mode {
+  padding-top: 4.3rem;
+}
+
 .edit-banner {
   background: #1a1a1a;
   color: #EDEBE0;
