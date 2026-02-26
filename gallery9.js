@@ -2966,11 +2966,27 @@
         slots.push({ item: remaining.shift(), cols: cols, rows: rows });
       }
 
-      // Row height = tallest slot in this recipe row
-      var rowHeight = 0;
-      for (var k = 0; k < slots.length; k++) {
-        if (slots[k].rows > rowHeight) rowHeight = slots[k].rows;
+      // Row height = tallest value valid for ALL slot widths in this recipe row.
+      // We intersect valid heights across all slots to avoid producing size keys
+      // like "12x9" that don't exist in SIZE_CLASS_MAP.
+      var validForAll = VALID_HEIGHTS[slots[0].cols] ? VALID_HEIGHTS[slots[0].cols].slice() : [4];
+      for (var k = 1; k < slots.length; k++) {
+        var h = VALID_HEIGHTS[slots[k].cols] || [4];
+        validForAll = validForAll.filter(function(v) { return h.indexOf(v) !== -1; });
       }
+      if (validForAll.length === 0) validForAll = [4]; // safety: always at least one option
+      // Pick the tallest valid height that any individual slot rolled
+      var rawMax = 0;
+      for (var k = 0; k < slots.length; k++) {
+        if (slots[k].rows > rawMax) rawMax = slots[k].rows;
+      }
+      // Find the largest value in the intersection that doesn't exceed rawMax
+      validForAll.sort(function(a, b) { return b - a; }); // descending
+      var rowHeight = validForAll[validForAll.length - 1]; // fallback: smallest valid
+      for (var k = 0; k < validForAll.length; k++) {
+        if (validForAll[k] <= rawMax) { rowHeight = validForAll[k]; break; }
+      }
+      if (rowHeight < 1) rowHeight = 4;
 
       // ── Place each slot directly onto the grid ──
       for (var p = 0; p < slots.length; p++) {
