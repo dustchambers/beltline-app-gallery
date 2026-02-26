@@ -769,16 +769,13 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 /* ── Edit Mode ── */
+/* sticky works correctly inside auto-height iframes (Webflow embeds) where
+   position:fixed anchors to the iframe top rather than the browser viewport.
+   The banner is in normal flow and sticks to the top of the scroll container. */
 #edit-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0;
+  position: sticky;
+  top: 0;
   z-index: 200;
-}
-
-/* Push gallery content below the fixed banner so it isn't covered.
-   Two banner rows × (0.7+0.75+0.6 rem padding+line) + 1px border ≈ 4.3rem. */
-body.edit-mode {
-  padding-top: 4.3rem;
 }
 
 .edit-banner {
