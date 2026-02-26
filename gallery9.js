@@ -2939,8 +2939,11 @@
       4: [[4,4,4,6], [6,4,4,4], [4,6,4,4], [4,4,6,4]]
     };
 
+    var colCursor = 1;   // next column to place into (1-based)
+    var rowCursor = 1;   // current grid row (1-based)
+
     while (remaining.length > 0) {
-      // Pick a recipe; if it needs more items than remain, fall back to smaller recipe
+      // Pick a recipe; fall back to safe pre-computed recipes when fewer items remain
       var recipe = shuffleArray(pickRandom(RECIPES));
 
       if (recipe.length > remaining.length) {
@@ -2948,25 +2951,41 @@
         recipe = opts ? shuffleArray(pickRandom(opts)) : [18];
       }
 
-      // Assign sizes for this row
+      // ── Collect slots for this recipe row ──
+      // Determine cols and rows for each item first, then normalise row height
+      // to the maximum so all items share the same height — no mid-row gaps.
+      var slots = [];
       for (var si = 0; si < recipe.length && remaining.length > 0; si++) {
-        var item = remaining.shift();
         var cols = recipe[si];
         var validH = VALID_HEIGHTS[cols] || [4];
         var rows = pickRandom(HEIGHT_PALETTE);
-        // Re-roll until we get a height valid for this width (max 10 attempts)
         for (var attempt = 0; attempt < 10 && validH.indexOf(rows) === -1; attempt++) {
           rows = pickRandom(HEIGHT_PALETTE);
         }
-        if (validH.indexOf(rows) === -1) rows = validH[0]; // guaranteed fallback
-
-        var size = cols + "x" + rows;
-        clearSizeClasses(item);
-        applySizeClass(item, size);
-        item.style.gridColumn = "";
-        item.style.gridRow    = "";
-        gallery.appendChild(item);
+        if (validH.indexOf(rows) === -1) rows = validH[0];
+        slots.push({ item: remaining.shift(), cols: cols, rows: rows });
       }
+
+      // Row height = tallest slot in this recipe row
+      var rowHeight = 0;
+      for (var k = 0; k < slots.length; k++) {
+        if (slots[k].rows > rowHeight) rowHeight = slots[k].rows;
+      }
+
+      // ── Place each slot directly onto the grid ──
+      for (var p = 0; p < slots.length; p++) {
+        var slot = slots[p];
+        clearSizeClasses(slot.item);
+        applySizeClass(slot.item, slot.cols + "x" + rowHeight);
+        slot.item.style.gridColumn = colCursor + " / span " + slot.cols;
+        slot.item.style.gridRow    = rowCursor + " / span " + rowHeight;
+        gallery.appendChild(slot.item);
+        colCursor += slot.cols;
+      }
+
+      // Advance to the next row
+      rowCursor += rowHeight;
+      colCursor = 1;
     }
 
     pinAllItems();
