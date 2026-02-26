@@ -2868,6 +2868,30 @@
           autoSave();
         });
 
+  // ── Row-recipe size assignment ──
+  // Recipes are col-width arrays that sum to 18 — guarantees no orphan columns.
+  // Heights are assigned per-image from a weighted palette, filtered to valid
+  // combinations for that column width.
+  var VALID_HEIGHTS = {
+    4:  [4, 6, 8],
+    6:  [4, 6, 8, 9],
+    9:  [4, 6],
+    12: [4, 6],
+    18: [4, 6, 8]
+  };
+
+  // Flat weighted recipe array — pick by random index
+  var RECIPES = [
+    [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],
+    [9,9],     [9,9],     [9,9],     [9,9],
+    [6,12],    [6,12],    [6,12],
+    [12,6],    [12,6],    [12,6],
+    [4,4,4,6], [4,4,4,6],
+    [18]
+  ];
+
+  var HEIGHT_PALETTE = [4,4,4,4,4,4, 6,6,6,6, 8,8, 9];
+
   // ── Shuffle Layout ──
 
   function shuffleLayout() {
@@ -2890,30 +2914,6 @@
       imgItems[j] = tmp;
     }
 
-    // ── Row-recipe size assignment ──
-    // Recipes are col-width arrays that sum to 18 — guarantees no orphan columns.
-    // Heights are assigned per-image from a weighted palette, filtered to valid
-    // combinations for that column width.
-    var VALID_HEIGHTS = {
-      4:  [4, 6, 8],
-      6:  [4, 6, 8, 9],
-      9:  [4, 6],
-      12: [4, 6],
-      18: [4, 6, 8]
-    };
-
-    // Flat weighted recipe array — pick by random index
-    var RECIPES = [
-      [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],
-      [9,9],     [9,9],     [9,9],     [9,9],
-      [6,12],    [6,12],    [6,12],
-      [12,6],    [12,6],    [12,6],
-      [4,4,4,6], [4,4,4,6],
-      [18]
-    ];
-
-    var HEIGHT_PALETTE = [4,4,4,4,4,4, 6,6,6,6, 8,8, 9];
-
     function pickRandom(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
@@ -2930,27 +2930,28 @@
 
     var remaining = imgItems.slice(); // work from a copy
 
+    // Pre-computed fallback recipes for when recipe length > remaining items.
+    // All widths guaranteed to be in {4,6,9,12,18} — no arithmetic remainder risk.
+    var FALLBACK_RECIPES = {
+      1: [[18], [12], [9], [6]],
+      2: [[9,9], [6,12], [12,6]],
+      3: [[6,6,6], [6,12], [12,6]],
+      4: [[4,4,4,6], [6,4,4,4], [4,6,4,4], [4,4,6,4]]
+    };
+
     while (remaining.length > 0) {
       // Pick a recipe; if it needs more items than remain, fall back to smaller recipe
       var recipe = shuffleArray(pickRandom(RECIPES));
 
-      // Trim recipe to available items using safe pre-computed fallback recipes.
-      // All widths guaranteed to be in {4,6,9,12,18} — no arithmetic remainder risk.
       if (recipe.length > remaining.length) {
-        var FALLBACK_RECIPES = {
-          1: [[18], [12], [9], [6]],
-          2: [[9,9], [6,12], [12,6], [9,9]],
-          3: [[6,6,6], [6,12], [12,6]],
-          4: [[4,4,4,6], [6,4,4,4], [4,6,4,4], [4,4,6,4]]
-        };
         var opts = FALLBACK_RECIPES[remaining.length];
         recipe = opts ? shuffleArray(pickRandom(opts)) : [18];
       }
 
       // Assign sizes for this row
-      for (var ri2 = 0; ri2 < recipe.length && remaining.length > 0; ri2++) {
+      for (var si = 0; si < recipe.length && remaining.length > 0; si++) {
         var item = remaining.shift();
-        var cols = recipe[ri2];
+        var cols = recipe[si];
         var validH = VALID_HEIGHTS[cols] || [4];
         var rows = pickRandom(HEIGHT_PALETTE);
         // Re-roll until we get a height valid for this width (max 10 attempts)
