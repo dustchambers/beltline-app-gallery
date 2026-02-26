@@ -2934,19 +2934,17 @@
       // Pick a recipe; if it needs more items than remain, fall back to smaller recipe
       var recipe = shuffleArray(pickRandom(RECIPES));
 
-      // Trim recipe to available items (avoids leaving a row half-specified)
+      // Trim recipe to available items using safe pre-computed fallback recipes.
+      // All widths guaranteed to be in {4,6,9,12,18} — no arithmetic remainder risk.
       if (recipe.length > remaining.length) {
-        // Build a recipe that uses exactly remaining.length items summing to 18
-        recipe = [];
-        var colsLeft = 18;
-        for (var ri = 0; ri < remaining.length - 1; ri++) {
-          // pick a width that leaves room for at least one more valid width
-          var w = pickRandom([6, 6, 9]);
-          if (w > colsLeft - 6) w = 6; // ensure at least 6 cols for next item
-          recipe.push(w);
-          colsLeft -= w;
-        }
-        recipe.push(colsLeft > 0 ? colsLeft : 6); // last item takes remaining cols
+        var FALLBACK_RECIPES = {
+          1: [[18], [12], [9], [6]],
+          2: [[9,9], [6,12], [12,6], [9,9]],
+          3: [[6,6,6], [6,12], [12,6]],
+          4: [[4,4,4,6], [6,4,4,4], [4,6,4,4], [4,4,6,4]]
+        };
+        var opts = FALLBACK_RECIPES[remaining.length];
+        recipe = opts ? shuffleArray(pickRandom(opts)) : [18];
       }
 
       // Assign sizes for this row
