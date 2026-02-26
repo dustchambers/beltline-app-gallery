@@ -1,10 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap');
 
 /* ── Reset & Background ── */
-html, body {
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+body {
   margin: 0;
   padding: 0;
   background-color: #ECEAE4;
+  /* Make body the scroll container so position:fixed in edit mode anchors
+     to the body viewport — works correctly inside Webflow auto-height iframes. */
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 /* ── Embed Mode ── */
@@ -156,15 +165,21 @@ body.dragging .gallery {
 .g9-item.g9-6x4  { grid-column: span 6;  grid-row: span 4; }
 .g9-item.g9-9x4  { grid-column: span 9;  grid-row: span 4; }
 .g9-item.g9-9x6  { grid-column: span 9;  grid-row: span 6; }
+.g9-item.g9-9x8  { grid-column: span 9;  grid-row: span 8; }
+.g9-item.g9-9x9  { grid-column: span 9;  grid-row: span 9; }
 .g9-item.g9-12x4 { grid-column: span 12; grid-row: span 4; }
 .g9-item.g9-12x6 { grid-column: span 12; grid-row: span 6; }
+.g9-item.g9-12x8 { grid-column: span 12; grid-row: span 8; }
+.g9-item.g9-12x9 { grid-column: span 12; grid-row: span 9; }
 .g9-item.g9-18x4 { grid-column: span 18; grid-row: span 4; }
 .g9-item.g9-18x6 { grid-column: span 18; grid-row: span 6; }
 .g9-item.g9-18x8 { grid-column: span 18; grid-row: span 8; }
+.g9-item.g9-18x9 { grid-column: span 18; grid-row: span 9; }
 
 /* ── Vertical ── */
 .g9-item.g9-4x6  { grid-column: span 4;  grid-row: span 6; }
 .g9-item.g9-4x8  { grid-column: span 4;  grid-row: span 8; }
+.g9-item.g9-4x9  { grid-column: span 4;  grid-row: span 9; }
 .g9-item.g9-6x8  { grid-column: span 6;  grid-row: span 8; }
 .g9-item.g9-6x9  { grid-column: span 6;  grid-row: span 9; }
 
@@ -769,13 +784,18 @@ body:not(.edit-mode) .spacer-text:empty::before {
 }
 
 /* ── Edit Mode ── */
-/* sticky works correctly inside auto-height iframes (Webflow embeds) where
-   position:fixed anchors to the iframe top rather than the browser viewport.
-   The banner is in normal flow and sticks to the top of the scroll container. */
+/* position:fixed anchors to the nearest scroll container. With body as the
+   scroll container (overflow-y:auto above), this correctly sticks in both
+   direct-URL and Webflow iframe embed contexts. */
 #edit-overlay {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0;
   z-index: 200;
+}
+
+/* Push gallery content below the fixed banner so it isn't covered. */
+body.edit-mode {
+  padding-top: 4.3rem;
 }
 
 .edit-banner {
