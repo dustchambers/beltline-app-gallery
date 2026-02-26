@@ -2890,49 +2890,85 @@
       imgItems[j] = tmp;
     }
 
-    // Weighted size palettes — portrait vs landscape
-    // Flat arrays: entry count = weight, pick by random index
-    var LANDSCAPE_PALETTE = [
-      "6x4","6x4","6x4","6x4","6x4","6x4","6x4", // weight 7 — workhorse medium
-      "9x4","9x4","9x4","9x4",                    // weight 4 — wide medium
-      "9x6","9x6",                                 // weight 2 — wide tall
-      "12x4","12x4","12x4",                        // weight 3 — hero landscape
-      "12x6","12x6",                               // weight 2 — large hero
-      "4x4","4x4"                                  // weight 2 — square accent
+    // ── Row-recipe size assignment ──
+    // Recipes are col-width arrays that sum to 18 — guarantees no orphan columns.
+    // Heights are assigned per-image from a weighted palette, filtered to valid
+    // combinations for that column width.
+    var VALID_HEIGHTS = {
+      4:  [4, 6, 8],
+      6:  [4, 6, 8, 9],
+      9:  [4, 6],
+      12: [4, 6],
+      18: [4, 6, 8]
+    };
+
+    // Flat weighted recipe array — pick by random index
+    var RECIPES = [
+      [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],
+      [9,9],     [9,9],     [9,9],     [9,9],
+      [6,12],    [6,12],    [6,12],
+      [12,6],    [12,6],    [12,6],
+      [4,4,4,6], [4,4,4,6],
+      [18]
     ];
-    var PORTRAIT_PALETTE = [
-      "4x6","4x6","4x6","4x6","4x6","4x6","4x6","4x6", // weight 8 — standard portrait
-      "4x8","4x8","4x8",                                // weight 3 — tall portrait
-      "6x8","6x8","6x8","6x8",                          // weight 4 — wide portrait
-      "6x9","6x9",                                      // weight 2 — statement portrait
-      "6x6","6x6","6x6"                                 // weight 3 — square accent
-    ];
 
-    var prevSize = null;
+    var HEIGHT_PALETTE = [4,4,4,4,4,4, 6,6,6,6, 8,8, 9];
 
-    imgItems.forEach(function (item) {
-      var img = item.querySelector("img");
-      var isPortrait = img && img.naturalHeight > img.naturalWidth * 1.1;
-      var palette = isPortrait ? PORTRAIT_PALETTE : LANDSCAPE_PALETTE;
+    function pickRandom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
 
-      // Pick a random size
-      var size = palette[Math.floor(Math.random() * palette.length)];
-
-      // No-repeat-adjacent: re-roll once if same size as previous item
-      if (size === prevSize) {
-        size = palette[Math.floor(Math.random() * palette.length)];
+    // Fisher-Yates shuffle a copy of an array (used to randomise recipe slot order)
+    function shuffleArray(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
       }
-      prevSize = size;
+      return a;
+    }
 
-      // Apply size and clear any pinned position
-      clearSizeClasses(item);
-      applySizeClass(item, size);
-      item.style.gridColumn = "";
-      item.style.gridRow    = "";
+    var remaining = imgItems.slice(); // work from a copy
 
-      // Re-append in shuffled order so DOM order matches intended layout order
-      gallery.appendChild(item);
-    });
+    while (remaining.length > 0) {
+      // Pick a recipe; if it needs more items than remain, fall back to smaller recipe
+      var recipe = shuffleArray(pickRandom(RECIPES));
+
+      // Trim recipe to available items (avoids leaving a row half-specified)
+      if (recipe.length > remaining.length) {
+        // Build a recipe that uses exactly remaining.length items summing to 18
+        recipe = [];
+        var colsLeft = 18;
+        for (var ri = 0; ri < remaining.length - 1; ri++) {
+          // pick a width that leaves room for at least one more valid width
+          var w = pickRandom([6, 6, 9]);
+          if (w > colsLeft - 6) w = 6; // ensure at least 6 cols for next item
+          recipe.push(w);
+          colsLeft -= w;
+        }
+        recipe.push(colsLeft > 0 ? colsLeft : 6); // last item takes remaining cols
+      }
+
+      // Assign sizes for this row
+      for (var ri2 = 0; ri2 < recipe.length && remaining.length > 0; ri2++) {
+        var item = remaining.shift();
+        var cols = recipe[ri2];
+        var validH = VALID_HEIGHTS[cols] || [4];
+        var rows = pickRandom(HEIGHT_PALETTE);
+        // Re-roll until we get a height valid for this width (max 10 attempts)
+        for (var attempt = 0; attempt < 10 && validH.indexOf(rows) === -1; attempt++) {
+          rows = pickRandom(HEIGHT_PALETTE);
+        }
+        if (validH.indexOf(rows) === -1) rows = validH[0]; // guaranteed fallback
+
+        var size = cols + "x" + rows;
+        clearSizeClasses(item);
+        applySizeClass(item, size);
+        item.style.gridColumn = "";
+        item.style.gridRow    = "";
+        gallery.appendChild(item);
+      }
+    }
 
     pinAllItems();
     mergeAdjacentSpacers();
