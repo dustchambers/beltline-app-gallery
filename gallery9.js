@@ -2814,6 +2814,7 @@
             '<button id="editor-done">Done</button>' +
             '<button id="editor-edit-image" disabled>\u270f Edit Image</button>' +
             (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
+            '<button id="editor-shuffle">Shuffle</button>' +
             '<button id="editor-reset">Reset</button>' +
           '</div>' +
         "</div>";
@@ -2836,6 +2837,12 @@
 
       // Reset: lay out all images 3-per-row at 6×4 (landscape) or 4×6 (portrait),
       // remove all spacers, clear saved state, and re-enter a clean editor session.
+      document
+        .getElementById("editor-shuffle")
+        .addEventListener("click", function () {
+          shuffleLayout();
+        });
+
       document
         .getElementById("editor-reset")
         .addEventListener("click", function () {
@@ -2928,6 +2935,8 @@
     });
 
     pinAllItems();
+    mergeAdjacentSpacers();
+    refreshOrderNumbers();
     refreshSlots();
     autoSave();
   }
