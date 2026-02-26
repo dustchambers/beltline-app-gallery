@@ -2861,6 +2861,77 @@
           autoSave();
         });
 
+  // ── Shuffle Layout ──
+
+  function shuffleLayout() {
+    pushUndo();
+
+    var gallery = getGallery();
+    var items = getGalleryItems();
+
+    // Remove all spacers — clean slate
+    items.filter(isSpacer).forEach(function (s) { s.remove(); });
+
+    // Re-read after spacer removal
+    var imgItems = getGalleryItems();
+
+    // Fisher-Yates shuffle
+    for (var i = imgItems.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = imgItems[i];
+      imgItems[i] = imgItems[j];
+      imgItems[j] = tmp;
+    }
+
+    // Weighted size palettes — portrait vs landscape
+    // Flat arrays: entry count = weight, pick by random index
+    var LANDSCAPE_PALETTE = [
+      "6x4","6x4","6x4","6x4","6x4","6x4","6x4", // weight 7 — workhorse medium
+      "9x4","9x4","9x4","9x4",                    // weight 4 — wide medium
+      "9x6","9x6",                                 // weight 2 — wide tall
+      "12x4","12x4","12x4",                        // weight 3 — hero landscape
+      "12x6","12x6",                               // weight 2 — large hero
+      "4x4","4x4"                                  // weight 2 — square accent
+    ];
+    var PORTRAIT_PALETTE = [
+      "4x6","4x6","4x6","4x6","4x6","4x6","4x6","4x6", // weight 8 — standard portrait
+      "4x8","4x8","4x8",                                // weight 3 — tall portrait
+      "6x8","6x8","6x8","6x8",                          // weight 4 — wide portrait
+      "6x9","6x9",                                      // weight 2 — statement portrait
+      "6x6","6x6","6x6"                                 // weight 3 — square accent
+    ];
+
+    var prevSize = null;
+
+    imgItems.forEach(function (item) {
+      var img = item.querySelector("img");
+      var isPortrait = img && img.naturalHeight > img.naturalWidth * 1.1;
+      var palette = isPortrait ? PORTRAIT_PALETTE : LANDSCAPE_PALETTE;
+
+      // Pick a random size
+      var size = palette[Math.floor(Math.random() * palette.length)];
+
+      // No-repeat-adjacent: re-roll once if same size as previous item
+      if (size === prevSize) {
+        size = palette[Math.floor(Math.random() * palette.length)];
+      }
+      prevSize = size;
+
+      // Apply size and clear any pinned position
+      clearSizeClasses(item);
+      applySizeClass(item, size);
+      item.style.gridColumn = "";
+      item.style.gridRow    = "";
+
+      // Re-append in shuffled order so DOM order matches intended layout order
+      gallery.appendChild(item);
+    });
+
+    pinAllItems();
+    refreshSlots();
+    autoSave();
+  }
+
       getGalleryItems().forEach(function (item) {
         setupEditorItem(item);
       });
