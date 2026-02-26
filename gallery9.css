@@ -836,11 +836,6 @@ body.edit-mode {
   cursor: default;
 }
 
-/* Export dropdown anchor */
-.editor-export-wrap {
-  position: relative;
-  display: inline-flex;
-}
 
 body.edit-mode .g9-item {
   outline: 1px dashed rgba(0,0,0,0.15);

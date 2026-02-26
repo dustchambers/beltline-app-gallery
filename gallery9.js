@@ -2571,72 +2571,6 @@
     item.addEventListener("mousedown", item._onMouseDown);
   }
 
-  // ── Export HTML ──
-
-  function exportAll() {
-    var items = getGalleryItems();
-    var output = "<!-- Gallery Layout -->\n";
-    items.forEach(function (item) {
-      if (isSpacer(item)) {
-        var spans = getSpacerSpans(item);
-        var style = "";
-        if (spans.cols > 1) style += "grid-column:span " + spans.cols + ";";
-        if (spans.rows > 1) style += "grid-row:span " + spans.rows + ";";
-        var textEl = item.querySelector(".spacer-text");
-        var sText   = textEl ? textEl.textContent.trim() : "";
-        var sAlign  = textEl ? (textEl.style.textAlign || "") : "";
-        var sValign = textEl
-          ? (textEl.classList.contains("valign-middle") ? "valign-middle"
-           : textEl.classList.contains("valign-bottom") ? "valign-bottom" : "")
-          : "";
-        var tClass  = ["spacer-text", "valign-top", sValign].filter(Boolean).join(" ").trim();
-        var inner  = sText
-          ? '\n  <div class="' + tClass + '"' +
-            (sAlign ? ' style="text-align:' + sAlign + '"' : '') +
-            '>' + sText + '</div>\n'
-          : "";
-        output += '<div class="g9-item g9-spacer"' +
-          (style ? ' style="' + style + '"' : '') + '>' + inner + '</div>\n';
-        return;
-      }
-
-      var img = item.querySelector("img");
-      var objPos = img.style.objectPosition;
-      var adj = item._adjustments;
-      var imgStyleParts = [];
-      if (objPos && objPos !== "50% 50%") imgStyleParts.push("object-position: " + objPos);
-      if (adj && (adj.contrast !== 100 || adj.brightness !== 100 || adj.saturation !== 100)) {
-        imgStyleParts.push("filter: contrast(" + adj.contrast + "%) brightness(" + adj.brightness + "%) saturate(" + adj.saturation + "%)");
-      }
-      var posAttr = imgStyleParts.length ? ' style="' + imgStyleParts.join("; ") + '"' : "";
-      var spans = getItemSpans(item);
-      var divStyle = "";
-      var cls;
-      if (spans.custom) {
-        // Custom drag-resized: no size class, use inline grid spans
-        divStyle = ' style="grid-column:span ' + spans.cols + ';grid-row:span ' + spans.rows + ';"';
-        cls = ' class="g9-item"';
-      } else {
-        var size = getSize(item);
-        var sizeCls = SIZE_CLASS_MAP[size];
-        cls = sizeCls ? ' class="g9-item ' + sizeCls + '"' : ' class="g9-item"';
-      }
-
-      output +=
-        "<div" + cls + divStyle + ">\n" +
-        '  <img src="' + img.src + '" alt="' + (img.alt || "") + '" loading="lazy"' + posAttr + ">\n" +
-        "</div>\n";
-    });
-
-    navigator.clipboard.writeText(output).then(function () {
-      var btn = document.getElementById("editor-export-html");
-      if (btn) { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Export HTML"; }, 2000); }
-      var tog = document.getElementById("editor-export-toggle");
-      if (tog) { tog.textContent = "Copied! \u25be"; setTimeout(function () { tog.textContent = "Export \u25be"; }, 2000); }
-    });
-    console.log(output);
-  }
-
   // ── Publish Layout (to Cloudflare KV) ──
 
   function hasEditParam() {
@@ -2728,74 +2662,6 @@
       });
   }
 
-  // ── Export Config (JSON) ──
-
-  function exportConfig() {
-    var items = getGalleryItems();
-    var result = items.map(function (item) {
-      if (isSpacer(item)) {
-        var spans = getSpacerSpans(item);
-        var tEl = item.querySelector(".spacer-text");
-        var tValign = tEl
-          ? (tEl.classList.contains("valign-middle") ? "middle"
-           : tEl.classList.contains("valign-bottom") ? "bottom" : null)
-          : null;
-        var tStyle = tEl
-          ? (tEl.classList.contains("text-header") ? "header"
-           : tEl.classList.contains("text-title")  ? "title" : null)
-          : null;
-        var spc = parseGridStyle(item.style.gridColumn);
-        var spr = parseGridStyle(item.style.gridRow);
-        return {
-          type:      "spacer",
-          cols:      spans.cols,
-          rows:      spans.rows,
-          colStart:  spc.start || null,
-          rowStart:  spr.start || null,
-          text:      tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
-          align:     tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
-          valign:    tValign,
-          textStyle: tStyle    || null,
-          bgColor:   item.style.backgroundColor || null,
-          textColor: (tEl && rgbToHex(tEl.style.color)) || null
-        };
-      }
-      var img = item.querySelector("img");
-      var objPos = img.style.objectPosition || "";
-      var spans = getItemSpans(item);
-      var colP = parseGridStyle(item.style.gridColumn);
-      var rowP = parseGridStyle(item.style.gridRow);
-      var entry = {
-        id:       img.dataset.imageId || "",
-        src:      img.src,
-        alt:      img.alt || "",
-        colStart: colP.start || null,
-        rowStart: rowP.start || null
-      };
-      if (spans.custom) {
-        entry.cols = spans.cols;
-        entry.rows = spans.rows;
-      } else {
-        var sz = getSize(item);
-        entry.size = (sz && sz !== "1x1") ? sz : "6x4";
-      }
-      if (objPos && objPos !== "50% 50%") {
-        entry.crop = objPos;
-      }
-      if (item._adjustments) entry.adjustments = item._adjustments;
-      return entry;
-    });
-
-    var json = JSON.stringify(result, null, 2);
-    navigator.clipboard.writeText(json).then(function () {
-      var btn = document.getElementById("editor-export-config");
-      if (btn) { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Export Config"; }, 2000); }
-      var tog = document.getElementById("editor-export-toggle");
-      if (tog) { tog.textContent = "Copied! \u25be"; setTimeout(function () { tog.textContent = "Export \u25be"; }, 2000); }
-    });
-
-    console.log(json);
-  }
 
   // ── Image Adjust Panel ──
 
@@ -2948,18 +2814,6 @@
             '<button id="editor-done">Done</button>' +
             '<button id="editor-edit-image" disabled>\u270f Edit Image</button>' +
             (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
-            '<span class="editor-export-wrap">' +
-              '<button id="editor-export-toggle">Export \u25be</button>' +
-              '<div id="editor-export-menu" style="display:none;position:absolute;top:100%;right:0;z-index:500;' +
-                'background:#1a1a1a;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,0.35)">' +
-                '<button id="editor-export-html" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
-                  'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
-                  'letter-spacing:0.05em;cursor:pointer">Export HTML</button>' +
-                '<button id="editor-export-config" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
-                  'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
-                  'letter-spacing:0.05em;cursor:pointer">Export Config</button>' +
-              '</div>' +
-            '</span>' +
             '<button id="editor-reset">Reset</button>' +
           '</div>' +
         "</div>";
@@ -2979,27 +2833,6 @@
           var items = selectedItems.slice();
           if (items.length === 1) openAdjustPanel(items[0]);
         });
-
-      // Export dropdown
-      var exportToggle = document.getElementById("editor-export-toggle");
-      var exportMenu   = document.getElementById("editor-export-menu");
-      exportToggle.addEventListener("click", function (e) {
-        e.stopPropagation();
-        var open = exportMenu.style.display !== "none";
-        exportMenu.style.display = open ? "none" : "block";
-      });
-      document.getElementById("editor-export-html").addEventListener("click", function () {
-        exportMenu.style.display = "none";
-        exportAll();
-      });
-      document.getElementById("editor-export-config").addEventListener("click", function () {
-        exportMenu.style.display = "none";
-        exportConfig();
-      });
-      // Close dropdown when clicking anywhere else
-      document.addEventListener("click", function _closeExport() {
-        exportMenu.style.display = "none";
-      });
 
       // Reset: lay out all images 3-per-row at 6×4 (landscape) or 4×6 (portrait),
       // remove all spacers, clear saved state, and re-enter a clean editor session.
