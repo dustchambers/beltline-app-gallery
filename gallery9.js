@@ -395,14 +395,19 @@
     if (inlineCols && inlineRows && !isSpacer(item)) {
       return inlineCols + "x" + inlineRows;
     }
-    // 18-col named sizes — check widest first to avoid prefix matches
+    // 18-col named sizes — check widest/tallest first to avoid prefix matches
+    if (item.classList.contains("g9-18x9")) return "18x9";
     if (item.classList.contains("g9-18x8")) return "18x8";
     if (item.classList.contains("g9-18x6")) return "18x6";
     if (item.classList.contains("g9-18x4")) return "18x4";
     if (item.classList.contains("g9-18x2")) return "18x2";
     if (item.classList.contains("g9-18x1")) return "18x1";
+    if (item.classList.contains("g9-12x9")) return "12x9";
+    if (item.classList.contains("g9-12x8")) return "12x8";
     if (item.classList.contains("g9-12x6")) return "12x6";
     if (item.classList.contains("g9-12x4")) return "12x4";
+    if (item.classList.contains("g9-9x9"))  return "9x9";
+    if (item.classList.contains("g9-9x8"))  return "9x8";
     if (item.classList.contains("g9-9x6"))  return "9x6";
     if (item.classList.contains("g9-9x4"))  return "9x4";
     if (item.classList.contains("g9-9x2"))  return "9x2";
@@ -413,6 +418,7 @@
     if (item.classList.contains("g9-6x4"))  return "6x4";
     if (item.classList.contains("g9-6x2"))  return "6x2";
     if (item.classList.contains("g9-6x1"))  return "6x1";
+    if (item.classList.contains("g9-4x9"))  return "4x9";
     if (item.classList.contains("g9-4x8"))  return "4x8";
     if (item.classList.contains("g9-4x6"))  return "4x6";
     if (item.classList.contains("g9-4x4"))  return "4x4";
@@ -467,13 +473,17 @@
     // Square
     "2x2": 2, "4x4": 4, "6x6": 6,
     // Horizontal
-    "6x4": 4, "9x4": 4, "9x6": 6,
-    "12x4": 4, "12x6": 6,
-    "18x4": 4, "18x6": 6, "18x8": 8,
+    "6x4": 4,
+    "9x4": 4, "9x6": 6, "9x8": 8, "9x9": 9,
+    "12x4": 4, "12x6": 6, "12x8": 8, "12x9": 9,
+    "18x4": 4, "18x6": 6, "18x8": 8, "18x9": 9,
     // Vertical
-    "4x6": 6, "4x8": 8, "6x8": 8, "6x9": 9,
+    "4x6": 6, "4x8": 8, "4x9": 9,
+    "6x8": 8, "6x9": 9,
     // Spacer bars
-    "9x1": 1, "9x2": 2, "18x1": 1, "18x2": 2
+    "6x1": 1, "6x2": 2,
+    "9x1": 1, "9x2": 2,
+    "18x1": 1, "18x2": 2
   };
 
   function getItemSpans(item) {
@@ -1679,13 +1689,17 @@
       // Square
       "2x2": 2,  "4x4": 4,  "6x6": 6,
       // Horizontal
-      "6x4": 6,  "9x4": 9,  "9x6": 9,
-      "12x4": 12, "12x6": 12,
-      "18x4": 18, "18x6": 18, "18x8": 18,
+      "6x4": 6,
+      "9x4": 9,  "9x6": 9,  "9x8": 9,  "9x9": 9,
+      "12x4": 12, "12x6": 12, "12x8": 12, "12x9": 12,
+      "18x4": 18, "18x6": 18, "18x8": 18, "18x9": 18,
       // Vertical
-      "4x6": 4,  "4x8": 4,  "6x8": 6,  "6x9": 6,
+      "4x6": 4,  "4x8": 4,  "4x9": 4,
+      "6x8": 6,  "6x9": 6,
       // Spacer bars
-      "9x1": 9,  "9x2": 9,  "18x1": 18, "18x2": 18
+      "6x1": 6,  "6x2": 6,
+      "9x1": 9,  "9x2": 9,
+      "18x1": 18, "18x2": 18
     };
     return sizeMap[getSize(item)] || 1;
   }
