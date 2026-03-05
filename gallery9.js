@@ -3242,24 +3242,15 @@
 
     document.body.classList.add("embedded");
 
-    function postHeight() {
-      var h = document.documentElement.scrollHeight;
-      window.parent.postMessage({ type: "resize", height: h }, "*");
-    }
-
-    window.addEventListener("load", postHeight);
-    new MutationObserver(postHeight).observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true
-    });
-    // Grid row heights change with viewport width (grid-auto-rows uses 100vw),
-    // so the iframe must re-report its height after any horizontal resize.
-    var resizeTimer;
-    window.addEventListener("resize", function () {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(postHeight, 100);
-    });
+    // ResizeObserver fires after layout settles — covers load, content edits,
+    // AND viewport-width changes (grid-auto-rows uses 100vw so row height
+    // changes with window width). One observer replaces load + MutationObserver
+    // + window resize listeners, and always reads an accurate scrollHeight.
+    new ResizeObserver(function () {
+      window.parent.postMessage(
+        { type: "resize", height: document.documentElement.scrollHeight }, "*"
+      );
+    }).observe(document.getElementById("gallery"));
   }
 
   // ── Initialize ──
