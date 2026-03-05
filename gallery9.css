@@ -142,6 +142,15 @@ body.dragging .gallery {
   animation: fadeInUp 0.6s ease both;
 }
 
+/* In view mode: allow the browser to skip rendering off-screen items,
+   releasing decoded image bitmaps under memory pressure.
+   contain-intrinsic-size gives a placeholder size for scroll estimation.
+   Disabled in edit mode to avoid interaction artifacts during drag/resize. */
+body:not(.edit-mode) .g9-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 300px;
+}
+
 /* Permanently suppress the entrance animation once it has played.
    Set by JS via animationend listener on each item. */
 .g9-item.g9-animated {
