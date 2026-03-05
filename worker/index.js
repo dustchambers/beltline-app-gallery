@@ -120,8 +120,8 @@ async function handleGet(env, slug, corsHeaders) {
       ...(fields["images-3"] || []),
     ];
 
-    let images = rawImages.map((img, i) => ({
-      id: `img_${i}`,
+    let images = rawImages.map((img) => ({
+      id: img.url,
       src: img.url || img.fileId || "",
       alt: fields.name || "Gallery Image",
       size: 1,
