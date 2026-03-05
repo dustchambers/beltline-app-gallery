@@ -3253,6 +3253,13 @@
       subtree: true,
       attributes: true
     });
+    // Grid row heights change with viewport width (grid-auto-rows uses 100vw),
+    // so the iframe must re-report its height after any horizontal resize.
+    var resizeTimer;
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(postHeight, 100);
+    });
   }
 
   // ── Initialize ──
