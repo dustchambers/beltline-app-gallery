@@ -17,6 +17,14 @@ body {
 }
 
 /* ── Embed Mode ── */
+/* In the Webflow iframe, all scrolling belongs to the parent page.
+   Prevent the iframe body from creating its own internal scroll context,
+   which causes rubber-band/momentum glitches on mobile and sub-desktop. */
+body.embedded {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body.embedded .navbar,
 body.embedded .hero,
 body.embedded .footer {
