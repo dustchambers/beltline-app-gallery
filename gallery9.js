@@ -487,8 +487,7 @@
   };
 
   function getItemSpans(item) {
-    // If the item has inline grid styles (custom drag-resize), use those.
-    // Otherwise derive from the named size class.
+    // Custom drag-resize: inline styles take priority.
     var col = item.style.gridColumn || "";
     var row = item.style.gridRow || "";
     var inlineCols = parseInt((col.match(/span (\d+)/) || [0, 0])[1]);
@@ -496,12 +495,12 @@
     if (inlineCols && inlineRows) {
       return { cols: inlineCols, rows: inlineRows, custom: true };
     }
-    var size = getSize(item);
-    return {
-      cols: getColSpan(item),
-      rows: SIZE_ROWS[size] || 1,
-      custom: false
-    };
+    // Parse cols×rows directly from the g9-NxM class name — the class IS the
+    // source of truth, so no separate lookup tables are needed.
+    var m = item.className.match(/\bg9-(\d+)x(\d+)\b/);
+    return m
+      ? { cols: parseInt(m[1]), rows: parseInt(m[2]), custom: false }
+      : { cols: 1, rows: 1, custom: false };
   }
 
   function getGridMetrics() {
