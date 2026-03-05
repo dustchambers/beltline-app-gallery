@@ -68,7 +68,7 @@ body.embedded .gallery {
   /* No dense packing — items stay in source order, gaps remain as gaps */
   grid-auto-flow: row;
   gap: var(--s);
-  padding: 0 var(--s) 0;
+  padding: 0 var(--s) var(--s);
   max-width: 1400px;
   margin: 0 auto;
   position: relative; /* needed for absolute-positioned drop preview */
@@ -140,15 +140,6 @@ body.dragging .gallery {
   opacity: 1;
   transform: none;
   animation: fadeInUp 0.6s ease both;
-}
-
-/* In view mode: allow the browser to skip rendering off-screen items,
-   releasing decoded image bitmaps under memory pressure.
-   contain-intrinsic-size gives a placeholder size for scroll estimation.
-   Disabled in edit mode to avoid interaction artifacts during drag/resize. */
-body:not(.edit-mode) .g9-item {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 300px;
 }
 
 /* Permanently suppress the entrance animation once it has played.
