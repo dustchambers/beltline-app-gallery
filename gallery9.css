@@ -21,7 +21,6 @@ body {
    Prevent the iframe body from creating its own internal scroll context,
    which causes rubber-band/momentum glitches on mobile and sub-desktop. */
 body.embedded {
-  overflow: hidden;
   overscroll-behavior: none;
 }
 
