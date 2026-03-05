@@ -68,7 +68,7 @@ body.embedded .gallery {
   /* No dense packing — items stay in source order, gaps remain as gaps */
   grid-auto-flow: row;
   gap: var(--s);
-  padding: 0 var(--s) calc(var(--s) * 2);
+  padding: 0 var(--s) 0;
   max-width: 1400px;
   margin: 0 auto;
   position: relative; /* needed for absolute-positioned drop preview */
