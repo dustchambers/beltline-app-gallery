@@ -86,6 +86,8 @@
     "6x8":  "g9-6x8",
     "6x9":  "g9-6x9",
     // Spacer bars
+    "6x1":  "g9-6x1",
+    "6x2":  "g9-6x2",
     "9x1":  "g9-9x1",
     "9x2":  "g9-9x2",
     "18x1": "g9-18x1",
@@ -98,7 +100,7 @@
     "g9-12x4", "g9-12x6", "g9-12x8", "g9-12x9",
     "g9-18x4", "g9-18x6", "g9-18x8", "g9-18x9",
     "g9-4x6",  "g9-4x8",  "g9-4x9",  "g9-6x8",  "g9-6x9",
-    "g9-9x1",  "g9-9x2",  "g9-18x1", "g9-18x2"
+    "g9-6x1",  "g9-6x2",  "g9-9x1",  "g9-9x2",  "g9-18x1", "g9-18x2"
   ];
 
   var BADGE_LABELS = {
@@ -109,6 +111,7 @@
     "18x4": "18\u00d74", "18x6": "18\u00d76", "18x8": "18\u00d78", "18x9": "18\u00d79",
     "4x6":  "4\u00d76",  "4x8":  "4\u00d78",  "4x9":  "4\u00d79",
     "6x8":  "6\u00d78",  "6x9":  "6\u00d79",
+    "6x1":  "6\u00d71",  "6x2":  "6\u00d72",
     "9x1":  "9\u00d71",  "9x2":  "9\u00d72",
     "18x1": "18\u00d71", "18x2": "18\u00d72"
   };
@@ -408,6 +411,8 @@
     if (item.classList.contains("g9-6x8"))  return "6x8";
     if (item.classList.contains("g9-6x6"))  return "6x6";
     if (item.classList.contains("g9-6x4"))  return "6x4";
+    if (item.classList.contains("g9-6x2"))  return "6x2";
+    if (item.classList.contains("g9-6x1"))  return "6x1";
     if (item.classList.contains("g9-4x8"))  return "4x8";
     if (item.classList.contains("g9-4x6"))  return "4x6";
     if (item.classList.contains("g9-4x4"))  return "4x4";
