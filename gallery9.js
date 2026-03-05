@@ -3244,13 +3244,17 @@
 
     // ResizeObserver fires after layout settles — covers load, content edits,
     // AND viewport-width changes (grid-auto-rows uses 100vw so row height
-    // changes with window width). One observer replaces load + MutationObserver
-    // + window resize listeners, and always reads an accurate scrollHeight.
+    // changes with window width).
+    //
+    // Use gallery.offsetTop + gallery.offsetHeight rather than scrollHeight:
+    // body { min-height: 100% } pins scrollHeight to the current iframe
+    // viewport height, so when the gallery shrinks scrollHeight stays
+    // inflated and the iframe never shrinks ("margin widens" bug).
+    var gallery = document.getElementById("gallery");
     new ResizeObserver(function () {
-      window.parent.postMessage(
-        { type: "resize", height: document.documentElement.scrollHeight }, "*"
-      );
-    }).observe(document.getElementById("gallery"));
+      var h = gallery.offsetTop + gallery.offsetHeight;
+      window.parent.postMessage({ type: "resize", height: h }, "*");
+    }).observe(gallery);
   }
 
   // ── Initialize ──
