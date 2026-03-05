@@ -33,6 +33,7 @@ body.embedded .footer {
 
 body.embedded .gallery {
   padding-top: 12px;
+  padding-bottom: 0;
 }
 
 /* ── Gallery Header ── */
