@@ -2813,7 +2813,7 @@
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
           '<div class="edit-banner-info">' +
-            "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo" +
+            "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo \u00b7 \u21e7\u2318Z: redo" +
             '<span class="save-indicator">\u2713 saved</span>' +
           '</div>' +
           '<div class="edit-banner-actions">' +
