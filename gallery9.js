@@ -14,8 +14,6 @@
   }
 
   function boot(cfg) {
-    console.log("[gallery] boot — config source:", window.GALLERY_CONFIG ? "static GALLERY_CONFIG" : "fetched from worker ?id=");
-    console.log("[gallery] boot — config.id:", cfg.id, "| images:", cfg.images ? cfg.images.length : 0);
     config = cfg;
     STORAGE_KEY = "galleryLayout_" + config.id;
     init();
@@ -69,25 +67,17 @@
     "6x4":  "g9-6x4",
     "9x4":  "g9-9x4",
     "9x6":  "g9-9x6",
-    "9x8":  "g9-9x8",
-    "9x9":  "g9-9x9",
     "12x4": "g9-12x4",
     "12x6": "g9-12x6",
-    "12x8": "g9-12x8",
-    "12x9": "g9-12x9",
     "18x4": "g9-18x4",
     "18x6": "g9-18x6",
     "18x8": "g9-18x8",
-    "18x9": "g9-18x9",
     // Vertical
     "4x6":  "g9-4x6",
     "4x8":  "g9-4x8",
-    "4x9":  "g9-4x9",
     "6x8":  "g9-6x8",
     "6x9":  "g9-6x9",
     // Spacer bars
-    "6x1":  "g9-6x1",
-    "6x2":  "g9-6x2",
     "9x1":  "g9-9x1",
     "9x2":  "g9-9x2",
     "18x1": "g9-18x1",
@@ -96,22 +86,21 @@
 
   var ALL_SIZE_CLASSES = [
     "g9-2x2",  "g9-4x4",  "g9-6x6",
-    "g9-6x4",  "g9-9x4",  "g9-9x6",  "g9-9x8",  "g9-9x9",
-    "g9-12x4", "g9-12x6", "g9-12x8", "g9-12x9",
-    "g9-18x4", "g9-18x6", "g9-18x8", "g9-18x9",
-    "g9-4x6",  "g9-4x8",  "g9-4x9",  "g9-6x8",  "g9-6x9",
-    "g9-6x1",  "g9-6x2",  "g9-9x1",  "g9-9x2",  "g9-18x1", "g9-18x2"
+    "g9-6x4",  "g9-9x4",  "g9-9x6",
+    "g9-12x4", "g9-12x6",
+    "g9-18x4", "g9-18x6", "g9-18x8",
+    "g9-4x6",  "g9-4x8",  "g9-6x8", "g9-6x9",
+    "g9-9x1",  "g9-9x2",  "g9-18x1", "g9-18x2"
   ];
 
   var BADGE_LABELS = {
     "1x1":  "1\u00d71",
     "2x2":  "2\u00d72",  "4x4":  "4\u00d74",  "6x6":  "6\u00d76",
-    "6x4":  "6\u00d74",  "9x4":  "9\u00d74",  "9x6":  "9\u00d76",  "9x8":  "9\u00d78",  "9x9":  "9\u00d79",
-    "12x4": "12\u00d74", "12x6": "12\u00d76", "12x8": "12\u00d78", "12x9": "12\u00d79",
-    "18x4": "18\u00d74", "18x6": "18\u00d76", "18x8": "18\u00d78", "18x9": "18\u00d79",
-    "4x6":  "4\u00d76",  "4x8":  "4\u00d78",  "4x9":  "4\u00d79",
+    "6x4":  "6\u00d74",  "9x4":  "9\u00d74",  "9x6":  "9\u00d76",
+    "12x4": "12\u00d74", "12x6": "12\u00d76",
+    "18x4": "18\u00d74", "18x6": "18\u00d76", "18x8": "18\u00d78",
+    "4x6":  "4\u00d76",  "4x8":  "4\u00d78",
     "6x8":  "6\u00d78",  "6x9":  "6\u00d79",
-    "6x1":  "6\u00d71",  "6x2":  "6\u00d72",
     "9x1":  "9\u00d71",  "9x2":  "9\u00d72",
     "18x1": "18\u00d71", "18x2": "18\u00d72"
   };
@@ -138,11 +127,6 @@
 
   var editorMode = false;
   var editorOverlay = null;
-
-  // Image adjustment panel state
-  var adjustPanel = null;
-  var adjustTarget = null;
-  var adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
 
   var activeItem = null;
   var dragStartX = 0;
@@ -277,10 +261,6 @@
           entry.text || null, entry.align || null, entry.valign || null,
           entry.textStyle || null, entry.bgColor || null, entry.textColor || null
         );
-        if (entry.colStart && entry.rowStart) {
-          spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
-          spacer.style.gridRow    = entry.rowStart + " / span " + (entry.rows || 1);
-        }
         gallery.appendChild(spacer);
         return;
       }
@@ -303,14 +283,6 @@
 
       if (entry.crop && entry.crop !== "50% 50%") {
         img.style.objectPosition = entry.crop;
-      }
-      if (entry.adjustments) {
-        var fa = entry.adjustments;
-        img.style.filter =
-          "contrast(" + fa.contrast + "%) " +
-          "brightness(" + fa.brightness + "%) " +
-          "saturate(" + fa.saturation + "%)";
-        div._adjustments = fa;
       }
 
       // Blur-up: start blurred, clear once image data arrives.
@@ -342,21 +314,6 @@
       div.appendChild(img);
       lockAnimation(div);
       gallery.appendChild(div);
-
-      // Apply KV-published grid position if present in config (fresh load / incognito).
-      // This mirrors the position logic in restoreState() so that published layouts
-      // survive page reloads without requiring localStorage.
-      if (entry.cols && entry.rows) {
-        // Custom size (drag-resized): apply raw span with explicit start
-        clearSizeClasses(div);
-        div.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
-        div.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
-      } else if (entry.colStart && entry.rowStart) {
-        // Named size (e.g. "6x4") with an explicit position
-        var spans = getItemSpans(div);
-        div.style.gridColumn = entry.colStart + " / span " + spans.cols;
-        div.style.gridRow    = entry.rowStart + " / span " + spans.rows;
-      }
     });
   }
 
@@ -395,19 +352,14 @@
     if (inlineCols && inlineRows && !isSpacer(item)) {
       return inlineCols + "x" + inlineRows;
     }
-    // 18-col named sizes — check widest/tallest first to avoid prefix matches
-    if (item.classList.contains("g9-18x9")) return "18x9";
+    // 18-col named sizes — check widest first to avoid prefix matches
     if (item.classList.contains("g9-18x8")) return "18x8";
     if (item.classList.contains("g9-18x6")) return "18x6";
     if (item.classList.contains("g9-18x4")) return "18x4";
     if (item.classList.contains("g9-18x2")) return "18x2";
     if (item.classList.contains("g9-18x1")) return "18x1";
-    if (item.classList.contains("g9-12x9")) return "12x9";
-    if (item.classList.contains("g9-12x8")) return "12x8";
     if (item.classList.contains("g9-12x6")) return "12x6";
     if (item.classList.contains("g9-12x4")) return "12x4";
-    if (item.classList.contains("g9-9x9"))  return "9x9";
-    if (item.classList.contains("g9-9x8"))  return "9x8";
     if (item.classList.contains("g9-9x6"))  return "9x6";
     if (item.classList.contains("g9-9x4"))  return "9x4";
     if (item.classList.contains("g9-9x2"))  return "9x2";
@@ -416,9 +368,6 @@
     if (item.classList.contains("g9-6x8"))  return "6x8";
     if (item.classList.contains("g9-6x6"))  return "6x6";
     if (item.classList.contains("g9-6x4"))  return "6x4";
-    if (item.classList.contains("g9-6x2"))  return "6x2";
-    if (item.classList.contains("g9-6x1"))  return "6x1";
-    if (item.classList.contains("g9-4x9"))  return "4x9";
     if (item.classList.contains("g9-4x8"))  return "4x8";
     if (item.classList.contains("g9-4x6"))  return "4x6";
     if (item.classList.contains("g9-4x4"))  return "4x4";
@@ -473,21 +422,18 @@
     // Square
     "2x2": 2, "4x4": 4, "6x6": 6,
     // Horizontal
-    "6x4": 4,
-    "9x4": 4, "9x6": 6, "9x8": 8, "9x9": 9,
-    "12x4": 4, "12x6": 6, "12x8": 8, "12x9": 9,
-    "18x4": 4, "18x6": 6, "18x8": 8, "18x9": 9,
+    "6x4": 4, "9x4": 4, "9x6": 6,
+    "12x4": 4, "12x6": 6,
+    "18x4": 4, "18x6": 6, "18x8": 8,
     // Vertical
-    "4x6": 6, "4x8": 8, "4x9": 9,
-    "6x8": 8, "6x9": 9,
+    "4x6": 6, "4x8": 8, "6x8": 8, "6x9": 9,
     // Spacer bars
-    "6x1": 1, "6x2": 2,
-    "9x1": 1, "9x2": 2,
-    "18x1": 1, "18x2": 2
+    "9x1": 1, "9x2": 2, "18x1": 1, "18x2": 2
   };
 
   function getItemSpans(item) {
-    // Custom drag-resize: inline styles take priority.
+    // If the item has inline grid styles (custom drag-resize), use those.
+    // Otherwise derive from the named size class.
     var col = item.style.gridColumn || "";
     var row = item.style.gridRow || "";
     var inlineCols = parseInt((col.match(/span (\d+)/) || [0, 0])[1]);
@@ -495,12 +441,12 @@
     if (inlineCols && inlineRows) {
       return { cols: inlineCols, rows: inlineRows, custom: true };
     }
-    // Parse cols×rows directly from the g9-NxM class name — the class IS the
-    // source of truth, so no separate lookup tables are needed.
-    var m = item.className.match(/\bg9-(\d+)x(\d+)\b/);
-    return m
-      ? { cols: parseInt(m[1]), rows: parseInt(m[2]), custom: false }
-      : { cols: 1, rows: 1, custom: false };
+    var size = getSize(item);
+    return {
+      cols: getColSpan(item),
+      rows: SIZE_ROWS[size] || 1,
+      custom: false
+    };
   }
 
   function getGridMetrics() {
@@ -1207,7 +1153,6 @@
 
     resizingItem.style.gridColumn = colStart + " / span " + newCols;
     resizingItem.style.gridRow    = rowStart + " / span " + newRows;
-    updateBadge(resizingItem); // live badge update while dragging
 
     // ── Shift+resize push ──
     // Bottom/br/bl edge expanding downward: push bystanders below the new bottom edge.
@@ -1340,7 +1285,6 @@
         // that restoring an unsized item always applies a sensible size.
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
-      if (item._adjustments) entry.adjustments = item._adjustments;
       return entry;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1404,14 +1348,6 @@
 
         if (entry.crop) {
           item.querySelector("img").style.objectPosition = entry.crop;
-        }
-        if (entry.adjustments) {
-          var fa = entry.adjustments;
-          item._adjustments = fa;
-          item.querySelector("img").style.filter =
-            "contrast(" + fa.contrast + "%) " +
-            "brightness(" + fa.brightness + "%) " +
-            "saturate(" + fa.saturation + "%)";
         }
       });
 
@@ -1554,16 +1490,6 @@
       } else {
         item.querySelector("img").style.objectPosition = "";
       }
-      // Restore adjustments
-      if (entry.adjustments) {
-        item._adjustments = entry.adjustments;
-        var fa = entry.adjustments;
-        item.querySelector("img").style.filter =
-          "contrast(" + fa.contrast + "%) brightness(" + fa.brightness + "%) saturate(" + fa.saturation + "%)";
-      } else {
-        delete item._adjustments;
-        item.querySelector("img").style.filter = "";
-      }
       gallery.appendChild(item);
     });
 
@@ -1669,9 +1595,7 @@
       item.appendChild(badge);
     }
     var size = getSize(item);
-    // Always show cols×rows — for arbitrary drag sizes not in BADGE_LABELS,
-    // format with the × character so it looks consistent during live resize.
-    badge.textContent = BADGE_LABELS[size] || size.replace("x", "\u00d7");
+    badge.textContent = BADGE_LABELS[size] || size;
     badge.style.cssText =
       "position: absolute; bottom: 6px; left: 14px;" +
       "background: " + (BADGE_COLORS[size] || "rgba(0,0,0,0.5)") + ";" +
@@ -1688,17 +1612,13 @@
       // Square
       "2x2": 2,  "4x4": 4,  "6x6": 6,
       // Horizontal
-      "6x4": 6,
-      "9x4": 9,  "9x6": 9,  "9x8": 9,  "9x9": 9,
-      "12x4": 12, "12x6": 12, "12x8": 12, "12x9": 12,
-      "18x4": 18, "18x6": 18, "18x8": 18, "18x9": 18,
+      "6x4": 6,  "9x4": 9,  "9x6": 9,
+      "12x4": 12, "12x6": 12,
+      "18x4": 18, "18x6": 18, "18x8": 18,
       // Vertical
-      "4x6": 4,  "4x8": 4,  "4x9": 4,
-      "6x8": 6,  "6x9": 6,
+      "4x6": 4,  "4x8": 4,  "6x8": 6,  "6x9": 6,
       // Spacer bars
-      "6x1": 6,  "6x2": 6,
-      "9x1": 9,  "9x2": 9,
-      "18x1": 18, "18x2": 18
+      "9x1": 9,  "9x2": 9,  "18x1": 18, "18x2": 18
     };
     return sizeMap[getSize(item)] || 1;
   }
@@ -1917,17 +1837,6 @@
   function clearSelection() {
     selectedItems.forEach(function (el) { el.classList.remove("g9-selected"); });
     selectedItems = [];
-    updateEditButton();
-  }
-
-  function updateEditButton() {
-    var btn = document.getElementById("editor-edit-image");
-    if (!btn) return;
-    var count = selectedItems.length;
-    btn.disabled = count !== 1;
-    btn.title = count === 0 ? "Select one image to edit"
-      : count > 1 ? "Select only one image to edit"
-      : "";
   }
 
   // ── Reorder Drag ──
@@ -2527,36 +2436,6 @@
       isDragging = false;
       isCropping = false;
 
-      // Instant selection feedback on mousedown (before drag threshold confirmed).
-      // Shift+mousedown toggles; plain mousedown singles-selects immediately.
-      // Exception: if item is already in a multi-selection, keep the group intact
-      // so startDrag() can move all selected items together. Group is cleared
-      // by endDrag() after the drop, or on the next plain-click on a different item.
-      if (!isSpacer(item)) {
-        if (e.shiftKey) {
-          var _idx = selectedItems.indexOf(item);
-          if (_idx === -1) {
-            selectedItems.push(item);
-            item.classList.add("g9-selected");
-          } else {
-            selectedItems.splice(_idx, 1);
-            item.classList.remove("g9-selected");
-          }
-          updateEditButton();
-        } else {
-          // If this item is already part of a multi-selection, preserve the group
-          // for the upcoming drag. Only clear if selecting a brand-new item.
-          if (selectedItems.length > 1 && selectedItems.indexOf(item) !== -1) {
-            // keep group selection intact — startDrag will use the full group
-          } else {
-            clearSelection();
-            selectedItems.push(item);
-            item.classList.add("g9-selected");
-            updateEditButton();
-          }
-        }
-      }
-
       // Bring clicked item to front by moving it to end of DOM within the gallery.
       // CSS Grid paints in source order, so the last item in DOM is on top.
       // Skip if it's already last (avoids DOM churn on every click).
@@ -2595,11 +2474,71 @@
     item.addEventListener("mousedown", item._onMouseDown);
   }
 
+  // ── Export HTML ──
+
+  function exportAll() {
+    var items = getGalleryItems();
+    var output = "<!-- Gallery Layout -->\n";
+    items.forEach(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        var style = "";
+        if (spans.cols > 1) style += "grid-column:span " + spans.cols + ";";
+        if (spans.rows > 1) style += "grid-row:span " + spans.rows + ";";
+        var textEl = item.querySelector(".spacer-text");
+        var sText   = textEl ? textEl.textContent.trim() : "";
+        var sAlign  = textEl ? (textEl.style.textAlign || "") : "";
+        var sValign = textEl
+          ? (textEl.classList.contains("valign-middle") ? "valign-middle"
+           : textEl.classList.contains("valign-bottom") ? "valign-bottom" : "")
+          : "";
+        var tClass  = ["spacer-text", "valign-top", sValign].filter(Boolean).join(" ").trim();
+        var inner  = sText
+          ? '\n  <div class="' + tClass + '"' +
+            (sAlign ? ' style="text-align:' + sAlign + '"' : '') +
+            '>' + sText + '</div>\n'
+          : "";
+        output += '<div class="g9-item g9-spacer"' +
+          (style ? ' style="' + style + '"' : '') + '>' + inner + '</div>\n';
+        return;
+      }
+
+      var img = item.querySelector("img");
+      var objPos = img.style.objectPosition;
+      var posAttr = objPos && objPos !== "50% 50%" ? ' style="object-position: ' + objPos + '"' : "";
+      var spans = getItemSpans(item);
+      var divStyle = "";
+      var cls;
+      if (spans.custom) {
+        // Custom drag-resized: no size class, use inline grid spans
+        divStyle = ' style="grid-column:span ' + spans.cols + ';grid-row:span ' + spans.rows + ';"';
+        cls = ' class="g9-item"';
+      } else {
+        var size = getSize(item);
+        var sizeCls = SIZE_CLASS_MAP[size];
+        cls = sizeCls ? ' class="g9-item ' + sizeCls + '"' : ' class="g9-item"';
+      }
+
+      output +=
+        "<div" + cls + divStyle + ">\n" +
+        '  <img src="' + img.src + '" alt="' + (img.alt || "") + '" loading="lazy"' + posAttr + ">\n" +
+        "</div>\n";
+    });
+
+    navigator.clipboard.writeText(output).then(function () {
+      var btn = document.getElementById("editor-export-html");
+      if (btn) { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Export HTML"; }, 2000); }
+      var tog = document.getElementById("editor-export-toggle");
+      if (tog) { tog.textContent = "Copied! \u25be"; setTimeout(function () { tog.textContent = "Export \u25be"; }, 2000); }
+    });
+    console.log(output);
+  }
+
   // ── Publish Layout (to Cloudflare KV) ──
 
   function hasEditParam() {
     var params = new URLSearchParams(window.location.search);
-    return params.has("gedit");
+    return params.has("edit");
   }
 
   function publishLayout() {
@@ -2643,20 +2582,18 @@
         colStart: colP.start || null,
         rowStart: rowP.start || null
       };
-      if (spans.custom || (colP.span > 1 && !SIZE_CLASS_MAP[colP.span + "x" + rowP.span])) {
+      if (spans.custom) {
         entry.cols = spans.cols;
         entry.rows = spans.rows;
       } else {
         var sz = getSize(item);
         entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
-      if (item._adjustments) entry.adjustments = item._adjustments;
       return entry;
     });
 
     var btn = document.getElementById("editor-publish");
 
-    console.log("[gallery] publishLayout — PUT slug:", config.id, "| entries:", layout.length);
     fetch(WORKER_URL + "/" + encodeURIComponent(config.id), {
       method: "PUT",
       headers: {
@@ -2669,16 +2606,14 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
-      .then(function (data) {
-        console.log("[gallery] publishLayout — success:", data);
-        localStorage.removeItem(STORAGE_KEY);
+      .then(function () {
         if (btn) {
-          btn.textContent = "Published — live in ~30s";
-          setTimeout(function () { btn.textContent = "Publish"; }, 3000);
+          btn.textContent = "Published!";
+          setTimeout(function () { btn.textContent = "Publish"; }, 2000);
         }
       })
       .catch(function (err) {
-        console.error("[gallery] publishLayout — FAILED:", err);
+        console.error("Publish failed:", err);
         if (btn) {
           btn.textContent = "Failed!";
           setTimeout(function () { btn.textContent = "Publish"; }, 2000);
@@ -2686,134 +2621,72 @@
       });
   }
 
+  // ── Export Config (JSON) ──
 
-  // ── Image Adjust Panel ──
-
-  function openAdjustPanel(item) {
-    adjustTarget = item;
-    var saved = item._adjustments || { contrast: 100, brightness: 100, saturation: 100 };
-    adjustPending = { contrast: saved.contrast, brightness: saved.brightness, saturation: saved.saturation };
-
-    if (!adjustPanel) {
-      adjustPanel = document.createElement("div");
-      adjustPanel.id = "adjust-panel";
-      adjustPanel.innerHTML =
-        '<div class="adjust-row"><label>Contrast</label>' +
-        '<input type="range" id="adj-contrast" min="50" max="150" step="1">' +
-        '<span id="adj-contrast-val"></span></div>' +
-        '<div class="adjust-row"><label>Brightness</label>' +
-        '<input type="range" id="adj-brightness" min="50" max="150" step="1">' +
-        '<span id="adj-brightness-val"></span></div>' +
-        '<div class="adjust-row"><label>Saturation</label>' +
-        '<input type="range" id="adj-saturation" min="0" max="200" step="1">' +
-        '<span id="adj-saturation-val"></span></div>' +
-        '<div class="adjust-actions">' +
-        '<button id="adj-reset">Reset</button>' +
-        '<button id="adj-apply">Apply</button></div>';
-      document.body.appendChild(adjustPanel);
-
-      ["contrast", "brightness", "saturation"].forEach(function (prop) {
-        var input = document.getElementById("adj-" + prop);
-        input.addEventListener("input", function () {
-          adjustPending[prop] = parseInt(input.value, 10);
-          document.getElementById("adj-" + prop + "-val").textContent = input.value;
-          applyAdjustPreview();
-        });
-      });
-      document.getElementById("adj-reset").addEventListener("click", function () {
-        adjustPending = { contrast: 100, brightness: 100, saturation: 100 };
-        syncAdjustSliders();
-        applyAdjustPreview();
-      });
-      document.getElementById("adj-apply").addEventListener("click", function () {
-        commitAdjustments();
-        closeAdjustPanel(false);
-      });
-    }
-
-    syncAdjustSliders();
-    applyAdjustPreview();
-    positionAdjustPanel(item);
-    adjustPanel.classList.add("active");
-
-    setTimeout(function () {
-      document.addEventListener("mousedown", onAdjustOutsideClick);
-    }, 0);
-    document.addEventListener("keydown", onAdjustEscape);
-  }
-
-  function syncAdjustSliders() {
-    ["contrast", "brightness", "saturation"].forEach(function (prop) {
-      var input = document.getElementById("adj-" + prop);
-      if (input) {
-        input.value = adjustPending[prop];
-        document.getElementById("adj-" + prop + "-val").textContent = adjustPending[prop];
+  function exportConfig() {
+    var items = getGalleryItems();
+    var result = items.map(function (item) {
+      if (isSpacer(item)) {
+        var spans = getSpacerSpans(item);
+        var tEl = item.querySelector(".spacer-text");
+        var tValign = tEl
+          ? (tEl.classList.contains("valign-middle") ? "middle"
+           : tEl.classList.contains("valign-bottom") ? "bottom" : null)
+          : null;
+        var tStyle = tEl
+          ? (tEl.classList.contains("text-header") ? "header"
+           : tEl.classList.contains("text-title")  ? "title" : null)
+          : null;
+        var spc = parseGridStyle(item.style.gridColumn);
+        var spr = parseGridStyle(item.style.gridRow);
+        return {
+          type:      "spacer",
+          cols:      spans.cols,
+          rows:      spans.rows,
+          colStart:  spc.start || null,
+          rowStart:  spr.start || null,
+          text:      tEl && tEl.textContent.trim() ? tEl.textContent.trim() : null,
+          align:     tEl && tEl.style.textAlign     ? tEl.style.textAlign     : null,
+          valign:    tValign,
+          textStyle: tStyle    || null,
+          bgColor:   item.style.backgroundColor || null,
+          textColor: (tEl && rgbToHex(tEl.style.color)) || null
+        };
       }
-    });
-  }
-
-  function applyAdjustPreview() {
-    if (!adjustTarget) return;
-    var img = adjustTarget.querySelector("img");
-    var f = adjustPending;
-    if (f.contrast === 100 && f.brightness === 100 && f.saturation === 100) {
-      img.style.filter = "";
-    } else {
-      img.style.filter =
-        "contrast(" + f.contrast + "%) " +
-        "brightness(" + f.brightness + "%) " +
-        "saturate(" + f.saturation + "%)";
-    }
-  }
-
-  function commitAdjustments() {
-    if (!adjustTarget) return;
-    var f = adjustPending;
-    if (f.contrast === 100 && f.brightness === 100 && f.saturation === 100) {
-      delete adjustTarget._adjustments;
-    } else {
-      adjustTarget._adjustments = { contrast: f.contrast, brightness: f.brightness, saturation: f.saturation };
-    }
-    autoSave();
-  }
-
-  function closeAdjustPanel(revert) {
-    if (revert && adjustTarget) {
-      var saved = adjustTarget._adjustments;
-      var img = adjustTarget.querySelector("img");
-      if (saved) {
-        img.style.filter =
-          "contrast(" + saved.contrast + "%) " +
-          "brightness(" + saved.brightness + "%) " +
-          "saturate(" + saved.saturation + "%)";
+      var img = item.querySelector("img");
+      var objPos = img.style.objectPosition || "";
+      var spans = getItemSpans(item);
+      var colP = parseGridStyle(item.style.gridColumn);
+      var rowP = parseGridStyle(item.style.gridRow);
+      var entry = {
+        id:       img.dataset.imageId || "",
+        src:      img.src,
+        alt:      img.alt || "",
+        colStart: colP.start || null,
+        rowStart: rowP.start || null
+      };
+      if (spans.custom) {
+        entry.cols = spans.cols;
+        entry.rows = spans.rows;
       } else {
-        img.style.filter = "";
+        var sz = getSize(item);
+        entry.size = (sz && sz !== "1x1") ? sz : "6x4";
       }
-    }
-    if (adjustPanel) adjustPanel.classList.remove("active");
-    adjustTarget = null;
-    document.removeEventListener("mousedown", onAdjustOutsideClick);
-    document.removeEventListener("keydown", onAdjustEscape);
-  }
+      if (objPos && objPos !== "50% 50%") {
+        entry.crop = objPos;
+      }
+      return entry;
+    });
 
-  function onAdjustOutsideClick(e) {
-    if (adjustPanel && !adjustPanel.contains(e.target)) closeAdjustPanel(true);
-  }
+    var json = JSON.stringify(result, null, 2);
+    navigator.clipboard.writeText(json).then(function () {
+      var btn = document.getElementById("editor-export-config");
+      if (btn) { btn.textContent = "Copied!"; setTimeout(function () { btn.textContent = "Export Config"; }, 2000); }
+      var tog = document.getElementById("editor-export-toggle");
+      if (tog) { tog.textContent = "Copied! \u25be"; setTimeout(function () { tog.textContent = "Export \u25be"; }, 2000); }
+    });
 
-  function onAdjustEscape(e) {
-    if (e.key === "Escape") closeAdjustPanel(true);
-  }
-
-  function positionAdjustPanel(item) {
-    var rect = item.getBoundingClientRect();
-    var panelH = 160;
-    var top = rect.top > panelH + 8
-      ? rect.top + window.scrollY - panelH - 8
-      : rect.bottom + window.scrollY + 8;
-    var left = rect.left + window.scrollX + (rect.width / 2) - 150;
-    left = Math.max(8, Math.min(left, window.innerWidth - 308));
-    adjustPanel.style.top = top + "px";
-    adjustPanel.style.left = left + "px";
+    console.log(json);
   }
 
   // ── Editor Mode Toggle ──
@@ -2831,14 +2704,24 @@
       editorOverlay.innerHTML =
         '<div class="edit-banner">' +
           '<div class="edit-banner-info">' +
-            "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo \u00b7 \u21e7\u2318Z: redo" +
+            "EDITOR \u2014 Drag: reorder \u00b7 Shift+Drag: push rows down \u00b7 Shift+Click: multi-select \u00b7 \u2318Z: undo" +
             '<span class="save-indicator">\u2713 saved</span>' +
           '</div>' +
           '<div class="edit-banner-actions">' +
             '<button id="editor-done">Done</button>' +
-            '<button id="editor-edit-image" disabled>\u270f Edit Image</button>' +
             (canEdit ? '<button id="editor-publish">Publish</button>' : '') +
-            '<button id="editor-shuffle">Shuffle</button>' +
+            '<span class="editor-export-wrap">' +
+              '<button id="editor-export-toggle">Export \u25be</button>' +
+              '<div id="editor-export-menu" style="display:none;position:absolute;top:100%;right:0;z-index:500;' +
+                'background:#1a1a1a;min-width:130px;box-shadow:0 4px 16px rgba(0,0,0,0.35)">' +
+                '<button id="editor-export-html" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
+                  'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
+                  'letter-spacing:0.05em;cursor:pointer">Export HTML</button>' +
+                '<button id="editor-export-config" style="display:block;width:100%;text-align:left;padding:0.5rem 1rem;' +
+                  'background:none;border:none;color:#EDEBE0;font-family:Inconsolata,monospace;font-size:0.8rem;' +
+                  'letter-spacing:0.05em;cursor:pointer">Export Config</button>' +
+              '</div>' +
+            '</span>' +
             '<button id="editor-reset">Reset</button>' +
           '</div>' +
         "</div>";
@@ -2853,20 +2736,29 @@
           .getElementById("editor-publish")
           .addEventListener("click", publishLayout);
       }
-      document.getElementById("editor-edit-image")
-        .addEventListener("click", function () {
-          var items = selectedItems.slice();
-          if (items.length === 1) openAdjustPanel(items[0]);
-        });
+      // Export dropdown
+      var exportToggle = document.getElementById("editor-export-toggle");
+      var exportMenu   = document.getElementById("editor-export-menu");
+      exportToggle.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var open = exportMenu.style.display !== "none";
+        exportMenu.style.display = open ? "none" : "block";
+      });
+      document.getElementById("editor-export-html").addEventListener("click", function () {
+        exportMenu.style.display = "none";
+        exportAll();
+      });
+      document.getElementById("editor-export-config").addEventListener("click", function () {
+        exportMenu.style.display = "none";
+        exportConfig();
+      });
+      // Close dropdown when clicking anywhere else
+      document.addEventListener("click", function _closeExport() {
+        exportMenu.style.display = "none";
+      });
 
       // Reset: lay out all images 3-per-row at 6×4 (landscape) or 4×6 (portrait),
       // remove all spacers, clear saved state, and re-enter a clean editor session.
-      document
-        .getElementById("editor-shuffle")
-        .addEventListener("click", function () {
-          shuffleLayout();
-        });
-
       document
         .getElementById("editor-reset")
         .addEventListener("click", function () {
@@ -2891,149 +2783,6 @@
           refreshSlots();
           autoSave();
         });
-
-  // ── Row-recipe size assignment ──
-  // Recipes are col-width arrays that sum to 18 — guarantees no orphan columns.
-  // Heights are assigned per-image from a weighted palette, filtered to valid
-  // combinations for that column width.
-  var VALID_HEIGHTS = {
-    4:  [4, 6, 8, 9],
-    6:  [4, 6, 8, 9],
-    9:  [4, 6, 8, 9],
-    12: [4, 6, 8, 9],
-    18: [4, 6, 8, 9]
-  };
-
-  // Flat weighted recipe array — pick by random index
-  var RECIPES = [
-    [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],   [6,6,6],
-    [9,9],     [9,9],     [9,9],     [9,9],
-    [6,12],    [6,12],    [6,12],
-    [12,6],    [12,6],    [12,6],
-    [4,4,4,6], [4,4,4,6],
-    [18]
-  ];
-
-  var HEIGHT_PALETTE = [4,4,4,4,4,4, 6,6,6,6, 8,8, 9];
-
-  // ── Shuffle Layout ──
-
-  function shuffleLayout() {
-    pushUndo();
-
-    var gallery = getGallery();
-    var items = getGalleryItems();
-
-    // Remove all spacers — clean slate
-    items.filter(isSpacer).forEach(function (s) { s.remove(); });
-
-    // Re-read after spacer removal
-    var imgItems = getGalleryItems();
-
-    // Fisher-Yates shuffle
-    for (var i = imgItems.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = imgItems[i];
-      imgItems[i] = imgItems[j];
-      imgItems[j] = tmp;
-    }
-
-    function pickRandom(arr) {
-      return arr[Math.floor(Math.random() * arr.length)];
-    }
-
-    // Fisher-Yates shuffle a copy of an array (used to randomise recipe slot order)
-    function shuffleArray(arr) {
-      var a = arr.slice();
-      for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var t = a[i]; a[i] = a[j]; a[j] = t;
-      }
-      return a;
-    }
-
-    var remaining = imgItems.slice(); // work from a copy
-
-    // Pre-computed fallback recipes for when recipe length > remaining items.
-    // All widths guaranteed to be in {4,6,9,12,18} — no arithmetic remainder risk.
-    var FALLBACK_RECIPES = {
-      1: [[18], [12], [9], [6]],
-      2: [[9,9], [6,12], [12,6]],
-      3: [[6,6,6], [6,12], [12,6]],
-      4: [[4,4,4,6], [6,4,4,4], [4,6,4,4], [4,4,6,4]]
-    };
-
-    var colCursor = 1;   // next column to place into (1-based)
-    var rowCursor = 1;   // current grid row (1-based)
-
-    while (remaining.length > 0) {
-      // Pick a recipe; fall back to safe pre-computed recipes when fewer items remain
-      var recipe = shuffleArray(pickRandom(RECIPES));
-
-      if (recipe.length > remaining.length) {
-        var opts = FALLBACK_RECIPES[remaining.length];
-        recipe = opts ? shuffleArray(pickRandom(opts)) : [18];
-      }
-
-      // ── Collect slots for this recipe row ──
-      // Determine cols and rows for each item first, then normalise row height
-      // to the maximum so all items share the same height — no mid-row gaps.
-      var slots = [];
-      for (var si = 0; si < recipe.length && remaining.length > 0; si++) {
-        var cols = recipe[si];
-        var validH = VALID_HEIGHTS[cols] || [4];
-        var rows = pickRandom(HEIGHT_PALETTE);
-        for (var attempt = 0; attempt < 10 && validH.indexOf(rows) === -1; attempt++) {
-          rows = pickRandom(HEIGHT_PALETTE);
-        }
-        if (validH.indexOf(rows) === -1) rows = validH[0];
-        slots.push({ item: remaining.shift(), cols: cols, rows: rows });
-      }
-
-      // Row height = tallest value valid for ALL slot widths in this recipe row.
-      // We intersect valid heights across all slots to avoid producing size keys
-      // like "12x9" that don't exist in SIZE_CLASS_MAP.
-      var validForAll = VALID_HEIGHTS[slots[0].cols] ? VALID_HEIGHTS[slots[0].cols].slice() : [4];
-      for (var k = 1; k < slots.length; k++) {
-        var h = VALID_HEIGHTS[slots[k].cols] || [4];
-        validForAll = validForAll.filter(function(v) { return h.indexOf(v) !== -1; });
-      }
-      if (validForAll.length === 0) validForAll = [4]; // safety: always at least one option
-      // Pick the tallest valid height that any individual slot rolled
-      var rawMax = 0;
-      for (var k = 0; k < slots.length; k++) {
-        if (slots[k].rows > rawMax) rawMax = slots[k].rows;
-      }
-      // Find the largest value in the intersection that doesn't exceed rawMax
-      validForAll.sort(function(a, b) { return b - a; }); // descending
-      var rowHeight = validForAll[validForAll.length - 1]; // fallback: smallest valid
-      for (var k = 0; k < validForAll.length; k++) {
-        if (validForAll[k] <= rawMax) { rowHeight = validForAll[k]; break; }
-      }
-      if (rowHeight < 1) rowHeight = 4;
-
-      // ── Place each slot directly onto the grid ──
-      for (var p = 0; p < slots.length; p++) {
-        var slot = slots[p];
-        clearSizeClasses(slot.item);
-        applySizeClass(slot.item, slot.cols + "x" + rowHeight);
-        slot.item.style.gridColumn = colCursor + " / span " + slot.cols;
-        slot.item.style.gridRow    = rowCursor + " / span " + rowHeight;
-        gallery.appendChild(slot.item);
-        colCursor += slot.cols;
-      }
-
-      // Advance to the next row
-      rowCursor += rowHeight;
-      colCursor = 1;
-    }
-
-    pinAllItems();
-    mergeAdjacentSpacers();
-    refreshOrderNumbers();
-    refreshSlots();
-    autoSave();
-  }
 
       getGalleryItems().forEach(function (item) {
         setupEditorItem(item);
@@ -3081,13 +2830,30 @@
         if (!activeItem) return;
 
         if (isDragging) {
-          // Drag completed — clear the mousedown pre-selection
-          clearSelection();
           endDrag();
         } else if (isCropping) {
           endCrop(activeItem);
         } else {
-          // True click (no drag) — selection already applied on mousedown, nothing to do.
+          // True click (no drag, no crop) — handle selection
+          if (e.shiftKey) {
+            // Shift+click: toggle this item in the multi-select set.
+            // Only reaches here if the mouse didn't move past DRAG_THRESHOLD,
+            // so crop/reposition is not affected.
+            var tgt = activeItem;
+            var idx = selectedItems.indexOf(tgt);
+            if (idx === -1) {
+              selectedItems.push(tgt);
+              tgt.classList.add("g9-selected");
+            } else {
+              selectedItems.splice(idx, 1);
+              tgt.classList.remove("g9-selected");
+            }
+          } else {
+            // Plain click on unselected item — clear selection
+            if (selectedItems.indexOf(activeItem) === -1) {
+              clearSelection();
+            }
+          }
           // Spacer body click: no auto-activate — text mode only via T button cycle.
           // Clean up any push-down/push-right state that didn't lead to a drop
           if (isPushDown)  restorePushDown();
@@ -3104,8 +2870,6 @@
       // Clicking gallery whitespace / slots / background deselects all items
       // and closes any open spacer text/color menus.
       window._editorBgClick = function (e) {
-        // Don't clear selection when clicking the editor banner (buttons, dropdowns, etc.)
-        if (e.target.closest("#edit-overlay")) return;
         if (!e.target.closest(".g9-item")) {
           if (activeSpacerCleanup) activeSpacerCleanup();
           clearSelection();
@@ -3255,14 +3019,6 @@
 
     document.body.classList.add("embedded");
 
-    // ResizeObserver fires after layout settles — covers load, content edits,
-    // AND viewport-width changes (grid-auto-rows uses 100vw so row height
-    // changes with window width).
-    //
-    // Use gallery.offsetTop + gallery.offsetHeight rather than scrollHeight:
-    // body { min-height: 100% } pins scrollHeight to the current iframe
-    // viewport height, so when the gallery shrinks scrollHeight stays
-    // inflated and the iframe never shrinks ("margin widens" bug).
     var gallery = document.getElementById("gallery");
     new ResizeObserver(function () {
       var h = gallery.offsetTop + gallery.offsetHeight;
