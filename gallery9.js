@@ -2538,7 +2538,7 @@
 
   function hasEditParam() {
     var params = new URLSearchParams(window.location.search);
-    return params.has("edit");
+    return params.has("edit") || params.has("gedit");
   }
 
   function publishLayout() {
