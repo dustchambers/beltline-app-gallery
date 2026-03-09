@@ -261,6 +261,10 @@
           entry.text || null, entry.align || null, entry.valign || null,
           entry.textStyle || null, entry.bgColor || null, entry.textColor || null
         );
+        if (entry.colStart && entry.rowStart) {
+          spacer.style.gridColumn = entry.colStart + " / span " + (entry.cols || 1);
+          spacer.style.gridRow    = entry.rowStart + " / span " + (entry.rows || 1);
+        }
         gallery.appendChild(spacer);
         return;
       }
@@ -310,6 +314,14 @@
         }
         // Landscape stays 6x4, square images stay 6x4 (better than 1×1)
       });
+
+      if (entry.cols && entry.rows) {
+        div.style.gridColumn = (entry.colStart ? entry.colStart + " / " : "") + "span " + entry.cols;
+        div.style.gridRow    = (entry.rowStart ? entry.rowStart + " / " : "") + "span " + entry.rows;
+      } else if (entry.colStart && entry.rowStart) {
+        div.style.gridColumn = entry.colStart + " / span " + (getItemSpans(div).cols || 1);
+        div.style.gridRow    = entry.rowStart + " / span " + (getItemSpans(div).rows || 1);
+      }
 
       div.appendChild(img);
       lockAnimation(div);
