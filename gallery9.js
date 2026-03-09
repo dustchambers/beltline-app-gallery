@@ -3031,7 +3031,7 @@
   function init() {
     renderGallery();
     ensureLightbox();
-    restoreState();
+    if (hasEditParam()) restoreState();
     bindClicks();
 
     // Lightbox controls
