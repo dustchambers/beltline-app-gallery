@@ -2607,6 +2607,7 @@
         return res.json();
       })
       .then(function () {
+        localStorage.removeItem(STORAGE_KEY);
         if (btn) {
           btn.textContent = "Published!";
           setTimeout(function () { btn.textContent = "Publish"; }, 2000);
